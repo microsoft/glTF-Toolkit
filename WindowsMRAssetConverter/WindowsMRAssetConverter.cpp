@@ -63,17 +63,17 @@ public:
         m_tempStream(std::make_shared<std::stringstream>(std::ios_base::binary | std::ios_base::in | std::ios_base::out))
     { }
 
-    std::shared_ptr<std::istream> GetInputStream(const std::string& uri) const override
+    std::shared_ptr<std::istream> GetInputStream(const std::string&) const override
     {
         throw std::logic_error("Not implemented");
     }
 
-    std::shared_ptr<std::ostream> GetOutputStream(const std::string& uri) const override
+    std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override
     {
         return m_stream;
     }
 
-    std::shared_ptr<std::iostream> GetTemporaryStream(const std::string& uri) const override
+    std::shared_ptr<std::iostream> GetTemporaryStream(const std::string&) const override
     {
         return m_tempStream;
     }
@@ -440,7 +440,7 @@ int wmain(int argc, wchar_t *argv[])
 
     GLTFStreamReader streamReader(tempDirectory);
     std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(outFilePath);
-    SerializeBinary(document, streamReader, std::move(streamFactory));
+    SerializeBinary(document, streamReader, streamFactory);
 
     std::cout << "Done!" << std::endl;
     std::wcout << L"Output file: " << outFilePath << std::endl;

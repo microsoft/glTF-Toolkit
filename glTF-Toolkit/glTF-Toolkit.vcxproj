@@ -104,8 +104,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>d3d11.lib;dxgi.lib;pathcch.lib;GLTFSDK.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.10.0\build\native\lib\$(Platform)\$(Configuration)\static\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -123,8 +125,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>d3d11.lib;dxgi.lib;pathcch.lib;GLTFSDK.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.10.0\build\native\lib\$(Platform)\$(Configuration)\static\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -146,8 +150,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>d3d11.lib;dxgi.lib;pathcch.lib;GLTFSDK.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.10.0\build\native\lib\$(Platform)\$(Configuration)\static\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -169,8 +175,10 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <Lib>
-      <AdditionalDependencies>d3d11.lib;dxgi.lib;pathcch.lib;GLTFSDK.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.10.0\build\native\lib\$(Platform)\$(Configuration)\static\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>

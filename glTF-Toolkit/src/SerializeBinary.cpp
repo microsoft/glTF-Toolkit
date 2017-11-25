@@ -19,7 +19,7 @@ namespace
     static std::string MimeTypeFromUri(const std::string& uri)
     {
         auto extension = uri.substr(uri.rfind('.') + 1, 3);
-        std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+        std::transform(extension.begin(), extension.end(), extension.begin(), [](char c) { return static_cast<char>(::tolower(static_cast<int>(c))); });
 
         if (extension == FILE_EXT_DDS)
         {

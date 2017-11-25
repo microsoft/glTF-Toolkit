@@ -40,5 +40,6 @@
 #include <iostream>
 #include <sstream>
 #include <set>
+#include <string>
 
 #include <stdio.h>
