@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="inc">
+      <UniqueIdentifier>{2156fb82-8d5e-4cc3-b2ac-e13a18bc665f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{620de9b6-9c44-44b6-9d93-99834c5efdf2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="inc\DeviceResources.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFLODUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFTextureCompressionUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFTextureLoadingUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFTexturePackingUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\SerializeBinary.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\pch.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLBtoGLTF.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\DeviceResources.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLTFLODUtils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLTFTextureCompressionUtils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLTFTextureLoadingUtils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLTFTexturePackingUtils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SerializeBinary.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLBtoGLTF.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

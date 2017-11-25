@@ -1,0 +1,118 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="GLBSerializerTests.cpp" />
+    <ClCompile Include="GLTFLODUtilsTests.cpp" />
+    <ClCompile Include="GLTFTextureCompressionUtilsTests.cpp" />
+    <ClCompile Include="GLTFTexturePackingUtilsTests.cpp" />
+    <ClCompile Include="..\glTF-Toolkit\src\pch.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Helpers">
+      <UniqueIdentifier>{7294793d-6c71-438a-828f-68361c3db329}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{53c10f0a-e8fc-42e4-b612-17631dcd7755}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources\WaterBottle">
+      <UniqueIdentifier>{29129a4d-ff37-427e-9047-6d1044de85b0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources\WaterBottle_ORM">
+      <UniqueIdentifier>{c7fc3736-b68e-4f6d-b93b-1bb4eda5b1ff}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\gltf\CubeAsset3D.gltf">
+      <Filter>Resources</Filter>
+    </None>
+    <None Include="Resources\gltf\CubeWithLOD.gltf">
+      <Filter>Resources</Filter>
+    </None>
+    <None Include="packages.config" />
+    <None Include="Resources\gltf\WaterBottle\WaterBottle.bin">
+      <Filter>Resources\WaterBottle</Filter>
+    </None>
+    <None Include="Resources\gltf\WaterBottle\WaterBottle.gltf">
+      <Filter>Resources\WaterBottle</Filter>
+    </None>
+    <None Include="Resources\gltf\WaterBottle_ORM\WaterBottle.bin">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </None>
+    <None Include="Resources\gltf\WaterBottle_ORM\WaterBottle.gltf">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </None>
+    <None Include="Resources\gltf\WaterBottle_ORM\WaterBottle_WindowsMR.gltf">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Resources\gltf\WaterBottle\WaterBottle_baseColor.png">
+      <Filter>Resources\WaterBottle</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle\WaterBottle_diffuse.png">
+      <Filter>Resources\WaterBottle</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle\WaterBottle_emissive.png">
+      <Filter>Resources\WaterBottle</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle\WaterBottle_normal.png">
+      <Filter>Resources\WaterBottle</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle\WaterBottle_occlusion.png">
+      <Filter>Resources\WaterBottle</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle\WaterBottle_roughnessMetallic.png">
+      <Filter>Resources\WaterBottle</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle\WaterBottle_specularGlossiness.png">
+      <Filter>Resources\WaterBottle</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_baseColor.DDS">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_baseColor.png">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_diffuse.png">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_emissive.DDS">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_emissive.png">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_normal.dds">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_normal.png">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_occlusion.png">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_occlusionRoughnessMetallic.dds">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_occlusionRoughnessMetallic.png">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_roughnessMetallic.png">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_specularGlossiness.png">
+      <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Helpers\TestUtils.h">
+      <Filter>Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Helpers\StreamMock.h">
+      <Filter>Helpers</Filter>
+    </ClInclude>
+    <ClInclude Include="Helpers\WStringUtils.h">
+      <Filter>Helpers</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
