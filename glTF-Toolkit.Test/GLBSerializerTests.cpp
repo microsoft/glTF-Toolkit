@@ -100,7 +100,7 @@ namespace Microsoft
                         TestStreamReader streamReader(TestUtils::GetAbsolutePath(c_waterBottleJson));
                         auto stream = std::make_shared<std::stringstream>(std::ios_base::app | std::ios_base::binary | std::ios_base::in | std::ios_base::out);
                         std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<InMemoryStreamFactory>(stream);
-                        SerializeBinary(doc, streamReader, std::move(streamFactory));
+                        SerializeBinary(doc, streamReader, streamFactory);
 
                         // Deserialize the GLB again
                         auto glbReader = std::make_unique<GLBResourceReader>(streamReader, stream);
