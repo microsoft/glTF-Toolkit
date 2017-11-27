@@ -161,7 +161,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.10.0\build\native\lib\$(Platform)\$(Configuration)\static;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.11.0\build\native\lib\$(Platform)\$(Configuration)\static;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d11.lib;dxgi.lib;pathcch.lib;GLTFSDK.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -178,7 +178,7 @@
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.10.0\build\native\lib\$(Platform)\$(Configuration)\static;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.11.0\build\native\lib\$(Platform)\$(Configuration)\static;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d11.lib;dxgi.lib;pathcch.lib;GLTFSDK.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -199,7 +199,7 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.10.0\build\native\lib\$(Platform)\$(Configuration)\static;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.11.0\build\native\lib\$(Platform)\$(Configuration)\static;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d11.lib;dxgi.lib;pathcch.lib;GLTFSDK.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -220,7 +220,7 @@
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.10.0\build\native\lib\$(Platform)\$(Configuration)\static;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)packages\Microsoft.glTF.CPP.1.3.11.0\build\native\lib\$(Platform)\$(Configuration)\static;$(VCInstallDir)UnitTest\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>d3d11.lib;dxgi.lib;pathcch.lib;GLTFSDK.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -228,7 +228,8 @@
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\rapidjson.0.0.2.5\build\native\rapidjson.targets" Condition="Exists('..\packages\rapidjson.0.0.2.5\build\native\rapidjson.targets')" />
     <Import Project="..\packages\directxtex_desktop_2015.2017.11.1.1\build\native\directxtex_desktop_2015.targets" Condition="Exists('..\packages\directxtex_desktop_2015.2017.11.1.1\build\native\directxtex_desktop_2015.targets')" />
-    <Import Project="..\packages\Microsoft.glTF.CPP.1.3.10.0\build\native\Microsoft.glTF.CPP.targets" Condition="Exists('..\packages\Microsoft.glTF.CPP.1.3.10.0\build\native\Microsoft.glTF.CPP.targets')" />
+    <Import Project="..\packages\Microsoft.glTF.CPP.1.3.11.0\build\native\Microsoft.glTF.CPP.targets" Condition="Exists('..\packages\Microsoft.glTF.CPP.1.3.11.0\build\native\Microsoft.glTF.CPP.targets')" />
+    <Import Project="..\packages\rapidjson.temprelease.0.0.2.18\build\native\rapidjson.temprelease.targets" Condition="Exists('..\packages\rapidjson.temprelease.0.0.2.18\build\native\rapidjson.temprelease.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -236,6 +237,7 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\rapidjson.0.0.2.5\build\native\rapidjson.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\rapidjson.0.0.2.5\build\native\rapidjson.targets'))" />
     <Error Condition="!Exists('..\packages\directxtex_desktop_2015.2017.11.1.1\build\native\directxtex_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_desktop_2015.2017.11.1.1\build\native\directxtex_desktop_2015.targets'))" />
-    <Error Condition="!Exists('..\packages\Microsoft.glTF.CPP.1.3.10.0\build\native\Microsoft.glTF.CPP.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.glTF.CPP.1.3.10.0\build\native\Microsoft.glTF.CPP.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.glTF.CPP.1.3.11.0\build\native\Microsoft.glTF.CPP.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.glTF.CPP.1.3.11.0\build\native\Microsoft.glTF.CPP.targets'))" />
+    <Error Condition="!Exists('..\packages\rapidjson.temprelease.0.0.2.18\build\native\rapidjson.temprelease.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\rapidjson.temprelease.0.0.2.18\build\native\rapidjson.temprelease.targets'))" />
   </Target>
 </Project>
