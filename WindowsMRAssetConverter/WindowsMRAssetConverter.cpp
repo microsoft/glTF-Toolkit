@@ -305,7 +305,7 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     const std::wstring& tempDirectory)
 {
     // Load the document
-    wchar_t *inputFileName = PathFindFileName(inputFilePath.c_str());
+    std::wstring inputFileName = PathFindFileName(inputFilePath.c_str());
     std::wcout << L"Loading input document: " << inputFileName << L"..." << std::endl;
 
     std::wstring inputGltf(inputFilePath);
@@ -313,18 +313,19 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     {
         // Convert the GLB to GLTF in the temp directory
 
-        std::wstring inputGltfFullPath = tempDirectory + inputFileName;
-        wchar_t *inputGltfPathRaw = &inputGltfFullPath[0];
-        PathRemoveExtension(inputGltfPathRaw);
+        std::string inputFilePathA(inputFilePath.begin(), inputFilePath.end());
+        std::string tempDirectoryA(tempDirectory.begin(), tempDirectory.end());
+
+        wchar_t *inputFileNameRaw = &inputFileName[0];
+        PathRemoveExtension(inputFileNameRaw);
 
         // inputGltfName is the path to the converted GLTF without extension
-        std::wstring inputGltfName = inputGltfPathRaw;
+        std::wstring inputGltfName = inputFileNameRaw;
         std::string inputGltfNameA = std::string(inputGltfName.begin(), inputGltfName.end());
-        std::string inputFilePathA(inputFilePath.begin(), inputFilePath.end());
 
-        GLBToGLTF::UnpackGLB(inputGltfNameA, inputFilePathA);
+        GLBToGLTF::UnpackGLB(inputFilePathA, tempDirectoryA, inputGltfNameA);
 
-        inputGltf = inputGltfName + EXTENSION_GLTF;
+        inputGltf = tempDirectory + inputGltfName + EXTENSION_GLTF;
     }
 
     auto stream = std::make_shared<std::ifstream>(inputGltf, std::ios::binary);
@@ -427,6 +428,7 @@ int wmain(int argc, wchar_t *argv[])
 
         for (size_t i = 0; i < lodFilePaths.size(); i++)
         {
+            // Apply the same optimizations for each LOD
             auto lod = lodFilePaths[i];
             auto subFolder = CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
             lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, GetFileAssetType(lod), subFolder));

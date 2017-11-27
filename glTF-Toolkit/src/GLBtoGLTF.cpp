@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
+
 #include "pch.h"
 #include "GLBtoGLTF.h"
 
@@ -170,7 +171,7 @@ std::unordered_map<std::string, std::vector<char>> GLBToGLTF::GetImagesData(std:
     return imageStream;
 }
 
-// creat modified gltf from original by removing image buffer segments and updating
+// create modified gltf from original by removing image buffer segments and updating
 // images, bufferViews and accessors fields accordingly
 GLTFDocument GLBToGLTF::RecalculateOffsetsGLTFDocument(const GLTFDocument& glbDoc, const std::string& name)
 {
@@ -325,10 +326,10 @@ GLTFDocument  GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const st
     return gltfDoc;
 }
 
-void GLBToGLTF::UnpackGLB(std::string name, std::string path)
+void GLBToGLTF::UnpackGLB(std::string glbPath, std::string outDirectory, std::string gltfName)
 {
-    //read glb file into json
-    auto glbStream = std::make_shared<std::ifstream>(path, std::ios::binary);
+    // read glb file into json
+    auto glbStream = std::make_shared<std::ifstream>(glbPath, std::ios::binary);
     auto streamReader = std::make_unique<StreamMock>();
     GLBResourceReader reader(*streamReader, glbStream);
 
@@ -337,29 +338,28 @@ void GLBToGLTF::UnpackGLB(std::string name, std::string path)
     auto doc = DeserializeJson(json);
 
     // create new modified json
-    auto gltfDoc = GLBToGLTF::CreateGLTFDocument(doc, name);
+    auto gltfDoc = GLBToGLTF::CreateGLTFDocument(doc, gltfName);
 
-    //serialize and write new gltf json
+    // serialize and write new gltf json
     auto gltfJson = Serialize(gltfDoc);
-    std::ofstream outputStream(name + "." + GLTF_EXTENSION);
+    std::ofstream outputStream(outDirectory + gltfName + "." + GLTF_EXTENSION);
     outputStream << gltfJson;
     outputStream.flush();
 
     // write images
     size_t bufferOffset = GLBToGLTF::GetGLBBufferChunkOffset(glbStream.get());
-    auto imageStream = GLBToGLTF::GetImagesData(glbStream.get(), doc, name, bufferOffset);
-    std::for_each(imageStream.begin(), imageStream.end(), [](const auto& img)
+    for (auto image : GLBToGLTF::GetImagesData(glbStream.get(), doc, gltfName, bufferOffset))
     {
-        std::ofstream out(img.first, std::ios::binary);
-        out.write(&img.second[0], img.second.size());
-    });
+        std::ofstream out(outDirectory + image.first, std::ios::binary);
+        out.write(&image.second[0], image.second.size());
+    }
 
     // get new buffer size and write new buffer
     if (gltfDoc.buffers.Size() != 0)
     {
         size_t newBufferSize = gltfDoc.buffers[0].byteLength;
         auto binFileData = GLBToGLTF::SaveBin(glbStream.get(), doc, bufferOffset, newBufferSize);
-        std::ofstream out(name + "." + BUFFER_EXTENSION, std::ios::binary);
+        std::ofstream out(outDirectory + gltfName + "." + BUFFER_EXTENSION, std::ios::binary);
         out.write(&binFileData[0], binFileData.size());
     }
 }

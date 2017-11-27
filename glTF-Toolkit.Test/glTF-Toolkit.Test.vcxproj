@@ -26,6 +26,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="GLBSerializerTests.cpp" />
+    <ClCompile Include="GLBtoGLTFTests.cpp" />
     <ClCompile Include="GLTFLODUtilsTests.cpp" />
     <ClCompile Include="GLTFTextureCompressionUtilsTests.cpp" />
     <ClCompile Include="GLTFTexturePackingUtilsTests.cpp" />

@@ -6,6 +6,7 @@
     <ClCompile Include="GLTFTextureCompressionUtilsTests.cpp" />
     <ClCompile Include="GLTFTexturePackingUtilsTests.cpp" />
     <ClCompile Include="..\glTF-Toolkit\src\pch.cpp" />
+    <ClCompile Include="GLBtoGLTFTests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Helpers">
