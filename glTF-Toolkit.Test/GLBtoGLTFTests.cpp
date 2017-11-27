@@ -29,7 +29,7 @@ namespace Microsoft::glTF::Toolkit::Test
     std::string binBufferString(const std::vector<char>& vec)
     {
         std::string ret = "{";
-        for (int i = 0; i < vec.size(); i++)
+        for (size_t i = 0; i < vec.size(); i++)
         {
             ret += (i ? "," : "") + std::to_string((int)vec[i]);
         }
