@@ -7,7 +7,7 @@ This project contains a collection of tools and libraries to modify and optimize
 The current release includes code for:
 - Packing PBR material textures using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_packing_occlusionRoughnessMetallic](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_packing_occlusionRoughnessMetallic) extension.
 - Compressing textures as BC3, BC5 and BC7 and generate mip maps using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_texture_dds](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_texture_dds) extension.
-- Merging multiple documents into a single document with levels of detail using the [MSFT_lod](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_lod) extension.
+- Merging multiple glTF assets into a asset with multiple levels of detail using the [MSFT_lod](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_lod) extension.
 
 It also includes a command line tool that uses these steps in sequence in order to convert a glTF 2.0 core asset for use in the Windows Mixed Reality home, following the published [documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home).
 
