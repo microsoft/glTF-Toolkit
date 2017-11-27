@@ -10,31 +10,25 @@
 #include <GLTFSDK/IStreamReader.h>
 #include <GLTFSDK/IStreamWriter.h>
 
-namespace Microsoft
+namespace Microsoft::glTF::Toolkit::Test
 {
-    namespace glTF
+    class StreamMock : public Microsoft::glTF::IStreamWriter, public Microsoft::glTF::IStreamReader
     {
-        namespace Test
+    public:
+        StreamMock() : m_stream(std::make_shared<std::stringstream>(std::ios_base::app | std::ios_base::binary | std::ios_base::in | std::ios_base::out))
         {
-            class StreamMock : public Microsoft::glTF::IStreamWriter, public Microsoft::glTF::IStreamReader
-            {
-            public:
-                StreamMock() : m_stream(std::make_shared<std::stringstream>(std::ios_base::app | std::ios_base::binary | std::ios_base::in | std::ios_base::out))
-                {
-                }
-
-                std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override
-                {
-                    return m_stream;
-                }
-
-                std::shared_ptr<std::istream> GetInputStream(const std::string&) const override
-                {
-                    return m_stream;
-                }
-            private:
-                std::shared_ptr<std::stringstream> m_stream;
-            };
         }
-    }
+
+        std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override
+        {
+            return m_stream;
+        }
+
+        std::shared_ptr<std::istream> GetInputStream(const std::string&) const override
+        {
+            return m_stream;
+        }
+    private:
+        std::shared_ptr<std::stringstream> m_stream;
+    };
 }

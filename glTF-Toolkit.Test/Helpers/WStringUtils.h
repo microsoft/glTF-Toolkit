@@ -8,31 +8,25 @@
 #include <locale>
 #include <codecvt>
 
-namespace Microsoft
+namespace Microsoft::glTF::Toolkit::Test
 {
-    namespace glTF
+    class WStringUtils
     {
-        namespace Test
+    public:
+        static std::wstring ToWString(const std::string& str)
         {
-            class WStringUtils
-            {
-            public:
-                static std::wstring ToWString(const std::string& str)
-                {
-                    return ToWString(str.c_str());
-                }
-
-                static std::wstring ToWString(const std::stringstream& ss)
-                {
-                    return ToWString(ss.str());
-                }
-
-                static std::wstring ToWString(const char* str)
-                {
-                    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-                    return converter.from_bytes(str);
-                }
-            };
+            return ToWString(str.c_str());
         }
-    }
+
+        static std::wstring ToWString(const std::stringstream& ss)
+        {
+            return ToWString(ss.str());
+        }
+
+        static std::wstring ToWString(const char* str)
+        {
+            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+            return converter.from_bytes(str);
+        }
+    };
 }
