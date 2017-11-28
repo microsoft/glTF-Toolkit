@@ -5,6 +5,7 @@
 
 namespace FileSystem
 {
+    std::wstring GetBasePath(const std::wstring& path);
     std::wstring GetFullPath(const std::wstring& path);
     std::wstring CreateSubFolder(const std::wstring& parentPath, const std::wstring& subFolderName);
     std::wstring CreateTempFolder();

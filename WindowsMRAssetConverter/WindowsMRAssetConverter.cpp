@@ -70,7 +70,7 @@ private:
 };
 
 GLTFDocument LoadAndConvertDocumentForWindowsMR(
-    const std::wstring& inputFilePath,
+    std::wstring& inputFilePath,
     AssetType inputAssetType,
     const std::wstring& tempDirectory)
 {
@@ -78,7 +78,6 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     std::wstring inputFileName = PathFindFileName(inputFilePath.c_str());
     std::wcout << L"Loading input document: " << inputFileName << L"..." << std::endl;
 
-    std::wstring inputGltf(inputFilePath);
     if (inputAssetType == AssetType::GLB)
     {
         // Convert the GLB to GLTF in the temp directory
@@ -95,22 +94,15 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
 
         GLBToGLTF::UnpackGLB(inputFilePathA, tempDirectoryA, inputGltfNameA);
 
-        inputGltf = tempDirectory + inputGltfName + EXTENSION_GLTF;
+        inputFilePath = tempDirectory + inputGltfName + EXTENSION_GLTF;
     }
 
-    auto stream = std::make_shared<std::ifstream>(inputGltf, std::ios::binary);
+    auto stream = std::make_shared<std::ifstream>(inputFilePath, std::ios::binary);
     GLTFDocument document = DeserializeJson(*stream);
 
     // Get the base path from where to read all the assets
 
-    std::wstring inputGltfCopy(inputGltf);
-    wchar_t *basePath = &inputGltfCopy[0];
-    if (FAILED(PathCchRemoveFileSpec(basePath, inputGltfCopy.length() + 1)))
-    {
-        throw std::invalid_argument("Invalid input path.");
-    }
-
-    GLTFStreamReader streamReader(basePath);
+    GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
 
     std::cout << "Packing textures..." << std::endl;
 
@@ -204,7 +196,7 @@ int wmain(int argc, wchar_t *argv[])
         // 5. GLB Export
         std::cout << "Exporting as GLB..." << std::endl;
 
-        GLTFStreamReader streamReader(tempDirectory);
+        GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
         std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(outFilePath);
         SerializeBinary(document, streamReader, streamFactory);
 

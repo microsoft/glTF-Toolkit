@@ -4,6 +4,19 @@
 #include "stdafx.h"
 #include "FileSystem.h"
 
+std::wstring FileSystem::GetBasePath(const std::wstring& path)
+{
+    std::wstring pathCopy(path);
+    wchar_t *basePath = &pathCopy[0];
+    if (FAILED(PathCchRemoveFileSpec(basePath, pathCopy.length() + 1)))
+    {
+        throw std::invalid_argument("Invalid input path.");
+    }
+
+    return std::wstring(basePath);
+}
+
+
 std::wstring FileSystem::GetFullPath(const std::wstring& path)
 {
     wchar_t fullPath[MAX_PATH];
