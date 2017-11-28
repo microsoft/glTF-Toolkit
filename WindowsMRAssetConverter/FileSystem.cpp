@@ -13,7 +13,7 @@ std::wstring FileSystem::GetBasePath(const std::wstring& path)
         throw std::invalid_argument("Invalid input path.");
     }
 
-    return std::wstring(basePath);
+    return std::move(std::wstring(basePath));
 }
 
 
@@ -24,7 +24,7 @@ std::wstring FileSystem::GetFullPath(const std::wstring& path)
     {
         throw std::invalid_argument("Invalid input file path.");
     }
-    return std::wstring(fullPath);
+    return std::move(std::wstring(fullPath));
 }
 
 std::wstring FileSystem::CreateSubFolder(const std::wstring& parentPath, const std::wstring& subFolderName)
@@ -43,7 +43,7 @@ std::wstring FileSystem::CreateSubFolder(const std::wstring& parentPath, const s
         throw std::runtime_error(errorMessage);
     }
 
-    return std::wstring(subFolderPath);
+    return std::move(std::wstring(subFolderPath));
 }
 
 std::wstring FileSystem::CreateTempFolder()
@@ -71,5 +71,5 @@ std::wstring FileSystem::CreateTempFolder()
         throw std::runtime_error(errorMessage);
     }
 
-    return CreateSubFolder(tmpDirRaw, guidRaw);
+    return std::move(CreateSubFolder(tmpDirRaw, guidRaw));
 }

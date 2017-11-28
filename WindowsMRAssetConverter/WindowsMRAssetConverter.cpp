@@ -104,13 +104,13 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
 
     GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
 
-    std::cout << "Packing textures..." << std::endl;
+    std::wcout << L"Packing textures..." << std::endl;
 
     // 1. Texture Packing
     auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
     document = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, TexturePacking::RoughnessMetallicOcclusion, tempDirectoryA);
 
-    std::cout << "Compressing textures - this can take a few minutes..." << std::endl;
+    std::wcout << L"Compressing textures - this can take a few minutes..." << std::endl;
 
     // 2. Texture Compression
     document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA);
@@ -177,7 +177,7 @@ int wmain(int argc, wchar_t *argv[])
         // 4. LOD Merging
         if (lodFilePaths.size() > 0)
         {
-            std::cout << "Merging LODs..." << std::endl;
+            std::wcout << L"Merging LODs..." << std::endl;
 
             std::vector<GLTFDocument> lodDocuments;
             lodDocuments.push_back(document);
@@ -187,20 +187,24 @@ int wmain(int argc, wchar_t *argv[])
                 // Apply the same optimizations for each LOD
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
+
                 lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder));
             }
 
+            // TODO: LOD assets can be in different places in disk, so the merged document will not have 
+            // the right relative paths to resources. We must either compute the correct relative paths or embed
+            // all resources as base64 in the source document, otherwise the export to GLB will fail.
             document = GLTFLODUtils::MergeDocumentAsLODs(lodDocuments, screenCoveragePercentages);
         }
 
         // 5. GLB Export
-        std::cout << "Exporting as GLB..." << std::endl;
+        std::wcout << L"Exporting as GLB..." << std::endl;
 
         GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
         std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(outFilePath);
         SerializeBinary(document, streamReader, streamFactory);
 
-        std::cout << "Done!" << std::endl;
+        std::wcout << L"Done!" << std::endl;
         std::wcout << L"Output file: " << outFilePath << std::endl;
     }
     catch (std::exception ex)
