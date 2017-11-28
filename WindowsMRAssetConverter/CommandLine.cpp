@@ -78,7 +78,7 @@ void CommandLine::ParseCommandLineArguments(
             outFile = L"";
             state = CommandLineParsingState::ReadOutFile;
         }
-        if (param == PARAM_TMPDIR)
+        else if (param == PARAM_TMPDIR)
         {
             tmpDir = L"";
             state = CommandLineParsingState::ReadTmpDir;
