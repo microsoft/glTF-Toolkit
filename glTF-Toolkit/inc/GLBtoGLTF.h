@@ -34,7 +34,6 @@ namespace Microsoft { namespace glTF { namespace Toolkit
         static Microsoft::glTF::GLTFDocument CreateGLTFDocument(const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name);
 
     private:
-        static Microsoft::glTF::GLTFDocument RecalculateOffsetsGLTFDocument(const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name);
         static size_t GetGLBBufferChunkOffset(std::ifstream* in);
     };
 }}}

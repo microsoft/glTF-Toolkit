@@ -38,7 +38,7 @@ size_t GLBToGLTF::GetGLBBufferChunkOffset(std::ifstream* input)
     return length + GLB2_HEADER_BYTE_SIZE + GLB_CHUNK_TYPE_SIZE * 4;
 }
 
-std::vector<char>  GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& glbDoc, const size_t bufferOffset, const size_t newBufferlength)
+std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& glbDoc, const size_t bufferOffset, const size_t newBufferlength)
 {
     if (newBufferlength == 0)
     {
@@ -62,9 +62,9 @@ std::vector<char>  GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& g
     usedBufferViews.resize(distance(usedBufferViews.begin(), last));
 
     // sort buffer views by offset
-    sort(usedBufferViews.begin(), usedBufferViews.end(), [](const auto& a, const auto& b)
+    sort(usedBufferViews.begin(), usedBufferViews.end(), [](const BufferView& a, const BufferView& b)
     {
-        return a.bufferId < b.bufferId;
+        return a.byteOffset < b.byteOffset;
     });
 
     std::vector<char> result(newBufferlength);
@@ -83,6 +83,7 @@ std::vector<char>  GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& g
             input->seekg(chunkLength, std::ios::cur);
             currOffset += chunkLength;
         }
+
         if (vecpos % GLB_BUFFER_OFFSET_ALIGNMENT != 0)
         {
             // alignment padding
@@ -97,10 +98,12 @@ std::vector<char>  GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& g
         currOffset += bufferView.byteLength;
         vecpos += bufferView.byteLength;
     }
+
     if (vecpos == 0)
     {
         return {};
     }
+
     return result;
 }
 
@@ -171,12 +174,19 @@ std::unordered_map<std::string, std::vector<char>> GLBToGLTF::GetImagesData(std:
     return imageStream;
 }
 
-// create modified gltf from original by removing image buffer segments and updating
+// Create modified gltf from original by removing image buffer segments and updating
 // images, bufferViews and accessors fields accordingly
-GLTFDocument GLBToGLTF::RecalculateOffsetsGLTFDocument(const GLTFDocument& glbDoc, const std::string& name)
+GLTFDocument GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std::string& name)
 {
-    GLTFDocument gltfDoc(glbDoc.GetDefaultScene().id, glbDoc.asset);
+    GLTFDocument gltfDoc(glbDoc);
+
+    gltfDoc.images.Clear();
+    gltfDoc.buffers.Clear();
+    gltfDoc.bufferViews.Clear();
+    gltfDoc.accessors.Clear();
+
     const auto images = glbDoc.images.Elements();
+    const auto buffers = glbDoc.buffers.Elements();
     const auto bufferViews = glbDoc.bufferViews.Elements();
     const auto accessors = glbDoc.accessors.Elements();
     std::unordered_set<std::string> imagesBufferViews;
@@ -195,12 +205,13 @@ GLTFDocument GLBToGLTF::RecalculateOffsetsGLTFDocument(const GLTFDocument& glbDo
     {
         return imagesBufferViews.count(a.id) == 0;
     });
+
     usedBufferViews.resize(distance(usedBufferViews.begin(), last));
 
     // group buffer views by buffer, then sort them by byteOffset to calculate their new byteOffsets
     sort(usedBufferViews.begin(), usedBufferViews.end(), [](const auto& a, const auto& b)
     {
-        return a.bufferId < b.bufferId;
+        return a.byteOffset < b.byteOffset;
     });
 
     int updatedBufferViewId = 0;
@@ -227,13 +238,14 @@ GLTFDocument GLBToGLTF::RecalculateOffsetsGLTFDocument(const GLTFDocument& glbDo
         updatedBufferViewId++;
     }
 
-    if (glbDoc.buffers.Size() != 0)
+    if (!buffers.empty())
     {
-        auto updatedBuffer = glbDoc.buffers[0];
+        auto updatedBuffer = buffers[0];
         updatedBuffer.byteLength = updatedBufferSize;
         updatedBuffer.uri = name + "." + BUFFER_EXTENSION;
         gltfDoc.buffers.Append(std::move(updatedBuffer));
     }
+
     for (const auto& a : accessors)
     {
         if (imagesBufferViews.find(a.bufferViewId) == imagesBufferViews.end())
@@ -244,6 +256,7 @@ GLTFDocument GLBToGLTF::RecalculateOffsetsGLTFDocument(const GLTFDocument& glbDo
             gltfDoc.accessors.Append(std::move(updatedAccessor));
         }
     }
+
     int imgId = 0;
     for (const auto& im : images)
     {
@@ -263,64 +276,9 @@ GLTFDocument GLBToGLTF::RecalculateOffsetsGLTFDocument(const GLTFDocument& glbDo
             // unknown mimetype
             updatedImage.uri = name + "_image" + std::to_string(imgId);
         }
+
         gltfDoc.images.Append(std::move(updatedImage));
         imgId++;
-    }
-    return gltfDoc;
-}
-
-GLTFDocument  GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std::string& name)
-{
-    GLTFDocument gltfDoc = GLBToGLTF::RecalculateOffsetsGLTFDocument(glbDoc, name);
-    // Copy all unchanged properties
-    for (auto a : glbDoc.animations.Elements())
-    {
-        gltfDoc.animations.Append(std::move(a));
-    }
-
-    for (auto m : glbDoc.materials.Elements())
-    {
-        gltfDoc.materials.Append(std::move(m));
-    }
-
-    for (auto m : glbDoc.meshes.Elements())
-    {
-        gltfDoc.meshes.Append(std::move(m));
-    }
-
-    for (auto n : glbDoc.nodes.Elements())
-    {
-        gltfDoc.nodes.Append(std::move(n));
-    }
-
-    for (auto s : glbDoc.samplers.Elements())
-    {
-        gltfDoc.samplers.Append(std::move(s));
-    }
-
-    for (auto s : glbDoc.scenes.Elements())
-    {
-        gltfDoc.scenes.Append(std::move(s));
-    }
-
-    for (auto s : glbDoc.skins.Elements())
-    {
-        gltfDoc.skins.Append(std::move(s));
-    }
-
-    for (auto t : glbDoc.textures.Elements())
-    {
-        gltfDoc.textures.Append(std::move(t));
-    }
-
-    for (auto e : glbDoc.extensionsRequired)
-    {
-        gltfDoc.extensionsRequired.insert(e);
-    }
-
-    for (auto e : glbDoc.extensionsUsed)
-    {
-        gltfDoc.extensionsUsed.insert(e);
     }
 
     return gltfDoc;
