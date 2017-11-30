@@ -115,33 +115,6 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     // 2. Texture Compression
     document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA);
 
-    // 3. Fix Accessors for older version of the GLTF spec
-    // The Windows MR Fall Creators Update GLTF loader was built on 
-    // a version of the GLTF spec that requires that all accessors have a min
-    // and max values. Make sure this is the case.
-    // TODO: calculate actual min and max values
-    for (auto accessor : document.accessors.Elements())
-    {
-        bool needsReplace = false;
-
-        if (accessor.min.size() == 0)
-        {
-            accessor.min.push_back(0.0f);
-            needsReplace = true;
-        }
-
-        if (accessor.max.size() == 0)
-        {
-            accessor.max.push_back(0.0f);
-            needsReplace = true;
-        }
-
-        if (needsReplace)
-        {
-            document.accessors.Replace(accessor);
-        }
-    }
-
     return document;
 }
 
@@ -171,10 +144,9 @@ int wmain(int argc, wchar_t *argv[])
         // Load document, and perform steps:
         // 1. Texture Packing
         // 2. Texture Compression
-        // 3. Fix Accessors for older version of the GLTF spec
         auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory);
 
-        // 4. LOD Merging
+        // 3. LOD Merging
         if (lodFilePaths.size() > 0)
         {
             std::wcout << L"Merging LODs..." << std::endl;
@@ -197,7 +169,7 @@ int wmain(int argc, wchar_t *argv[])
             document = GLTFLODUtils::MergeDocumentAsLODs(lodDocuments, screenCoveragePercentages);
         }
 
-        // 5. GLB Export
+        // 4. GLB Export
         std::wcout << L"Exporting as GLB..." << std::endl;
 
         GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
