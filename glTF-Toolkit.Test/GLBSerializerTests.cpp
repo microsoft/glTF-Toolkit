@@ -121,7 +121,7 @@ namespace Microsoft::glTF::Toolkit::Test
                     // Images in GLB are stored in a buffer
                     Assert::IsFalse(image.bufferViewId.empty());
 
-                    // Images in GLB don't have a URI
+                    // Images in original GLTF have a URI
                     Assert::IsFalse(doc.images.Get(image.id).uri.empty());
                 }
 
