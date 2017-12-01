@@ -363,7 +363,7 @@ LODMap GLTFLODUtils::ParseDocumentNodeLODs(const GLTFDocument& doc)
     return lodMap;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentAsLODs(const std::vector<GLTFDocument>& docs)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs)
 {
     if (docs.empty())
     {
@@ -398,9 +398,9 @@ GLTFDocument GLTFLODUtils::MergeDocumentAsLODs(const std::vector<GLTFDocument>& 
     return gltfPrimary;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages)
 {
-    GLTFDocument merged = MergeDocumentAsLODs(docs);
+    GLTFDocument merged = MergeDocumentsAsLODs(docs);
 
     if (screenCoveragePercentages.size() == 0)
     {

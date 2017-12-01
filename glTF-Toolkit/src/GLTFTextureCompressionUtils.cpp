@@ -195,7 +195,6 @@ GLTFDocument GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(const 
     return outputDoc;
 }
 
-_Use_decl_annotations_
 void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, TextureCompression compression)
 {
     if (compression == TextureCompression::None)

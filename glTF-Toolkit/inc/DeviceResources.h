@@ -5,7 +5,9 @@
 
 namespace DX
 {
-    // Controls all the DirectX device resources.
+    /// <summary>
+    /// Controls all the DirectX device resources.
+    /// </summary>
     class DeviceResources
     {
     public:

@@ -166,7 +166,7 @@ int wmain(int argc, wchar_t *argv[])
             // TODO: LOD assets can be in different places in disk, so the merged document will not have 
             // the right relative paths to resources. We must either compute the correct relative paths or embed
             // all resources as base64 in the source document, otherwise the export to GLB will fail.
-            document = GLTFLODUtils::MergeDocumentAsLODs(lodDocuments, screenCoveragePercentages);
+            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages);
         }
 
         // 4. GLB Export

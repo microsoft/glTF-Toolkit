@@ -100,7 +100,7 @@ namespace Microsoft::glTF::Toolkit::Test
                 docs.push_back(doc);
                 docs.push_back(doc);
 
-                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentAsLODs(docs);
+                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs);
 
                 // Serialize GLTFDocument back to json
                 auto outputJson = Serialize(newlodgltfDoc);
@@ -156,7 +156,7 @@ namespace Microsoft::glTF::Toolkit::Test
                 docs.push_back(doc);
                 docs.push_back(doc);
 
-                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentAsLODs(docs);
+                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs);
 
                 CheckGLTFLODNodeCountAgainstOriginal(doc, newlodgltfDoc, 3);
 
@@ -218,7 +218,7 @@ namespace Microsoft::glTF::Toolkit::Test
 
                 std::vector<double> screenCoverages{ 0.5, 0.2, 0.01 };
 
-                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentAsLODs(docs, screenCoverages);
+                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs, screenCoverages);
 
                 CheckGLTFLODNodeCountAgainstOriginal(doc, newlodgltfDoc, 3);
 

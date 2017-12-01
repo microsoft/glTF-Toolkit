@@ -7,35 +7,38 @@
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
 
-class StreamMock : public IStreamReader
+namespace
 {
-public:
-    StreamMock() : m_stream(std::make_shared<std::stringstream>(std::ios_base::app | std::ios_base::binary | std::ios_base::in | std::ios_base::out))
+    class StreamMock : public IStreamReader
     {
-    }
+    public:
+        StreamMock() : m_stream(std::make_shared<std::stringstream>(std::ios_base::app | std::ios_base::binary | std::ios_base::in | std::ios_base::out))
+        {
+        }
 
-    std::shared_ptr<std::istream> GetInputStream(const std::string&) const override
+        std::shared_ptr<std::istream> GetInputStream(const std::string&) const override
+        {
+            return m_stream;
+        }
+
+    private:
+        std::shared_ptr<std::stringstream> m_stream;
+    };
+
+    size_t GetGLBBufferChunkOffset(std::ifstream* input)
     {
-        return m_stream;
+        // get offset from beginning of glb binary to beginning of buffer chunk
+        input->seekg(GLB2_HEADER_BYTE_SIZE, std::ios::beg);
+        uint32_t length = 0;
+        for (int i = 0; i < GLB_CHUNK_TYPE_SIZE*CHAR_BIT; i += CHAR_BIT)
+        {
+            uint8_t c = static_cast<uint8_t>(input->get());
+            length |= ((uint16_t)c << i);
+        }
+        // 28 is total length of non-json blocks from start of glb blob
+        // 28 = (GLB2_HEADER_BYTE_SIZE = 12bytes) + (uint32 = 4bytes) * 4
+        return length + GLB2_HEADER_BYTE_SIZE + GLB_CHUNK_TYPE_SIZE * 4;
     }
-
-private:
-    std::shared_ptr<std::stringstream> m_stream;
-};
-
-size_t GLBToGLTF::GetGLBBufferChunkOffset(std::ifstream* input)
-{
-    // get offset from beginning of glb binary to beginning of buffer chunk
-    input->seekg(GLB2_HEADER_BYTE_SIZE, std::ios::beg);
-    uint32_t length = 0;
-    for (int i = 0; i < GLB_CHUNK_TYPE_SIZE*CHAR_BIT; i += CHAR_BIT)
-    {
-        uint8_t c = static_cast<uint8_t>(input->get());
-        length |= ((uint16_t)c << i);
-    }
-    // 28 is total length of non-json blocks from start of glb blob
-    // 28 = (GLB2_HEADER_BYTE_SIZE = 12bytes) + (uint32 = 4bytes) * 4
-    return length + GLB2_HEADER_BYTE_SIZE + GLB_CHUNK_TYPE_SIZE * 4;
 }
 
 std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& glbDoc, const size_t bufferOffset, const size_t newBufferlength)
@@ -305,7 +308,7 @@ void GLBToGLTF::UnpackGLB(std::string glbPath, std::string outDirectory, std::st
     outputStream.flush();
 
     // write images
-    size_t bufferOffset = GLBToGLTF::GetGLBBufferChunkOffset(glbStream.get());
+    size_t bufferOffset = GetGLBBufferChunkOffset(glbStream.get());
     for (auto image : GLBToGLTF::GetImagesData(glbStream.get(), doc, gltfName, bufferOffset))
     {
         std::ofstream out(outDirectory + image.first, std::ios::binary);

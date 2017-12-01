@@ -11,10 +11,11 @@ namespace DirectX
     class ScratchImage;
 }
 
-namespace Microsoft { namespace glTF { namespace Toolkit
+namespace Microsoft::glTF::Toolkit
 {
     extern const char* EXTENSION_MSFT_TEXTURE_DDS;
 
+    /// <summary>Supported compression algorithms for textures.</summary>
     enum class TextureCompression
     {
         None,
@@ -23,6 +24,9 @@ namespace Microsoft { namespace glTF { namespace Toolkit
         BC7,
     };
 
+    /// <summary>
+    /// Utilities to compress textures in a glTF asset.
+    /// </summary>
     class GLTFTextureCompressionUtils
     {
     public:
@@ -35,10 +39,11 @@ namespace Microsoft { namespace glTF { namespace Toolkit
         /// <param name="texture">Texture object that is contained in input document. If texture does not exist in document, 
         /// throws exception.</param>
         /// <param name="compression">The desired block compression method (e.g. BC5, BC7).</param>
+        /// <param name="outputDirectory">The output directory to which compressed files should be saved.</param>
         /// <param name="generateMipMaps">If true, also generates mip maps when compressing.</param>
         /// <param name="retainOriginalImage">If true, retains the original image on the resulting glTF. If false, 
         /// replaces that image (making the glTF incompatible with most core glTF 2.0 viewers).</param>
-        /// <returns>Returns a new  GLTFDocument that contains a new reference to the compressed dds file added as part 
+        /// <returns>Returns a new GLTFDocument that contains a new reference to the compressed dds file added as part 
         /// of the MSFT_texture_dds extension.</return>
         /// <example>
         /// Example Input:
@@ -80,11 +85,26 @@ namespace Microsoft { namespace glTF { namespace Toolkit
         /// </example>
         static GLTFDocument CompressTextureAsDDS(const IStreamReader& streamReader, const GLTFDocument & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, bool generateMipMaps = true, bool retainOriginalImage = true);
 
-        // Applies CompressTextureForWindowsMR to all textures in the document that are accessible via materials. 
-        // Normal textures get compressed with BC5, while baseColorTexture, occlusion, metallicRoughness and emissive textures get compressed with BC7.
+        /// <summary>
+        /// Applies <see cref="CompressTextureForWindowsMR" /> to all textures in the document that are accessible via materials according to the 
+        /// requirements of the Windows Mixed Reality home.
+        /// <para>Normal textures get compressed with BC5, while baseColorTexture, occlusion, metallicRoughness and emissive textures get compressed with BC7.</para>
+        /// </summary>
+        /// <param name="streamReader">The stream reader that will be used to get streams to each image from its URI.</param>
+        /// <param name="doc">Input glTF document.</param>
+        /// <param name="outputDirectory">The output directory to which compressed files should be saved.</param>
+        /// <param name="generateMipMaps">If true, also generates mip maps when compressing.</param>
+        /// <param name="retainOriginalImage">If true, retains the original image on the resulting glTF. If false, 
+        /// replaces that image (making the glTF incompatible with most core glTF 2.0 viewers).</param>
+        /// <returns>Returns a new GLTFDocument that contains alternate textures for all applicable materials following the requirements of the Windows
+        /// Mixed Reality home using the MSFT_texture_dds extension.</return>
         static GLTFDocument CompressAllTexturesForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const std::string& outputDirectory, bool retainOriginalImages = true);
 
-        // Compresses a DirectX::ScratchImage using specified compression
-        static void CompressImage(_Inout_ DirectX::ScratchImage& image, _In_ TextureCompression compression);
+        /// <summary>
+        /// Compresses a DirectX::ScratchImage in place using the specified compression.
+        /// </summary>
+        /// <param name="image">The image to compress.</param>
+        /// <param name="compression">The desired compression algorithm.</param>
+        static void CompressImage(DirectX::ScratchImage& image, TextureCompression compression);
     };
-}}}
+}

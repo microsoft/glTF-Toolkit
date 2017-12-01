@@ -8,7 +8,7 @@
 #include <GLTFSDK/GLTFResourceWriter.h>
 #include <GLTFSDK/GLBResourceReader.h>
 
-namespace Microsoft { namespace glTF { namespace Toolkit 
+namespace Microsoft::glTF::Toolkit
 {
     /// <summary>
     /// Utilities to convert glTF-Binary files (GLB) to
@@ -30,10 +30,19 @@ namespace Microsoft { namespace glTF { namespace Toolkit
         static void UnpackGLB(std::string glbPath, std::string outDirectory, std::string gltfName);
 
         static std::vector<char> SaveBin(std::istream* in, const Microsoft::glTF::GLTFDocument& glbDoc, const size_t bufferOffset, const size_t newBufferlength);
-        static std::unordered_map<std::string, std::vector<char>> GetImagesData(std::istream* in, const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name, const size_t bufferOffset);
-        static Microsoft::glTF::GLTFDocument CreateGLTFDocument(const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name);
 
-    private:
-        static size_t GetGLBBufferChunkOffset(std::ifstream* in);
+        /// <summary>
+        /// Loads all images in a glTF-Binary (GLB) asset into a map relating each image identifier to the contents of that image.
+        /// </summary>
+        /// <param name="in">A stream pointing to the GLB file.</param>
+        /// <param name="glbDoc">The manifest describing the GLB asset.</param>
+        /// <param name="name">The name that should be used when creating the identifiers for the image files.</param>
+        /// <param name="bufferOffset">The offset on the input file where the GLB buffer starts.</param>
+        /// <returns>
+        /// A map relating each image identifier to the contents of that image.
+        /// </returns>
+        static std::unordered_map<std::string, std::vector<char>> GetImagesData(std::istream* in, const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name, const size_t bufferOffset);
+
+        static Microsoft::glTF::GLTFDocument CreateGLTFDocument(const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name);
     };
-}}}
+}

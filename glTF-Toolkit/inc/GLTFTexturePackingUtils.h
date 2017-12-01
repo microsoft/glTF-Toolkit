@@ -5,11 +5,11 @@
 
 #include <GLTFSDK/GLTFDocument.h>
 
-namespace Microsoft { namespace glTF { namespace Toolkit
+namespace Microsoft::glTF::Toolkit
 {
     extern const char* EXTENSION_MSFT_PACKING_ORM;
 
-    // Texture packing flags. May be combined to pack multiple formats at once.
+    /// <summary>Texture packing flags. May be combined to pack multiple formats at once.</summary>
     enum TexturePacking
     {
         None = 0x0,
@@ -26,5 +26,5 @@ namespace Microsoft { namespace glTF { namespace Toolkit
         // Applies PackMaterialForWindowsMR to every material in the document, following the same parameter structure as that function.
         static GLTFDocument PackAllMaterialsForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, TexturePacking packing, const std::string& outputDirectory);
     };
-}}}
+}
 
