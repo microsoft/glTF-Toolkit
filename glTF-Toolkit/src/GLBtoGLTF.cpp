@@ -47,6 +47,7 @@ std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& gl
     {
         return {};
     }
+
     const auto images = glbDoc.images.Elements();
     const auto bufferViews = glbDoc.bufferViews.Elements();
     std::unordered_set<std::string> imagesBufferViews;
@@ -89,10 +90,9 @@ std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& gl
 
         if (vecpos % GLB_BUFFER_OFFSET_ALIGNMENT != 0)
         {
-            // alignment padding
-            // slightly hacky, should be aligned to size of accessor component type which can be 1, 2, 4
-            // but right now there is not a clear way of doing this.
-            // so aligning to 4 will satisfy requirements but wastes space
+            // Alignment padding
+            // Accessor component sizes can be 1, 2, 4.
+            // Aligning to 4 will satisfy requirements but wastes space
             vecpos += (GLB_BUFFER_OFFSET_ALIGNMENT - (vecpos % GLB_BUFFER_OFFSET_ALIGNMENT));
         }
 

@@ -29,6 +29,17 @@ namespace Microsoft::glTF::Toolkit
         /// </param>
         static void UnpackGLB(std::string glbPath, std::string outDirectory, std::string gltfName);
 
+        /// <summary>
+        /// Extracts the contents of all buffer views from a GLB file into a 
+        /// byte vector that can be saves as a bin file to be used in a glTF file.
+        /// </summary>
+        /// <param name="in">A stream pointing to the GLB file.</param>
+        /// <param name="glbDoc">The manifest describing the GLB asset.</param>
+        /// <param name="bufferOffset">The offset on the input file where the GLB buffer starts.</param>
+        /// <param name="newBufferLength">The length of the new buffer (sum of all buffer view lengths).</param>
+        /// <returns>
+        /// The binary content of the buffer views as a vector.
+        /// </returns>
         static std::vector<char> SaveBin(std::istream* in, const Microsoft::glTF::GLTFDocument& glbDoc, const size_t bufferOffset, const size_t newBufferlength);
 
         /// <summary>
@@ -43,6 +54,14 @@ namespace Microsoft::glTF::Toolkit
         /// </returns>
         static std::unordered_map<std::string, std::vector<char>> GetImagesData(std::istream* in, const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name, const size_t bufferOffset);
 
+        /// <summary>
+        /// Creates the glTF manifest that represents a GLB file after unpacking.
+        /// </summary>
+        /// <param name="glbDoc">The original manifest contained in the GLB file.</param>
+        /// <param name="name">The name that should be used when creating the identifiers for the image and bin files when unpacking.</param>
+        /// <returns>
+        /// A new glTF manifest that represents the same file, but with images and resources referenced by URI instead of embedded ina GLB buffer.
+        /// </returns>
         static Microsoft::glTF::GLTFDocument CreateGLTFDocument(const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name);
     };
 }
