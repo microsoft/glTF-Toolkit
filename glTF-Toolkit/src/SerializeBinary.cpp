@@ -3,6 +3,7 @@
 
 #include "pch.h"
 
+#include "AccessorUtils.h"
 #include "SerializeBinary.h"
 
 #include "GLTFSDK/GLTF.h"
@@ -41,44 +42,114 @@ namespace
     }
 
     template <typename T>
-    void SerializeAccessor(const Accessor& accessor, const GLTFDocument& doc, const GLTFResourceReader& reader, BufferBuilder& builder)
+    void SaveAccessor(const Accessor& accessor, const std::vector<T> accessorContents, BufferBuilder& builder)
     {
-        builder.AddBufferView(doc.bufferViews.Get(accessor.bufferViewId).target);
-        const std::vector<T>& accessorContents = reader.ReadBinaryData<T>(doc, accessor);
-
         auto min = accessor.min;
         auto max = accessor.max;
-        if (min.empty() || max.empty())
+        if ((min.empty() || max.empty()) && !accessorContents.empty())
         {
-            // Calculate min and max as part of the serialization
-            auto typeCount = Accessor::GetTypeCount(accessor.type);
-            min = std::vector<float>(typeCount);
-            max = std::vector<float>(typeCount);
-
-            // Initialize min and max with the first elements of the array
-            for (size_t j = 0; j < typeCount; j++)
-            {
-                auto current = static_cast<float>(accessorContents[j]);
-                min[j] = current;
-                max[j] = current;
-            }
-
-            for (size_t i = 1; i < accessor.count; i++)
-            {
-                for (size_t j = 0; j < typeCount; j++)
-                {
-                    auto current = static_cast<float>(accessorContents[i * typeCount + j]);
-                    min[j] = std::min<T>(min[j], current);
-                    max[j] = std::max<T>(max[j], current);
-                }
-            }
+            auto minmax = AccessorUtils::CalculateMinMax(accessor, accessorContents);
+            min = minmax.first;
+            max = minmax.second;
         }
 
         builder.AddAccessor(accessorContents, accessor.componentType, accessor.type, min, max);
     }
+
+    template <typename OriginalType, typename NewType>
+    static std::vector<NewType> vector_static_cast(const std::vector<OriginalType>& original)
+    {
+        auto newData = std::vector<NewType>(original.size());
+
+        std::transform(original.begin(), original.end(), newData.begin(),
+            [](const OriginalType& element)
+        {
+            return static_cast<NewType>(element);
+        });
+
+        return newData;
+    }
+
+    template <typename T>
+    void ConvertAndSaveAccessor(const Accessor& accessor, const std::vector<T> accessorContents, BufferBuilder& builder)
+    {
+        switch (accessor.componentType)
+        {
+        case COMPONENT_BYTE:
+            SaveAccessor(accessor, vector_static_cast<T, int8_t>(accessorContents), builder);
+            break;
+        case COMPONENT_UNSIGNED_BYTE:
+            SaveAccessor(accessor, vector_static_cast<T, uint8_t>(accessorContents), builder);
+            break;
+        case COMPONENT_SHORT:
+            SaveAccessor(accessor, vector_static_cast<T, int16_t>(accessorContents), builder);
+            break;
+        case COMPONENT_UNSIGNED_SHORT:
+            SaveAccessor(accessor, vector_static_cast<T, uint16_t>(accessorContents), builder);
+            break;
+        case COMPONENT_UNSIGNED_INT:
+            SaveAccessor(accessor, vector_static_cast<T, uint32_t>(accessorContents), builder);
+            break;
+        case COMPONENT_FLOAT:
+            SaveAccessor(accessor, vector_static_cast<T, float>(accessorContents), builder);
+            break;
+        default:
+            throw GLTFException("Unsupported accessor ComponentType");
+        }
+    }
+
+    template <typename T>
+    void SerializeAccessor(const Accessor& accessor, const GLTFDocument& doc, const GLTFResourceReader& reader, BufferBuilder& builder, const AccessorConversionStrategy& accessorConversion)
+    {
+        builder.AddBufferView(doc.bufferViews.Get(accessor.bufferViewId).target);
+        const std::vector<T>& accessorContents = reader.ReadBinaryData<T>(doc, accessor);
+
+        if (accessorConversion != nullptr && accessorConversion(accessor) != accessor.componentType)
+        {
+            Accessor updatedAccessor(accessor);
+            updatedAccessor.componentType = accessorConversion(accessor);
+
+            // Force recalculation of min and max
+            updatedAccessor.min.clear();
+            updatedAccessor.max.clear();
+
+            ConvertAndSaveAccessor(updatedAccessor, accessorContents, builder);
+        }
+        else
+        {
+            SaveAccessor(accessor, accessorContents, builder);
+        }
+    }
+
+    void SerializeAccessor(const Accessor& accessor, const GLTFDocument& doc, const GLTFResourceReader& reader, BufferBuilder& builder, const AccessorConversionStrategy& accessorConversion)
+    {
+        switch (accessor.componentType)
+        {
+        case COMPONENT_BYTE:
+            SerializeAccessor<int8_t>(accessor, doc, reader, builder, accessorConversion);
+            break;
+        case COMPONENT_UNSIGNED_BYTE:
+            SerializeAccessor<uint8_t>(accessor, doc, reader, builder, accessorConversion);
+            break;
+        case COMPONENT_SHORT:
+            SerializeAccessor<int16_t>(accessor, doc, reader, builder, accessorConversion);
+            break;
+        case COMPONENT_UNSIGNED_SHORT:
+            SerializeAccessor<uint16_t>(accessor, doc, reader, builder, accessorConversion);
+            break;
+        case COMPONENT_UNSIGNED_INT:
+            SerializeAccessor<uint32_t>(accessor, doc, reader, builder, accessorConversion);
+            break;
+        case COMPONENT_FLOAT:
+            SerializeAccessor<float>(accessor, doc, reader, builder, accessorConversion);
+            break;
+        default:
+            throw GLTFException("Unsupported accessor ComponentType");
+        }
+    }
 }
 
-void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader, std::unique_ptr<const IStreamFactory>& outputStreamFactory)
+void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader, std::unique_ptr<const IStreamFactory>& outputStreamFactory, const AccessorConversionStrategy& accessorConversion)
 {
     auto writer = std::make_unique<GLBResourceWriter2>(std::move(outputStreamFactory), std::string());
 
@@ -98,29 +169,7 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     // Serialize accessors
     for (auto accessor : gltfDocument.accessors.Elements())
     {
-        switch (accessor.componentType)
-        {
-        case COMPONENT_BYTE:
-            SerializeAccessor<int8_t>(accessor, gltfDocument, gltfResourceReader, *builder);
-            break;
-        case COMPONENT_UNSIGNED_BYTE:
-            SerializeAccessor<uint8_t>(accessor, gltfDocument, gltfResourceReader, *builder);
-            break;
-        case COMPONENT_SHORT:
-            SerializeAccessor<int16_t>(accessor, gltfDocument, gltfResourceReader, *builder);
-            break;
-        case COMPONENT_UNSIGNED_SHORT:
-            SerializeAccessor<uint16_t>(accessor, gltfDocument, gltfResourceReader, *builder);
-            break;
-        case COMPONENT_UNSIGNED_INT:
-            SerializeAccessor<uint32_t>(accessor, gltfDocument, gltfResourceReader, *builder);
-            break;
-        case COMPONENT_FLOAT:
-            SerializeAccessor<float>(accessor, gltfDocument, gltfResourceReader, *builder);
-            break;
-        default:
-            throw GLTFException("Unsupported accessor ComponentType");
-        }
+        SerializeAccessor(accessor, gltfDocument, gltfResourceReader, *builder, accessorConversion);
     }
 
     // Serialize images

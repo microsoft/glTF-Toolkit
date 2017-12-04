@@ -172,9 +172,35 @@ int wmain(int argc, wchar_t *argv[])
         // 4. GLB Export
         std::wcout << L"Exporting as GLB..." << std::endl;
 
+        // The Windows MR Fall Creators update has restrictions on the supported
+        // component types of accessors.
+        AccessorConversionStrategy accessorConversion = [](const Accessor& accessor)
+        {
+            if (accessor.type == AccessorType::TYPE_SCALAR)
+            {
+                switch (accessor.componentType)
+                {
+                case ComponentType::COMPONENT_BYTE:
+                case ComponentType::COMPONENT_UNSIGNED_BYTE:
+                case ComponentType::COMPONENT_SHORT:
+                    return ComponentType::COMPONENT_UNSIGNED_SHORT;
+                case ComponentType::COMPONENT_FLOAT:
+                    return ComponentType::COMPONENT_UNSIGNED_INT;
+                default:
+                    return accessor.componentType;
+                }
+            }
+            else if (accessor.type == AccessorType::TYPE_VEC2 || accessor.type == AccessorType::TYPE_VEC3)
+            {
+                return ComponentType::COMPONENT_FLOAT;
+            }
+
+            return accessor.componentType;
+        };
+
         GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
         std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(outFilePath);
-        SerializeBinary(document, streamReader, streamFactory);
+        SerializeBinary(document, streamReader, streamFactory, accessorConversion);
 
         std::wcout << L"Done!" << std::endl;
         std::wcout << L"Output file: " << outFilePath << std::endl;

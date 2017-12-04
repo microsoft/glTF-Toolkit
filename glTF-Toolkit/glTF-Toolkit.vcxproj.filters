@@ -36,6 +36,9 @@
     <ClInclude Include="inc\GLBtoGLTF.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="inc\AccessorUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DeviceResources.cpp">
