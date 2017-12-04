@@ -17,12 +17,12 @@ namespace Microsoft::glTF::Toolkit
     public:
         /// <summary>
         /// Calculates the min and max values for an accessor according to the glTF 2.0 specification.
-        /// </summary>
         /// <param name="accessor">The accessor definition for which the min and max values will be calculated.</param>
         /// <param name="accessorContents">The raw data contained in the accessor.</param>
         /// <returns>
         /// A pair containing the min and max vectors for the accessor, in that order.
         /// </returns>
+        /// </summary>
         template <typename T>
         static std::pair<std::vector<float>, std::vector<float>> CalculateMinMax(const Accessor& accessor, const std::vector<T>& accessorContents)
         {
