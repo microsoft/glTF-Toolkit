@@ -8,7 +8,8 @@
 #include "GLTFSDK/GLTF.h"
 #include "GLTFSDK/GLTFDocument.h"
 #include "GLTFSDK/GLBResourceReader.h"
-#include "GLTFSDK/GLBResourceWriter.h"
+#include "GLTFSDK/GLBResourceWriter2.h"
+#include "GLTFSDK/Serialize.h"
 #include "GLTFSDK/BufferBuilder.h"
 
 using namespace Microsoft::glTF;
