@@ -184,8 +184,6 @@ int wmain(int argc, wchar_t *argv[])
                 case ComponentType::COMPONENT_UNSIGNED_BYTE:
                 case ComponentType::COMPONENT_SHORT:
                     return ComponentType::COMPONENT_UNSIGNED_SHORT;
-                case ComponentType::COMPONENT_FLOAT:
-                    return ComponentType::COMPONENT_UNSIGNED_INT;
                 default:
                     return accessor.componentType;
                 }
