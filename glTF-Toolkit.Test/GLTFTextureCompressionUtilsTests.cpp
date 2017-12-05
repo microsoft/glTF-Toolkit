@@ -74,9 +74,10 @@ namespace Microsoft::glTF::Toolkit::Test
             // This asset has all textures
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleORMJson, [](auto doc, auto path)
             {
+                auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto generateMipMaps = false;
                 auto retainOriginalImages = true;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", generateMipMaps, retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
 
                 auto originalTexture = doc.textures.Get("0");
                 auto compressedTexture = compressedDoc.textures.Get("0");
@@ -112,9 +113,10 @@ namespace Microsoft::glTF::Toolkit::Test
             // This asset has all textures
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleORMJson, [](auto doc, auto path)
             {
+                auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto generateMipMaps = false;
                 auto retainOriginalImages = false;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", generateMipMaps, retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
 
                 auto originalTexture = doc.textures.Get("0");
                 auto compressedTexture = compressedDoc.textures.Get("0");
@@ -153,9 +155,10 @@ namespace Microsoft::glTF::Toolkit::Test
             // This asset has all textures
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleORMJson, [](auto doc, auto path)
             {
+                auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto generateMipMaps = true;
                 auto retainOriginalImages = true;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC7, "", generateMipMaps, retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC7, "", maxTextureSize, generateMipMaps, retainOriginalImages);
 
                 auto originalTexture = doc.textures.Get("0");
                 auto compressedTexture = compressedDoc.textures.Get("0");
@@ -191,8 +194,9 @@ namespace Microsoft::glTF::Toolkit::Test
             // This asset has all textures
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleORMJson, [](auto doc, auto path)
             {
+                auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto retainOriginalImages = true;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(TestStreamReader(path), doc, "", retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(TestStreamReader(path), doc, "", maxTextureSize, retainOriginalImages);
 
                 // Check that the materials and textures have not been replaced
                 // Check that the textures has not been replaced

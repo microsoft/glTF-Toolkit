@@ -20,7 +20,10 @@ WindowsMRAssetConverter _&lt;path to GLTF/GLB&gt;_
 
 - `-temp-directory <temporary folder, default is the system temp folder for the user>`
   - Allows overriding the temporary folder where intermediate files (packed/compressed textures, converted GLBs) will be placed.
-    
+
+- `-max-texture-size <Max texture size in pixels, default is 512>`
+  - Allows overriding the maximum texture dimension (width/height) when compressing textures. The recommended maximum dimension in the [documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home#texture_resolutions_and_workflow) is 512, and the allowed maximum is 4096.
+
 ## Example
 `WindowsMRAssetConverter FileToConvert.gltf -o ConvertedFile.glb -lod Lod1.gltf Lod2.gltf -screen-coverage 0.5 0.2 0.01`
 
@@ -32,9 +35,9 @@ Each asset goes through the following steps when converting for compatibility wi
 
 1. **Conversion from GLB** - any GLB files are converted to loose glTF + assets, to simplify the code for reading resources
 1. **Texture packing** - The textures that are relevant for the Windows MR home are packed according to the [documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home#materials) using the [MSFT\_packing\_occlusionRoughnessMetallic](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_packing_occlusionRoughnessMetallic) extension if necessary
-1. **Texture compression** - All textures that are used in the Windows MR home must be compressed as DDS BC5 or BC7 according to the [documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home#materials). This step also generates mip maps for the textures.
+1. **Texture compression** - All textures that are used in the Windows MR home must be compressed as DDS BC5 or BC7 according to the [documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home#materials). This step also generates mip maps for the textures, and resizes them down if necessary
 1. **LOD merging** - All assets that represent levels of detail are merged into the main asset using the [MSFT_lod](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_lod) extension
-1. **GLB export** - The resulting assets are exported as a GLB with all resources. As part of this step, accessors are modified to conform to the [glTF implementation notes in the documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home#gltf_implementation_notes): component types are converted to types supported by the Windows MR home, and the min and max values are calculated before serializing the accessors to the GLB.
+1. **GLB export** - The resulting assets are exported as a GLB with all resources. As part of this step, accessors are modified to conform to the [glTF implementation notes in the documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home#gltf_implementation_notes): component types are converted to types supported by the Windows MR home, and the min and max values are calculated before serializing the accessors to the GLB
 
 ## Additional resources
 

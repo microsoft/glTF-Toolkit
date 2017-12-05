@@ -10,8 +10,11 @@ const wchar_t * PARAM_OUTFILE = L"-o";
 const wchar_t * PARAM_TMPDIR = L"-temp-directory";
 const wchar_t * PARAM_LOD = L"-lod";
 const wchar_t * PARAM_SCREENCOVERAGE = L"-screen-coverage";
+const wchar_t * PARAM_MAXTEXTURESIZE = L"-max-texture-size";
 const wchar_t * SUFFIX_CONVERTED = L"_converted";
 const wchar_t * CLI_INDENT = L"    ";
+const size_t MAXTEXTURESIZE_DEFAULT = 512;
+const size_t MAXTEXTURESIZE_MAX = 4096;
 
 enum class CommandLineParsingState
 {
@@ -20,7 +23,8 @@ enum class CommandLineParsingState
     ReadOutFile,
     ReadTmpDir,
     ReadLods,
-    ReadScreenCoverage
+    ReadScreenCoverage,
+    ReadMaxTextureSize
 };
 
 void CommandLine::PrintHelp()
@@ -39,6 +43,7 @@ void CommandLine::PrintHelp()
         << indent << "[" << std::wstring(PARAM_TMPDIR) << L" <temporary folder, default is the system temp folder for the user>]" << std::endl
         << indent << "[" << std::wstring(PARAM_LOD) << " <path to each lower LOD asset in descending order of quality>]" << std::endl
         << indent << "[" << std::wstring(PARAM_SCREENCOVERAGE) << " <LOD screen coverage values>]" << std::endl
+        << indent << "[" << std::wstring(PARAM_MAXTEXTURESIZE) << " <Max texture size in pixels, defaults to 512>]" << std::endl
         << std::endl
         << "Example:" << std::endl
         << indent << "WindowsMRAssetConverter FileToConvert.gltf "
@@ -57,13 +62,20 @@ void CommandLine::PrintHelp()
 void CommandLine::ParseCommandLineArguments(
     int argc, wchar_t *argv[],
     std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
-    std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages)
+    std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize)
 {
     CommandLineParsingState state = CommandLineParsingState::Initial;
 
     inputFilePath = FileSystem::GetFullPath(std::wstring(argv[1]));
 
     inputAssetType = AssetTypeUtils::AssetTypeFromFilePath(inputFilePath);
+
+    // Reset input parameters
+    outFilePath = L"";
+    tempDirectory = L"";
+    lodFilePaths.clear();
+    screenCoveragePercentages.clear();
+    maxTextureSize = MAXTEXTURESIZE_DEFAULT;
 
     state = CommandLineParsingState::InputRead;
 
@@ -93,6 +105,11 @@ void CommandLine::ParseCommandLineArguments(
             screenCoveragePercentages.clear();
             state = CommandLineParsingState::ReadScreenCoverage;
         }
+        else if (param == PARAM_MAXTEXTURESIZE)
+        {
+            maxTextureSize = MAXTEXTURESIZE_DEFAULT;
+            state = CommandLineParsingState::ReadMaxTextureSize;
+        }
         else
         {
             switch (state)
@@ -114,6 +131,9 @@ void CommandLine::ParseCommandLineArguments(
                 screenCoveragePercentages.push_back(std::atof(paramA.c_str()));
                 break;
             }
+            case CommandLineParsingState::ReadMaxTextureSize:
+                maxTextureSize = std::min(static_cast<size_t>(std::stoul(param.c_str())), MAXTEXTURESIZE_MAX);
+                break;
             case CommandLineParsingState::Initial:
             case CommandLineParsingState::InputRead:
             default:

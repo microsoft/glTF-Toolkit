@@ -26,7 +26,7 @@ using namespace Microsoft::glTF::Toolkit;
 
 const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_TEXTURE_DDS = "MSFT_texture_dds";
 
-GLTFDocument GLTFTextureCompressionUtils::CompressTextureAsDDS(const IStreamReader& streamReader, const GLTFDocument & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, bool generateMipMaps, bool retainOriginalImage)
+GLTFDocument GLTFTextureCompressionUtils::CompressTextureAsDDS(const IStreamReader& streamReader, const GLTFDocument & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize, bool generateMipMaps, bool retainOriginalImage)
 {
     GLTFDocument outputDoc(doc);
 
@@ -43,6 +43,22 @@ GLTFDocument GLTFTextureCompressionUtils::CompressTextureAsDDS(const IStreamRead
     }
 
     auto image = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, texture.id));
+
+    // Resize
+    auto metadata = image->GetMetadata();
+    if (maxTextureSize < metadata.width || maxTextureSize < metadata.height)
+    {
+        auto scaleFactor = static_cast<double>(maxTextureSize) / std::max(metadata.width, metadata.height);
+        auto resizedWidth = static_cast<size_t>(std::llround(metadata.width * scaleFactor));
+        auto resizedHeight = static_cast<size_t>(std::llround(metadata.height * scaleFactor));
+        auto resized = std::make_unique<DirectX::ScratchImage>();
+        if (FAILED(DirectX::Resize(image->GetImages(), image->GetImageCount(), image->GetMetadata(), resizedWidth, resizedHeight, DirectX::TEX_FILTER_DEFAULT, *resized)))
+        {
+            throw GLTFException("Failed to resize image.");
+        }
+
+        image = std::move(resized);
+    }
 
     if (generateMipMaps)
     {
@@ -146,17 +162,17 @@ GLTFDocument GLTFTextureCompressionUtils::CompressTextureAsDDS(const IStreamRead
     return outputDoc;
 }
 
-GLTFDocument GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const std::string& outputDirectory, bool retainOriginalImages)
+GLTFDocument GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const std::string& outputDirectory, size_t maxTextureSize, bool retainOriginalImages)
 {
     GLTFDocument outputDoc(doc);
 
     for (auto material : doc.materials.Elements())
     {
-        auto compressIfNotEmpty = [&outputDoc, &streamReader, &outputDirectory, retainOriginalImages](const std::string& textureId, TextureCompression compression)
+        auto compressIfNotEmpty = [&outputDoc, &streamReader, &outputDirectory, maxTextureSize, retainOriginalImages](const std::string& textureId, TextureCompression compression)
         {
             if (!textureId.empty())
             {
-                outputDoc = CompressTextureAsDDS(streamReader, outputDoc, outputDoc.textures.Get(textureId), compression, outputDirectory, true, retainOriginalImages);
+                outputDoc = CompressTextureAsDDS(streamReader, outputDoc, outputDoc.textures.Get(textureId), compression, outputDirectory, maxTextureSize, true, retainOriginalImages);
             }
         };
 

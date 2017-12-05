@@ -39,6 +39,7 @@ namespace Microsoft::glTF::Toolkit
         /// throws exception.</param>
         /// <param name="compression">The desired block compression method (e.g. BC5, BC7).</param>
         /// <param name="outputDirectory">The output directory to which compressed files should be saved.</param>
+        /// <param name="maxTextureSize">The maximum texture size to which textures should be resized before compression, in pixels.</param>
         /// <param name="generateMipMaps">If true, also generates mip maps when compressing.</param>
         /// <param name="retainOriginalImage">If true, retains the original image on the resulting glTF. If false, 
         /// replaces that image (making the glTF incompatible with most core glTF 2.0 viewers).</param>
@@ -83,7 +84,7 @@ namespace Microsoft::glTF::Toolkit
         /// </code>
         /// </example>
         /// </summary>
-        static GLTFDocument CompressTextureAsDDS(const IStreamReader& streamReader, const GLTFDocument & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, bool generateMipMaps = true, bool retainOriginalImage = true);
+        static GLTFDocument CompressTextureAsDDS(const IStreamReader& streamReader, const GLTFDocument & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize = std::numeric_limits<size_t>::max(), bool generateMipMaps = true, bool retainOriginalImage = true);
 
         /// <summary>
         /// Applies <see cref="CompressTextureAsDDS" /> to all textures in the document that are accessible via materials according to the 
@@ -92,13 +93,14 @@ namespace Microsoft::glTF::Toolkit
         /// <param name="streamReader">The stream reader that will be used to get streams to each image from its URI.</param>
         /// <param name="doc">Input glTF document.</param>
         /// <param name="outputDirectory">The output directory to which compressed files should be saved.</param>
+        /// <param name="maxTextureSize">The maximum texture size to which textures should be resized before compression, in pixels.</param>
         /// <param name="generateMipMaps">If true, also generates mip maps when compressing.</param>
         /// <param name="retainOriginalImage">If true, retains the original image on the resulting glTF. If false, 
         /// replaces that image (making the glTF incompatible with most core glTF 2.0 viewers).</param>
         /// <returns>Returns a new GLTFDocument that contains alternate textures for all applicable materials following the requirements of the Windows
         /// Mixed Reality home using the MSFT_texture_dds extension.</returns>
         /// </summary>
-        static GLTFDocument CompressAllTexturesForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const std::string& outputDirectory, bool retainOriginalImages = true);
+        static GLTFDocument CompressAllTexturesForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const std::string& outputDirectory, size_t maxTextureSize = std::numeric_limits<size_t>::max(), bool retainOriginalImages = true);
 
         /// <summary>
         /// Compresses a DirectX::ScratchImage in place using the specified compression.
