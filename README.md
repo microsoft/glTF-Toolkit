@@ -2,6 +2,8 @@
 
 This project contains a collection of tools and libraries to modify and optimize glTF assets.
 
+[![Build status](https://ci.appveyor.com/api/projects/status/4n8m94mpc03dcuxt?svg=true)](https://ci.appveyor.com/project/robertos/gltf-toolkit)
+
 ## Features
 
 The current release includes code for:
@@ -14,10 +16,9 @@ It also includes a command line tool that uses these steps in sequence in order 
 ## Dependencies
 
 This project consumes the following projects through NuGet packages:
-- Microsoft GLTF SDK, licensed under the MIT license
+- [Microsoft.glTF.CPP](https://www.nuget.org/packages/Microsoft.glTF.CPP/1.3.25), licensed under the MIT license
 - [DirectXTex](http://github.com/Microsoft/DirectXTex), licensed under the MIT license
 - [RapidJSON](https://github.com/Tencent/rapidjson/), licensed under the MIT license
-
 
 ## Building
 
