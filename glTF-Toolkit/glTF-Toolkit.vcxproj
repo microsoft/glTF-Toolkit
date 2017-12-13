@@ -207,8 +207,11 @@
   <ItemGroup>
     <ClInclude Include="inc\AccessorUtils.h" />
     <ClInclude Include="inc\DeviceResources.h" />
+    <ClInclude Include="inc\FileSystem.h" />
     <ClInclude Include="inc\GLBtoGLTF.h" />
     <ClInclude Include="inc\GLTFLODUtils.h" />
+    <ClInclude Include="inc\GLTFStreamFactory.h" />
+    <ClInclude Include="inc\GLTFStreamReader.h" />
     <ClInclude Include="inc\GLTFTextureCompressionUtils.h" />
     <ClInclude Include="inc\GLTFTextureLoadingUtils.h" />
     <ClInclude Include="inc\GLTFTexturePackingUtils.h" />
@@ -217,6 +220,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DeviceResources.cpp" />
+    <ClCompile Include="src\FileSystem.cpp" />
     <ClCompile Include="src\GLBtoGLTF.cpp" />
     <ClCompile Include="src\GLTFLODUtils.cpp" />
     <ClCompile Include="src\GLTFTextureCompressionUtils.cpp" />
