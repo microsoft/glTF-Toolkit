@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 #include "pch.h"
+
+#include "FileSystem.h"
 #include "GLBtoGLTF.h"
 
 using namespace Microsoft::glTF;
@@ -287,7 +289,23 @@ GLTFDocument GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std
     return gltfDoc;
 }
 
-void GLBToGLTF::UnpackGLB(std::string glbPath, std::string outDirectory, std::string gltfName)
+void GLBToGLTF::UnpackGLB(std::wstring& glbPath, std::wstring& outDirectory)
+{
+    std::string glbPathA = std::string(glbPath.begin(), glbPath.end());
+
+    std::string outDirectoryA = std::string(outDirectory.begin(), outDirectory.end());
+    if (outDirectoryA[outDirectory.length() - 1] != '\\')
+    {
+        outDirectoryA += "\\";
+    }
+
+    std::wstring gltfName = FileSystem::GetFilenameWithoutExtension(glbPath);
+    std::string gltfNameA = std::string(gltfName.begin(), gltfName.end());
+
+    UnpackGLB(glbPathA, outDirectoryA, gltfNameA);
+}
+
+void GLBToGLTF::UnpackGLB(std::string& glbPath, std::string& outDirectory, std::string& gltfName)
 {
     // read glb file into json
     auto glbStream = std::make_shared<std::ifstream>(glbPath, std::ios::binary);

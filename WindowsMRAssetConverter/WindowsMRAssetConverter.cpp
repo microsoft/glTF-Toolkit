@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 
+#include <FileSystem.h>
 #include <GLTFSDK/GLTF.h>
 #include <GLTFSDK/Deserialize.h>
 #include <GLTFSDK/IStreamFactory.h>
@@ -10,64 +11,15 @@
 #include <GLTFTexturePackingUtils.h>
 #include <GLTFTextureCompressionUtils.h>
 #include <GLTFLODUtils.h>
+#include <GLTFStreamReader.h>
+#include <GLTFStreamFactory.h>
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
 
 #include "CommandLine.h"
-#include "FileSystem.h"
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
-
-class GLTFStreamReader : public IStreamReader
-{
-public:
-    GLTFStreamReader(std::wstring uriBase) : m_uriBase(uriBase) {}
-
-    virtual ~GLTFStreamReader() override {}
-    virtual std::shared_ptr<std::istream> GetInputStream(const std::string& filename) const override
-    {
-        std::wstring filenameW = std::wstring(filename.begin(), filename.end());
-
-        wchar_t uriAbsoluteRaw[MAX_PATH];
-        // Note: PathCchCombine will return the last argument if it's an absolute path
-        if (FAILED(::PathCchCombine(uriAbsoluteRaw, ARRAYSIZE(uriAbsoluteRaw), m_uriBase.c_str(), filenameW.c_str())))
-        {
-            throw std::invalid_argument("Could not get the base path for the GLTF resources. Try specifying the full path.");
-        }
-
-        return std::make_shared<std::ifstream>(uriAbsoluteRaw, std::ios::binary);
-    }
-private:
-    const std::wstring m_uriBase;
-};
-
-class GLBStreamFactory : public Microsoft::glTF::IStreamFactory
-{
-public:
-    GLBStreamFactory(const std::wstring& filename) :
-        m_stream(std::make_shared<std::ofstream>(filename, std::ios_base::binary | std::ios_base::out)),
-        m_tempStream(std::make_shared<std::stringstream>(std::ios_base::binary | std::ios_base::in | std::ios_base::out))
-    { }
-
-    std::shared_ptr<std::istream> GetInputStream(const std::string&) const override
-    {
-        throw std::logic_error("Not implemented");
-    }
-
-    std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override
-    {
-        return m_stream;
-    }
-
-    std::shared_ptr<std::iostream> GetTemporaryStream(const std::string&) const override
-    {
-        return m_tempStream;
-    }
-private:
-    std::shared_ptr<std::ofstream> m_stream;
-    std::shared_ptr<std::stringstream> m_tempStream;
-};
 
 GLTFDocument LoadAndConvertDocumentForWindowsMR(
     std::wstring& inputFilePath,
