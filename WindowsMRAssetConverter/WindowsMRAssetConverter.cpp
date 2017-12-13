@@ -171,7 +171,10 @@ int wmain(int argc, wchar_t *argv[])
             document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages);
         }
 
-        // 4. GLB Export
+		// 4. Mesh Optimization
+
+
+        // 5. GLB Export
         std::wcout << L"Exporting as GLB..." << std::endl;
 
         // The Windows MR Fall Creators update has restrictions on the supported

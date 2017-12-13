@@ -28,6 +28,7 @@
     <ClCompile Include="GLBSerializerTests.cpp" />
     <ClCompile Include="GLBtoGLTFTests.cpp" />
     <ClCompile Include="GLTFLODUtilsTests.cpp" />
+    <ClCompile Include="GLTFMeshUtilsTests.cpp" />
     <ClCompile Include="GLTFTextureCompressionUtilsTests.cpp" />
     <ClCompile Include="GLTFTexturePackingUtilsTests.cpp" />
   </ItemGroup>
