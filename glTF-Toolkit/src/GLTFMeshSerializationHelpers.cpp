@@ -18,15 +18,15 @@ using namespace Microsoft::glTF::Toolkit;
 AttributeList AttributeList::FromPrimitive(const MeshPrimitive& p)
 {
 	AttributeList a ={ 0 };
-	a.bIndices	= p.indicesAccessorId.empty();
-	a.bPositions= p.positionsAccessorId.empty();
-	a.bNormals	= p.normalsAccessorId.empty();
-	a.bTangents	= p.tangentsAccessorId.empty();
-	a.bUV0		= p.uv0AccessorId.empty();
-	a.bUV1		= p.uv1AccessorId.empty();
-	a.bColor0	= p.color0AccessorId.empty();
-	a.bJoints0	= p.joints0AccessorId.empty();
-	a.bWeights0	= p.weights0AccessorId.empty();
+	a.SetAttribute(Indices, p.indicesAccessorId.empty());
+	a.SetAttribute(Positions, p.positionsAccessorId.empty());
+	a.SetAttribute(Normals, p.normalsAccessorId.empty());
+	a.SetAttribute(Tangents, p.tangentsAccessorId.empty());
+	a.SetAttribute(UV0, p.uv0AccessorId.empty());
+	a.SetAttribute(UV1, p.uv1AccessorId.empty());
+	a.SetAttribute(Color0, p.color0AccessorId.empty());
+	a.SetAttribute(Joints0, p.joints0AccessorId.empty());
+	a.SetAttribute(Weights0, p.weights0AccessorId.empty());
 	return a;
 }
 
@@ -493,7 +493,7 @@ void MeshInfo::ExportInterleaved(BufferBuilder2& Builder, Mesh& OutMesh)
 	std::vector<float> Min, Max;
 
 	// Index output.
-	if (m_Attributes.bIndices)
+	if (m_Attributes.HasAttribute(Attribute::Indices))
 	{
 		// Write indices.
 		std::vector<uint8_t> OutIndices;

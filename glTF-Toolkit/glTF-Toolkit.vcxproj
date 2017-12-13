@@ -194,13 +194,16 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="inc\GLTFMeshSerializationHelpers.inl" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="inc\AccessorUtils.h" />
     <ClInclude Include="inc\DeviceResources.h" />
+    <ClInclude Include="inc\DirectXMathUtils.h" />
     <ClInclude Include="inc\GLBtoGLTF.h" />
     <ClInclude Include="inc\GLTFLODUtils.h" />
+    <ClInclude Include="inc\GLTFMeshSerializationHelpers.h" />
     <ClInclude Include="inc\GLTFTextureCompressionUtils.h" />
     <ClInclude Include="inc\GLTFTextureLoadingUtils.h" />
     <ClInclude Include="inc\GLTFTexturePackingUtils.h" />

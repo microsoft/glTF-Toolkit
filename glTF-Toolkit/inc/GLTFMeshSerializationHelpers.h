@@ -35,24 +35,14 @@ namespace Microsoft { namespace glTF { namespace Toolkit
 
 	struct AttributeList
 	{
-		union
-		{
-			uint32_t Mask;
-			struct
-			{
-				bool bIndices : 1;
-				bool bPositions : 1;
-				bool bNormals : 1;
-				bool bTangents : 1;
-				bool bUV0 : 1;
-				bool bUV1 : 1;
-				bool bColor0 : 1;
-				bool bJoints0 : 1;
-				bool bWeights0 : 1;
-			};
-		};
+		uint32_t Mask;
 
-		inline void AddAttribute(Attribute Attr) { Mask = 1 << Attr; }
+		inline void SetAttribute(Attribute Attr, bool Value) 
+		{
+			Value ? AddAttribute(Attr) : ClearAttribute(Attr);
+		}
+		inline void AddAttribute(Attribute Attr) { Mask |= 1 << Attr; }
+		inline void ClearAttribute(Attribute Attr) { Mask &= ~(1 << Attr); }
 		inline bool HasAttribute(Attribute Attr) const { return (Mask & Attr) != 0; }
 
 		static AttributeList FromPrimitive(const MeshPrimitive& p);

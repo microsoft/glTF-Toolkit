@@ -2,6 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="inc\GLTFMeshSerializationHelpers.inl">
+      <Filter>inc</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">
@@ -37,6 +40,12 @@
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="inc\AccessorUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\DirectXMathUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFMeshSerializationHelpers.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
