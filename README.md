@@ -2,16 +2,16 @@
 
 This project contains a collection of tools and libraries to modify and optimize glTF assets.
 
+Additionally the repository includes a command line tool that uses these steps in sequence in order to convert a glTF 2.0 core asset for use in the Windows Mixed Reality home, following the published [documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home). The latest release of the Windows Mixed Reality Asset converter is available on the [releases tab](https://github.com/Microsoft/glTF-Toolkit/releases).
+
 [![Build status](https://ci.appveyor.com/api/projects/status/4n8m94mpc03dcuxt?svg=true)](https://ci.appveyor.com/project/robertos/gltf-toolkit)
 
 ## Features
-
 The current release includes code for:
 - Packing PBR material textures using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_packing_occlusionRoughnessMetallic](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_packing_occlusionRoughnessMetallic) extension.
 - Compressing textures as BC3, BC5 and BC7 and generate mip maps using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_texture_dds](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_texture_dds) extension.
 - Merging multiple glTF assets into a asset with multiple levels of detail using the [MSFT_lod](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_lod) extension.
-
-It also includes a command line tool that uses these steps in sequence in order to convert a glTF 2.0 core asset for use in the Windows Mixed Reality home, following the published [documentation](https://developer.microsoft.com/en-us/windows/mixed-reality/creating_3d_models_for_use_in_the_windows_mixed_reality_home).
+- A command line tool that combines these components to create optimized glTF assets for the Windows Mixed Reality Home
 
 ## Dependencies
 
