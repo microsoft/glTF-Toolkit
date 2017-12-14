@@ -3,7 +3,7 @@
 
 #pragma once
 
-namespace Microsoft { namespace glTF 
+namespace Microsoft::glTF
 { 
 	class GLTFDocument;
 	class IStreamReader;
@@ -13,30 +13,47 @@ namespace Microsoft { namespace glTF
 	{
 		extern const char* EXTENSION_MSFT_MESH_OPTIMIZER;
 
-		enum class MeshOutputFormat
+		// Specifies the format of how each primitive is stored.
+		enum class PrimitiveFormat : uint8_t
 		{
-			// Preserve the structure of each underlying stream.
-			Preserve = 0,
+			// Detect and preserve the existing structure of each underlying format.
+			Preserved = 0,
 
-			// Collapse mesh attributes into a single interleaved stream, if not already configured as such.
-			Interleaved = 1,
+			// Primitive index & vertex data are combined into a globalized set over the entire mesh. 
+			// Note: Creates the least number of API objects when rendering.
+			Combined = 1,
 
-			// Split mesh attributes into separate streams, if not already configured as such.
-			Separate = 2,
+			// Primitives are compacted into their own localized segments.
+			// Note: Allows for additional per-primitive compression on index & vertex data.
+			Separated = 2,
+		};
+
+		// Specifies the format of each primitive's vertex attributes.
+		enum class AttributeFormat : uint8_t
+		{
+			// Vertex attribute data is integrated into a single, interleaved stream.
+			// Note: Fastest performance during draw calls with all attributes bound.
+			Interleaved = 0,
+
+			// Vertex attribute data is split into separate lists of contiguous streams. 
+			// Note: Worse performance, but provides flexibility of minimizing attribute selection when specifying input layouts.
+			Separated = 1,
 		};
 	
 		struct MeshOptions
 		{
-			bool Clean;						// Perform an optimization pass on the mesh data.
-			bool GenerateTangentSpace;		// Generate normals and/or tangents if non-existent.
-			MeshOutputFormat OutputFormat;	// Specifies the format to output the mesh in.
+			bool Optimize;						// Perform an optimization pass on the mesh data (requires indices.)
+			bool GenerateTangentSpace;			// Generate normals and/or tangents if non-existent (requires indices.)
+			PrimitiveFormat PrimitiveFormat;	// Specifies the format in which to output the mesh primitives.
+			AttributeFormat AttributeFormat;	// Specifies the format in which to output the attributes.
 
 			static MeshOptions Defaults(void)
 			{
 				MeshOptions Options;
-				Options.Clean = true;
+				Options.Optimize = true;
 				Options.GenerateTangentSpace = true;
-				Options.OutputFormat = MeshOutputFormat::Interleaved;
+				Options.PrimitiveFormat = PrimitiveFormat::Combined;
+				Options.AttributeFormat = AttributeFormat::Interleaved;
 				return Options;
 			}
 		};
@@ -44,11 +61,7 @@ namespace Microsoft { namespace glTF
 		class GLTFMeshUtils
 		{
 		public:
-			static GLTFDocument OptimizeAllMeshes(	const IStreamReader& StreamReader, 
-													std::unique_ptr<const IStreamFactory>&& StreamFactory,
-													const GLTFDocument& Doc, 
-													const MeshOptions& Options,
-													const std::string& OutputDirectory);
+			static GLTFDocument ProcessMeshes(const IStreamReader& StreamReader, const GLTFDocument& Doc, const MeshOptions& Options, const std::string& OutputDirectory);
 		};
 	}
-}}
+}

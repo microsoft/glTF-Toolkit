@@ -48,7 +48,7 @@ namespace Microsoft::glTF::Toolkit::Test
 		{
 			TestUtils::LoadAndExecuteGLTFTest(GLTFRelPath, [=](auto Doc, auto Path)
 			{
-				auto OptimizedDoc = GLTFMeshUtils::OptimizeAllMeshes(TestStreamReader(Path), std::make_unique<GLBStreamFactory>(L"optimized_mesh.bin"), Doc, Options, "");
+				auto OptimizedDoc = GLTFMeshUtils::ProcessMeshes(TestStreamReader(Path), std::make_unique<GLBStreamFactory>(L"optimized_mesh.bin"), Doc, Options, "");
 			});
 		}
 

@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
-namespace Microsoft { namespace glTF { namespace Toolkit 
+namespace Microsoft::glTF::Toolkit
 {
 	template <typename From, typename To, size_t Dimension>
 	void Read(To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count)
@@ -79,7 +79,7 @@ namespace Microsoft { namespace glTF { namespace Toolkit
 			return false;
 		}
 
-		int AccessorIndex = atoi(AccessorId.c_str());
+		int AccessorIndex = std::stoi(AccessorId);
 		if (AccessorIndex < 0 || AccessorIndex >= Doc.accessors.Size())
 		{
 			return false;
@@ -90,7 +90,7 @@ namespace Microsoft { namespace glTF { namespace Toolkit
 		{
 			return false;
 		}
-		int BufferViewIndex = atoi(Accessor.bufferViewId.c_str());
+		int BufferViewIndex = std::stoi(Accessor.bufferViewId);
 		if (BufferViewIndex < 0 || BufferViewIndex >= Doc.bufferViews.Size())
 		{
 			return false;
@@ -107,8 +107,6 @@ namespace Microsoft { namespace glTF { namespace Toolkit
 		return true;
 	}
 
-
-	// ---- Writing ----
 
 	template <typename To, typename From, size_t Dimension>
 	void Write(uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count)
@@ -144,7 +142,6 @@ namespace Microsoft { namespace glTF { namespace Toolkit
 		}
 	}
 
-	// Write series of adjacent data to a raw stream.
 	template <typename From>
 	size_t Write(const AccessorInfo& Info, uint8_t* Dest, const From* Src, size_t Count)
 	{
@@ -154,7 +151,58 @@ namespace Microsoft { namespace glTF { namespace Toolkit
 	}
 
 
-	// ---- Finding Min & Max ----
+	template <typename From, typename RemapFunc>
+	void LocalizeAttributes(std::vector<From>& AttributesLocal, const uint32_t* Indices, size_t IndexCount, const RemapFunc& Remap, const From* Attributes)
+	{
+		// Convert from globally indexed buffer to local buffer.
+		std::for_each(Indices, Indices + IndexCount, [&](auto& i)
+		{
+			auto LocalIndex = Remap(i);
+
+			if (LocalIndex >= AttributesLocal.size())
+			{
+				AttributesLocal.resize(LocalIndex + 1);
+			}
+
+			AttributesLocal[LocalIndex] = Attributes[i];
+		});
+	}
+
+	template <typename From>
+	std::string ExportBufferView(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset)
+	{
+		size_t Dimension = Accessor::GetTypeCount(Info.Dimension);
+		size_t ComponentSize = Accessor::GetComponentTypeSize(Info.Type);
+
+		size_t ByteStride = Dimension * ComponentSize;
+		size_t ByteOffset = Offset * ComponentSize;
+
+		auto Buffer = std::vector<uint8_t>(Count * ByteStride);
+		Write(Info, Buffer.data(), ByteStride, ByteOffset, Src, Count);
+
+		std::vector<float> Min, Max;
+		FindMinMax(Info, Buffer.data(), ByteStride, ByteOffset, Count, Min, Max);
+
+		Builder.AddBufferView(Buffer.data(), Buffer.size(), ByteStride, Info.Target);
+		return Builder.GetCurrentBufferView().id;
+	}
+
+	template <typename From>
+	std::string ExportAccessor(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset)
+	{
+		ExportBufferView(Builder, Info, Src, Count Offset);
+		Builder.AddAccessor(Count, ByteOffset, Info.Type, Info.Dimension, Min, Max);
+		return Builder.GetCurrentAccessor().id;
+	}
+
+	template <typename From, typename RemapFunc>
+	std::string ExportAccessorIndexed(BufferBuilder2& Builder, const AccessorInfo& Info, size_t VertexCount, const uint32_t* Indices, size_t IndexCount, const RemapFunc& Remap, const From* Attributes)
+	{
+		auto Local = std::vector<From>(VertexCount);
+		LocalizeAttributes(Local, Indices, IndexCount, Remap, Attributes);
+		return ExportAccessor(Builder, Info, LocalAttr.data(), IndexCount);
+	}
+
 
 	template <typename T, size_t Dimension>
 	void FindMinMax(const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
@@ -193,34 +241,9 @@ namespace Microsoft { namespace glTF { namespace Toolkit
 		}
 	}
 
-	template <typename From>
-	std::string ExportBuffer(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset)
+	template <typename T>
+	void FindMinMax(const AccessorInfo& Info, const T* Src, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
 	{
-		size_t Dimension = Accessor::GetTypeCount(Info.Dimension);
-		size_t ComponentSize = Accessor::GetComponentTypeSize(Info.Type);
-
-		size_t ByteStride = Dimension * ComponentSize;
-		size_t ByteOffset = Offset * ComponentSize;
-
-		auto Buffer = std::vector<uint8_t>(Count * ByteStride);
-		Write(Info, Buffer.data(), ByteStride, ByteOffset, Src, Count);
-
-		std::vector<float> Min, Max;
-		FindMinMax(Info, Buffer.data(), ByteStride, ByteOffset, Count, Min, Max);
-
-		Builder.AddBufferView(Info.Target);
-		Builder.AddAccessor(Buffer.data(), Buffer.size(), Info.Type, Info.Dimension, Min, Max);
-		return Builder.GetCurrentAccessor().id;
+		FindMinMax<T>(Info, (uint8_t*)Src, sizeof(T), 0, Count, Min, Max);
 	}
-
-	// Maps a global mesh buffer to a 
-	template <typename From, typename RemapFunc>
-	std::string ExportBufferIndexed(BufferBuilder2& Builder, const AccessorInfo& Info, size_t VertexCount, const uint32_t* Indices, size_t IndexCount, const RemapFunc& Remap, const From* GlobalAttr)
-	{
-		// Convert from globally indexed buffer to local buffer.
-		std::vector<From> LocalAttr = std::vector<From>(VertexCount);
-		std::for_each(Indices, Indices + IndexCount, [&](auto& i) { LocalAttr[Remap(i)] = GlobalAttr[i]; });
-
-		return ExportBuffer(Builder, Info, LocalAttr.data(), IndexCount);
-	}
-}}}
+}

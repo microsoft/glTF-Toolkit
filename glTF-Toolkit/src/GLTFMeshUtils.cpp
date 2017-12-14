@@ -17,20 +17,34 @@ using namespace Microsoft::glTF::Toolkit;
 
 const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_MESH_OPTIMIZER = "MSFT_mesh_optimizer";
 
+namespace
+{
+	class BasicStreamFactory : public IStreamFactory
+	{
+	public:
+		BasicStreamFactory(const std::string& filename) 
+			: m_Stream(std::make_shared<std::ofstream>(filename, std::ios_base::binary | std::ios_base::out))
+			, m_TempStream(std::make_shared<std::stringstream>(std::ios_base::binary | std::ios_base::in | std::ios_base::out))
+		{ }
+
+		std::shared_ptr<std::istream> GetInputStream(const std::string&) const override { throw std::logic_error("Not implemented"); }
+		std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override { return m_Stream; }
+		std::shared_ptr<std::iostream> GetTemporaryStream(const std::string&) const override { return m_TempStream; }
+
+	private:
+		std::shared_ptr<std::ofstream> m_Stream;
+		std::shared_ptr<std::stringstream> m_TempStream;
+	};
+}
+
 
 //-----------------------------------------
 // Main Entrypoint
 
-GLTFDocument GLTFMeshUtils::OptimizeAllMeshes(	const IStreamReader& StreamReader, 
-												std::unique_ptr<const IStreamFactory>&& StreamFactory,
-												const GLTFDocument& Doc, 
-												const MeshOptions& Options,
-												const std::string& OutputDirectory)
+GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, const GLTFDocument& Doc, const MeshOptions& Options, const std::string& OutputDirectory)
 {
-	(OutputDirectory);
-
 	// Make sure there's meshes to optimize before performing a bunch of work. 
-	if (Doc.meshes.Size() == 0)
+	if (Doc.meshes.Size() == 0 || Doc.buffers.Size() == 0)
 	{
 		return Doc;
 	}
@@ -41,13 +55,23 @@ GLTFDocument GLTFMeshUtils::OptimizeAllMeshes(	const IStreamReader& StreamReader
 		return Doc;
 	}
 
+	// Generate a buffer name based on the old buffer .bin file name in the output directory.
+	std::string BufferName = OutputDirectory + Doc.buffers[0].name;
+	size_t Pos = BufferName.find_last_of('.');
+	if (Pos == std::string::npos)
+	{
+		return Doc;
+	}
+	BufferName.insert(Pos, "_optimized_mesh.bin");
+
+	// Spin up a document copy to modify.
 	GLTFDocument OutputDoc(Doc);
 
 	auto GenBufferId = [&](const BufferBuilder2& b) { return std::to_string(OutputDoc.buffers.Size() + b.GetBufferCount()); };
 	auto GenBufferViewId = [&](const BufferBuilder2& b) { return std::to_string(OutputDoc.bufferViews.Size() + b.GetBufferViewCount()); };
 	auto GenAccessorId = [&](const BufferBuilder2& b) { return std::to_string(OutputDoc.accessors.Size() + b.GetAccessorCount()); };
 
-	BufferBuilder2 Builder = BufferBuilder2(std::make_unique<GLTFResourceWriter2>(std::move(StreamFactory), "mesh_optimized"), GenBufferId, GenBufferViewId, GenAccessorId);
+	BufferBuilder2 Builder = BufferBuilder2(std::make_unique<GLTFResourceWriter2>(std::make_unique<BasicStreamFactory>(BufferName), GenBufferId, GenBufferViewId, GenAccessorId));
 	Builder.AddBuffer();
 
 	MeshInfo MeshData;
@@ -60,13 +84,13 @@ GLTFDocument GLTFMeshUtils::OptimizeAllMeshes(	const IStreamReader& StreamReader
 			continue;
 		}
 
-		if (Options.Clean)
+		if (Options.Optimize)
 		{
 			MeshData.Optimize();
 		}
 
 		MeshData.GenerateAttributes(Options.GenerateTangentSpace);
-		MeshData.Export(Builder, m, Options.OutputFormat);
+		MeshData.Export(Options, Builder, m);
 
 		OutputDoc.meshes.Replace(m);
 	}

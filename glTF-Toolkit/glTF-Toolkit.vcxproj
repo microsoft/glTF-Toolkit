@@ -204,6 +204,7 @@
     <ClInclude Include="inc\GLBtoGLTF.h" />
     <ClInclude Include="inc\GLTFLODUtils.h" />
     <ClInclude Include="inc\GLTFMeshSerializationHelpers.h" />
+    <ClInclude Include="inc\GLTFMeshUtils.h" />
     <ClInclude Include="inc\GLTFTextureCompressionUtils.h" />
     <ClInclude Include="inc\GLTFTextureLoadingUtils.h" />
     <ClInclude Include="inc\GLTFTexturePackingUtils.h" />

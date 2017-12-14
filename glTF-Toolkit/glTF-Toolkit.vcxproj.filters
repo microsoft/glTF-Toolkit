@@ -48,6 +48,9 @@
     <ClInclude Include="inc\GLTFMeshSerializationHelpers.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="inc\GLTFMeshUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DeviceResources.cpp">

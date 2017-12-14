@@ -38,7 +38,7 @@ XMUINT_OPDEFINE(2)
 XMUINT_OPDEFINE(3)
 XMUINT_OPDEFINE(4)
 
-namespace Microsoft { namespace glTF { namespace Toolkit 
+namespace Microsoft::glTF::Toolkit
 { 
 	template <bool _IsVector, typename T>
 	struct XMComponentType
@@ -99,4 +99,4 @@ namespace Microsoft { namespace glTF { namespace Toolkit
 			}
 		}
 	};
-}}}
+}

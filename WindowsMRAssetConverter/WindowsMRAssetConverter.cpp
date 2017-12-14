@@ -10,6 +10,7 @@
 #include <GLTFTexturePackingUtils.h>
 #include <GLTFTextureCompressionUtils.h>
 #include <GLTFLODUtils.h>
+#include <GLTFMeshUtils.h>
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
 
@@ -116,6 +117,9 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     // 2. Texture Compression
     document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
 
+	// 3. Mesh Optimization
+	document = GLTFMeshUtils::ProcessMeshes(streamReader, document, MeshOptions::Defaults(), tempDirectoryA);
+
     return document;
 }
 
@@ -171,10 +175,7 @@ int wmain(int argc, wchar_t *argv[])
             document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages);
         }
 
-		// 4. Mesh Optimization
-
-
-        // 5. GLB Export
+        // 4. GLB Export
         std::wcout << L"Exporting as GLB..." << std::endl;
 
         // The Windows MR Fall Creators update has restrictions on the supported

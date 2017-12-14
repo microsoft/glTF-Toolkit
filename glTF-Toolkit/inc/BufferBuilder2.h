@@ -10,7 +10,7 @@
 
 namespace Microsoft { namespace glTF
 {
-	class BufferBuilder2 final
+	class BufferBuilder2
 	{
 		using FnGenId = std::function<std::string(const BufferBuilder2&)>;
 
