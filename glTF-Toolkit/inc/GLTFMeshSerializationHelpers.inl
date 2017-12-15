@@ -180,6 +180,22 @@ namespace Microsoft::glTF::Toolkit
 		auto Buffer = std::vector<uint8_t>(Count * ByteStride);
 		Write(Info, Buffer.data(), ByteStride, ByteOffset, Src, Count);
 
+		Builder.AddBufferView(Buffer.data(), Buffer.size(), ByteStride, Info.Target);
+		return Builder.GetCurrentBufferView().id;
+	}
+
+	template <typename From>
+	std::string ExportPrimitive(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset)
+	{
+		size_t Dimension = Accessor::GetTypeCount(Info.Dimension);
+		size_t ComponentSize = Accessor::GetComponentTypeSize(Info.Type);
+
+		size_t ByteStride = Dimension * ComponentSize;
+		size_t ByteOffset = Offset * ComponentSize;
+
+		auto Buffer = std::vector<uint8_t>(Count * ByteStride);
+		Write(Info, Buffer.data(), ByteStride, ByteOffset, Src, Count);
+
 		std::vector<float> Min, Max;
 		FindMinMax(Info, Buffer.data(), ByteStride, ByteOffset, Count, Min, Max);
 
@@ -191,6 +207,10 @@ namespace Microsoft::glTF::Toolkit
 	std::string ExportAccessor(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset)
 	{
 		ExportBufferView(Builder, Info, Src, Count Offset);
+
+		std::vector<float> Min, Max;
+		FindMinMax(Info, Buffer.data(), ByteStride, ByteOffset, Count, Min, Max);
+
 		Builder.AddAccessor(Count, ByteOffset, Info.Type, Info.Dimension, Min, Max);
 		return Builder.GetCurrentAccessor().id;
 	}

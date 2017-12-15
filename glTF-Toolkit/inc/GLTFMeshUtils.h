@@ -13,6 +13,7 @@ namespace Microsoft::glTF
 	{
 		extern const char* EXTENSION_MSFT_MESH_OPTIMIZER;
 
+
 		// Specifies the format of how each primitive is stored.
 		enum class PrimitiveFormat : uint8_t
 		{
@@ -28,6 +29,7 @@ namespace Microsoft::glTF
 			Separated = 2,
 		};
 
+
 		// Specifies the format of each primitive's vertex attributes.
 		enum class AttributeFormat : uint8_t
 		{
@@ -40,6 +42,7 @@ namespace Microsoft::glTF
 			Separated = 1,
 		};
 	
+
 		struct MeshOptions
 		{
 			bool Optimize;						// Perform an optimization pass on the mesh data (requires indices.)
@@ -57,6 +60,10 @@ namespace Microsoft::glTF
 				return Options;
 			}
 		};
+
+
+		//-----------------------------------------------
+		// GLTFMeshUtils
 
 		class GLTFMeshUtils
 		{

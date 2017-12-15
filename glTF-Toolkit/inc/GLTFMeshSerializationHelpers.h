@@ -13,6 +13,8 @@
 namespace Microsoft::glTF::Toolkit
 {
 	enum class AttributeFormat : uint8_t;
+	enum class PrimitiveFormat : uint8_t;
+	struct MeshOptions;
 
 
 	//------------------------------------------
@@ -100,6 +102,29 @@ namespace Microsoft::glTF::Toolkit
 
 
 	//------------------------------------------
+	// MeshData
+
+	struct MeshData
+	{
+		std::vector<uint32_t>			Indices;
+		std::vector<DirectX::XMFLOAT3>  Positions;
+		std::vector<DirectX::XMFLOAT3>  Normals;
+		std::vector<DirectX::XMFLOAT4>  Tangents;
+		std::vector<DirectX::XMFLOAT2>  UV0;
+		std::vector<DirectX::XMFLOAT2>  UV1;
+		std::vector<DirectX::XMFLOAT4>  Color0;
+		std::vector<DirectX::XMUINT4>   Joints0;
+		std::vector<DirectX::XMFLOAT4>  Weights0;
+
+		void Reset(void);
+
+		void WriteIndices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
+		void WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
+		void ReadVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Input);
+	};
+
+
+	//------------------------------------------
 	// MeshInfo
 
 	class MeshInfo
@@ -136,17 +161,15 @@ namespace Microsoft::glTF::Toolkit
 		size_t GenerateInterleaved(void);
 		void RegenerateSeparate(void);
 
-		static void RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count);
 		static PrimitiveFormat DetermineFormat(const GLTFDocument& Doc, const Mesh& m);
+		static void RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count);
+		static bool CombinedAccessors(const GLTFDocument& Doc, const Mesh& m);
 
 	private:
 		std::string m_Name;
 		std::vector<PrimitiveInfo> m_Primitives;
 
-		std::vector<uint32_t> m_FacePrims; // Mapping from face index to primitive index.
 		std::vector<uint32_t> m_Indices;
-
-		// Geometry data
 		std::vector<DirectX::XMFLOAT3> m_Positions;
 		std::vector<DirectX::XMFLOAT3> m_Normals;
 		std::vector<DirectX::XMFLOAT4> m_Tangents;
@@ -159,6 +182,7 @@ namespace Microsoft::glTF::Toolkit
 		std::vector<uint8_t> m_VertexBuffer;
 
 		// DirectXMesh intermediate data
+		std::vector<uint32_t> m_FacePrims; // Mapping from face index to primitive index.
 		std::vector<uint32_t> m_PointReps;
 		std::vector<uint32_t> m_Adjacency;
 		std::vector<uint32_t> m_DupVerts;
