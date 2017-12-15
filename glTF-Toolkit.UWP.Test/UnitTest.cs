@@ -1,6 +1,5 @@
 ﻿
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -68,7 +67,7 @@ namespace glTF_Toolkit.UWP.Test
                 StorageFolder outputFolder = await CreateTemporaryOutputFolder("Out_" + glbBaseName);
 
                 // unpack the glb into gltf and all its companion files
-                glTF_Toolkit_WinRTComp.glTFSerialization.UnpackGLB(sourceGlbFile.Path, outputFolder.Path);
+                glTF_Toolkit_WinRTComp.glTFSerialization.UnpackGLB(sourceGlbFile, outputFolder);
 
                 bool areFilesEqual = false;
 
@@ -85,16 +84,15 @@ namespace glTF_Toolkit.UWP.Test
                 Assert.IsTrue(areFilesEqual);
 
                 // Pack the gltf back into a glb file
-                string outputGlbPath = outputFolder.Path + "\\" + glbFileName;
-                glTF_Toolkit_WinRTComp.glTFSerialization.PackGLTF(outputFolder.Path + "\\" + glbBaseName + ".gltf", outputGlbPath);
+                StorageFile gltfFile = await OpenFileInFolder(outputFolder, glbBaseName + ".gltf");
+                StorageFile outputGlbFile = glTF_Toolkit_WinRTComp.glTFSerialization.PackGLTF(gltfFile, outputFolder, glbFileName);
 
                 // compare the new glb to the old glb
-                StorageFile outputGlbFile = await OpenFileInFolder(outputFolder, glbFileName);
                 areFilesEqual = await AreStorageFilesEqual(sourceGlbFile, outputGlbFile);
 
                 Assert.IsTrue(areFilesEqual);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Assert.Fail(e.Message);
             }

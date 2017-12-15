@@ -27,11 +27,4 @@ namespace Microsoft::glTF::Toolkit
     /// <param name="outputStreamFactory">A stream factory that is capable of creating an output stream where the GLB will be saved, and a temporary stream for 
     /// use during the serialization process.</param>
     void SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader, std::unique_ptr<const IStreamFactory>& outputStreamFactory, const AccessorConversionStrategy& accessorConversion = nullptr);
-
-    /// <summary>
-    /// Serializes a glTF asset as a glTF binary (GLB) file.
-    /// </summary>
-    /// <param name="gltfPath">The path to the GLTF file to unpack.</param>
-    /// <param name="glbfPath">The path to the glb file that will be created.</param>
-    void SerializeBinary(std::wstring& gltfPath, std::wstring& glbfPath);
 }

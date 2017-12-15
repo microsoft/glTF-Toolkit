@@ -26,19 +26,9 @@ namespace Microsoft::glTF::Toolkit
         /// <param name="gltfName">
         /// The name of the output glTF manifest file, without the extension. 
         /// This name will be used as a prefix to all unpacked resources.
-        /// If parameter is not provided the glbPath filename will be stripped and used as the name
         /// </param>
-        static void UnpackGLB(std::string& glbPath, std::string& outDirectory, std::string& gltfName);
+        static void UnpackGLB(const std::string& glbPath, const std::string& outDirectory, const std::string& gltfName);
 
-        /// <summary>
-        /// Unpacks a GLB asset into a GLTF manifest and its 
-        /// resources (bin files and images).
-        /// </summary>
-        /// <param name="glbPath">The path to the GLB file to unpack. The file name of the glb without its extension
-        /// will be used as a prefix to all unpacked resources. </param>
-        /// <param name="outDirectory">The directory to which the glTF manifest and resources will be unpacked.</param>
-        static void UnpackGLB(std::wstring& glbPath, std::wstring& outDirectory);
-        
         /// <summary>
         /// Extracts the contents of all buffer views from a GLB file into a 
         /// byte vector that can be saves as a bin file to be used in a glTF file.
