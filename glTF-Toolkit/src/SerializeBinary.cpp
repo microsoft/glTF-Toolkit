@@ -4,12 +4,8 @@
 #include "pch.h"
 
 #include "AccessorUtils.h"
-#include "GLTFStreamFactory.h"
-#include "GLTFStreamReader.h"
-#include "FileSystem.h"
 #include "SerializeBinary.h"
 
-#include "GLTFSDK/Deserialize.h"
 #include "GLTFSDK/GLTF.h"
 #include "GLTFSDK/GLTFDocument.h"
 #include "GLTFSDK/GLBResourceReader.h"
@@ -218,14 +214,4 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     {
         outputWriter->Flush(manifest, std::string());
     }
-}
-
-void Microsoft::glTF::Toolkit::SerializeBinary(std::wstring& gltfPath, std::wstring& glbPath)
-{
-    auto stream = std::make_shared<std::ifstream>(gltfPath, std::ios::binary);
-    GLTFDocument document = DeserializeJson(*stream);
-
-    GLTFStreamReader streamReader(FileSystem::GetBasePath(gltfPath));
-    std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(glbPath);
-    SerializeBinary(document, streamReader, streamFactory);
 }

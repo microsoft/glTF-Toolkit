@@ -5,11 +5,11 @@
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   IgnorableNamespaces="uap mp">
 
-  <Identity Name="e7dbeb24-3c5f-40d0-9632-1e4ec0b333d1"
+  <Identity Name="b09cc82d-5ac2-4f40-97e2-3f6b2685107a"
             Publisher="CN=jofalcon"
             Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="e7dbeb24-3c5f-40d0-9632-1e4ec0b333d1" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="b09cc82d-5ac2-4f40-97e2-3f6b2685107a" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>glTF-Toolkit.UWP.Test</DisplayName>
