@@ -18,10 +18,10 @@ namespace glTF_Toolkit_WinRTComp
         /// Serializes a glTF asset as a glTF binary (GLB) file.
         /// </summary>
         /// <param name="sourceGltf">The glTF file to be serialized.</param>
-        /// <param name="outputFolder">The output folder for where you want the glb file to be placed</param>
-        /// <param name="glbName">The glb filename</param>
+        /// <param name="outputFolder">The output folder where you want the glb file to be placed.</param>
+        /// <param name="glbName">The glb filename.</param>
         /// <returns>
-        /// The resulting GLB file, named with glbName and located in outputFolder
+        /// The resulting GLB file, named with glbName and located in outputFolder.
         /// </returns>
         static Windows::Storage::StorageFile^ PackGLTF(Windows::Storage::StorageFile^ sourceGltf, Windows::Storage::StorageFolder^ outputFolder, Platform::String^ glbName);
     };
