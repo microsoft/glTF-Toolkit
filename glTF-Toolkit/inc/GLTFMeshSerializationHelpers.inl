@@ -145,52 +145,28 @@ namespace Microsoft::glTF::Toolkit
 	template <typename From>
 	size_t Write(const AccessorInfo& Info, uint8_t* Dest, const From* Src, size_t Count)
 	{
-		size_t Stride = Accessor::GetComponentTypeSize(Info.Type) * Accessor::GetTypeCount(Info.Dimension);
-		Write(Info, Dest, Stride, 0, Src, Count);
-		return Stride;
+		const size_t Stride = Accessor::GetComponentTypeSize(Info.Type) * Accessor::GetTypeCount(Info.Dimension);
+		return Write(Info, Dest, Stride, 0, Src, Count);
+		return Stride * Count;
 	}
 
-
-	template <typename From, typename RemapFunc>
-	void LocalizeAttributes(std::vector<From>& AttributesLocal, const uint32_t* Indices, size_t IndexCount, const RemapFunc& Remap, const From* Attributes)
-	{
-		// Convert from globally indexed buffer to local buffer.
-		std::for_each(Indices, Indices + IndexCount, [&](auto& i)
-		{
-			auto LocalIndex = Remap(i);
-
-			if (LocalIndex >= AttributesLocal.size())
-			{
-				AttributesLocal.resize(LocalIndex + 1);
-			}
-
-			AttributesLocal[LocalIndex] = Attributes[i];
-		});
-	}
-
-	template <typename From>
-	std::string ExportBufferView(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset)
-	{
-		size_t Dimension = Accessor::GetTypeCount(Info.Dimension);
-		size_t ComponentSize = Accessor::GetComponentTypeSize(Info.Type);
-
-		size_t ByteStride = Dimension * ComponentSize;
-		size_t ByteOffset = Offset * ComponentSize;
-
-		auto Buffer = std::vector<uint8_t>(Count * ByteStride);
-		Write(Info, Buffer.data(), ByteStride, ByteOffset, Src, Count);
-
-		std::vector<float> Min, Max;
-		FindMinMax(Info, Buffer.data(), ByteStride, ByteOffset, Count, Min, Max);
-
-		Builder.AddBufferView(Buffer.data(), Buffer.size(), ByteStride, Info.Target);
-		return Builder.GetCurrentBufferView().id;
-	}
 
 	template <typename From>
 	std::string ExportAccessor(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset)
 	{
-		ExportBufferView(Builder, Info, Src, Count Offset);
+		const size_t Dimension = Accessor::GetTypeCount(Info.Dimension);
+		const size_t ComponentSize = Accessor::GetComponentTypeSize(Info.Type);
+		const size_t ByteStride = Dimension * ComponentSize;
+		const size_t ByteOffset = Offset * ComponentSize;
+
+		auto Buffer = std::vector<uint8_t>(Count * ByteStride);
+		Write(Info, Buffer.data(), ByteStride, ByteOffset, Src, Count);
+
+		Builder.AddBufferView(Buffer.data(), Buffer.size(), ByteStride, Info.Target);
+
+		std::vector<float> Min, Max;
+		FindMinMax(Info, Buffer.data(), ByteStride, ByteOffset, Count, Min, Max);
+
 		Builder.AddAccessor(Count, ByteOffset, Info.Type, Info.Dimension, Min, Max);
 		return Builder.GetCurrentAccessor().id;
 	}
@@ -199,7 +175,7 @@ namespace Microsoft::glTF::Toolkit
 	std::string ExportAccessorIndexed(BufferBuilder2& Builder, const AccessorInfo& Info, size_t VertexCount, const uint32_t* Indices, size_t IndexCount, const RemapFunc& Remap, const From* Attributes)
 	{
 		auto Local = std::vector<From>(VertexCount);
-		LocalizeAttributes(Local, Indices, IndexCount, Remap, Attributes);
+		LocalizeAttribute(Local, Indices, IndexCount, Remap, Attributes);
 		return ExportAccessor(Builder, Info, LocalAttr.data(), IndexCount);
 	}
 
@@ -245,5 +221,11 @@ namespace Microsoft::glTF::Toolkit
 	void FindMinMax(const AccessorInfo& Info, const T* Src, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
 	{
 		FindMinMax<T>(Info, (uint8_t*)Src, sizeof(T), 0, Count, Min, Max);
+	}
+
+	template <typename T>
+	void FindMinMax(const AccessorInfo& Info, const std::vector<T>& Src, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
+	{
+		FindMinMax<T>(Info, (uint8_t*)Src, sizeof(T), sizeof(T) * Offset, Count), Min, Max);
 	}
 }
