@@ -43,6 +43,11 @@ bool AccessorInfo::IsValid(void) const
 	return std::memcmp(this, Zeros, sizeof(AccessorInfo)) != 0;
 }
 
+size_t AccessorInfo::GetElementSize(void) const 
+{ 
+	return Accessor::GetComponentTypeSize(Type) * Accessor::GetTypeCount(Dimension); 
+}
+
 AccessorInfo AccessorInfo::Invalid(void)
 {
 	AccessorInfo Info;
@@ -104,9 +109,10 @@ void PrimitiveInfo::GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count]) const
 	}
 }
 
-PrimitiveInfo PrimitiveInfo::Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, std::pair<ComponentType, AccessorType>(&Types)[Count])
+PrimitiveInfo PrimitiveInfo::Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, std::pair<ComponentType, AccessorType>(&Types)[Count], size_t Offset)
 {
 	PrimitiveInfo Info ={ 0 };
+	Info.Offset			= Offset;
 	Info.IndexCount		= IndexCount;
 	Info.VertexCount	= VertexCount;
 	FOREACH_ATTRIBUTE([&](auto i)
@@ -120,7 +126,7 @@ PrimitiveInfo PrimitiveInfo::Create(size_t IndexCount, size_t VertexCount, Attri
 }
 
 // Creates a descriptor containing the most compressed form of mesh given a vertex and index count.
-PrimitiveInfo PrimitiveInfo::CreateMin(size_t IndexCount, size_t VertexCount, AttributeList Attributes)
+PrimitiveInfo PrimitiveInfo::CreateMin(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset)
 {
 	std::pair<ComponentType, AccessorType> Types[] ={
 		{ GetIndexType(IndexCount),	TYPE_SCALAR },	// Indices
@@ -138,7 +144,7 @@ PrimitiveInfo PrimitiveInfo::CreateMin(size_t IndexCount, size_t VertexCount, At
 }
 
 // Creates a descriptor containing the maximimum precision index and vertex type.
-PrimitiveInfo PrimitiveInfo::CreateMax(size_t IndexCount, size_t VertexCount, AttributeList Attributes)
+PrimitiveInfo PrimitiveInfo::CreateMax(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset)
 {
 	std::pair<ComponentType, AccessorType> Types[] ={
 		{ COMPONENT_UNSIGNED_INT,	TYPE_SCALAR },	// Indices
@@ -174,69 +180,6 @@ void Microsoft::glTF::Toolkit::FindMinMax(const AccessorInfo& Info, const uint8_
 }
 
 
-void MeshData::Reset(void)
-{
-	Indices.clear();
-	Positions.clear();
-	Normals.clear();
-	Tangents.clear();
-	UV0.clear();
-	UV1.clear();
-	Color0.clear();
-	Joints0.clear();
-	Weights0.clear();
-}
-
-void MeshData::WriteIndices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const
-{
-	size_t WriteLen = Info.IndexCount * Info.GetIndexSize();
-
-	size_t OldSize = Output.size();
-	Output.resize(OldSize + WriteLen);
-
-	uint8_t* VertexStart = Output.data() + OldSize;
-	Write(Info[Attribute::Indices], VertexStart, Indices.data(), Indices.size());
-}
-
-void MeshData::WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const
-{
-	size_t Stride;
-	size_t Offsets[Count];
-	Info.GetVertexInfo(Stride, Offsets);
-
-	size_t WriteLen = Info.VertexCount * Stride;
-
-	size_t OldSize = Output.size();
-	Output.resize(OldSize + WriteLen);
-
-	uint8_t* VertexStart = Output.data() + OldSize;
-	Write(Info[Attribute::Positions], VertexStart, Stride, Offsets[Positions], Positions.data(), Positions.size());
-	Write(Info[Attribute::Normals], VertexStart, Stride, Offsets[Normals], Normals.data(), Normals.size());
-	Write(Info[Attribute::Tangents], VertexStart, Stride, Offsets[Tangents], Tangents.data(), Tangents.size());
-	Write(Info[Attribute::UV0], VertexStart, Stride, Offsets[UV0], UV0.data(), UV0.size());
-	Write(Info[Attribute::UV1], VertexStart, Stride, Offsets[UV1], UV1.data(), UV1.size());
-	Write(Info[Attribute::Color0], VertexStart, Stride, Offsets[Color0], Color0.data(), Color0.size());
-	Write(Info[Attribute::Joints0], VertexStart, Stride, Offsets[Joints0], Joints0.data(), Joints0.size());
-	Write(Info[Attribute::Weights0], VertexStart, Stride, Offsets[Weights0], Weights0.data(), Weights0.size());
-}
-
-void MeshData::ReadVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Input)
-{
-	size_t Stride;
-	size_t Offsets[Count];
-	Info.GetVertexInfo(Stride, Offsets);
-
-	Read(Info[Attribute::Positions], Positions.data(), Input.data(), Info.VertexCount, Stride, Offsets[Attribute::Positions]);
-	Read(Info[Attribute::Normals], Normals.data(), Input.data(), Info.VertexCount, Stride, Offsets[Attribute::Normals]);
-	Read(Info[Attribute::Tangents], Tangents.data(), Input.data(), Info.VertexCount, Stride, Offsets[Attribute::Tangents]);
-	Read(Info[Attribute::UV0], UV0.data(), Input.data(), Info.VertexCount, Stride, Offsets[Attribute::UV0]);
-	Read(Info[Attribute::UV1], UV1.data(), Input.data(), Info.VertexCount, Stride, Offsets[Attribute::UV1]);
-	Read(Info[Attribute::Color0], Color0.data(), Input.data(), Info.VertexCount, Stride, Offsets[Attribute::Color0]);
-	Read(Info[Attribute::Joints0], Joints0.data(), Input.data(), Info.VertexCount, Stride, Offsets[Attribute::Joints0]);
-	Read(Info[Attribute::Weights0], Weights0.data(), Input.data(), Info.VertexCount, Stride, Offsets[Attribute::Weights0]);
-}
-
-
 MeshInfo::MeshInfo(void)
 	: m_Name()
 	, m_Primitives()
@@ -249,15 +192,6 @@ MeshInfo::MeshInfo(void)
 	, m_Color0()
 	, m_Joints0()
 	, m_Weights0()
-	, m_VertexBuffer()
-	, m_FacePrims()
-	, m_PointReps()
-	, m_Adjacency()
-	, m_DupVerts()
-	, m_FaceRemap()
-	, m_VertRemap()
-	, m_IndexCount(0u)
-	, m_VertexCount(0u)
 	, m_Attributes{ 0 }
 	, m_PrimFormat{ 0 }
 { }
@@ -276,13 +210,13 @@ bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument&
 	// Pull in the mesh data and cache the metadata.
 	m_Primitives.resize(Mesh.primitives.size());
 
-	if (CombinedAccessors(Doc, Mesh))
+	if (UsesSharedAccessors(Doc, Mesh))
 	{
-		InitCombined(StreamReader, Doc, Mesh);
+		InitSharedAccessors(StreamReader, Doc, Mesh);
 	}
 	else
 	{
-		InitSeparate(StreamReader, Doc, Mesh);
+		InitSeparateAccessors(StreamReader, Doc, Mesh);
 	}
 
 	if (m_Positions.empty())
@@ -292,15 +226,13 @@ bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument&
 	}
 
 	m_Name = Mesh.name;
-	m_IndexCount = m_Indices.size();
-	m_VertexCount = m_Positions.size();
 	m_Attributes = AttributeList::FromPrimitive(Mesh.primitives[0]);
 	m_PrimFormat = DetermineFormat(Doc, Mesh);
 
 	return true;
 }
 
-void MeshInfo::InitSeparate(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh)
+void MeshInfo::InitSeparateAccessors(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh)
 {
 	for (size_t i = 0; i < Mesh.primitives.size(); ++i)
 	{
@@ -320,20 +252,16 @@ void MeshInfo::InitSeparate(const IStreamReader& StreamReader, const GLTFDocumen
 		ReadAccessor(StreamReader, Doc, p.joints0AccessorId, m_Joints0, PrimInfo[Joints0]);
 		ReadAccessor(StreamReader, Doc, p.weights0AccessorId, m_Weights0, PrimInfo[Weights0]);
 
+		PrimInfo.Offset = m_Indices.size() > 0 ? IndexStart : PositionStart;
 		PrimInfo.IndexCount = m_Indices.size() - IndexStart;
 		PrimInfo.VertexCount = m_Positions.size() - PositionStart;
 
 		// Conversion from local to global index buffer; add vertex offset to each index.
 		std::for_each(m_Indices.begin() + IndexStart, m_Indices.end(), [=](auto& v) { v = v + PositionStart; });
-
-		// Populate attribute id array with primitive index denoting this is a distinct sub-mesh.
-		size_t OldFaceCount = m_FacePrims.size();
-		m_FacePrims.resize(OldFaceCount + PrimInfo.FaceCount());
-		std::fill(m_FacePrims.begin() + OldFaceCount, m_FacePrims.end(), (uint32_t)i);
 	}
 }
 
-void MeshInfo::InitCombined(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh)
+void MeshInfo::InitSharedAccessors(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh)
 {
 	const auto& p0 = Mesh.primitives[0];
 	auto& PrimInfo0 = m_Primitives[0];
@@ -351,21 +279,29 @@ void MeshInfo::InitCombined(const IStreamReader& StreamReader, const GLTFDocumen
 	ReadAccessor(StreamReader, Doc, p0.weights0AccessorId, m_Weights0, PrimInfo0[Weights0]);
 
 	// If there are indices, grab the vertex count for each primitive by determining the number of unique indices in its index set.
-	std::unordered_set<uint32_t> UniqueVertices;
-	for (size_t i = 0; i < Mesh.primitives.size(); ++i)
+	if (!p0.indicesAccessorId.empty())
 	{
-		const auto& p = Mesh.primitives[i];
-		auto& PrimInfo = m_Primitives[i];
+		std::unordered_set<uint32_t> UniqueVertices;
+		for (size_t i = 0; i < Mesh.primitives.size(); ++i)
+		{
+			const auto& p = Mesh.primitives[i];
+			auto& PrimInfo = m_Primitives[i];
 
-		uint32_t IndexStart = (uint32_t)m_Indices.size();
-		ReadAccessor(StreamReader, Doc, p.indicesAccessorId, m_Indices, PrimInfo[Indices]);
+			uint32_t IndexStart = (uint32_t)m_Indices.size();
+			ReadAccessor(StreamReader, Doc, p.indicesAccessorId, m_Indices, PrimInfo[Indices]);
 
-		// Generate the unique vertex set.
-		UniqueVertices.clear();
-		UniqueVertices.insert(m_Indices.begin() + IndexStart, m_Indices.end());
+			// Generate the unique vertex set.
+			UniqueVertices.clear();
+			UniqueVertices.insert(m_Indices.begin() + IndexStart, m_Indices.end());
 
-		PrimInfo.IndexCount = m_Indices.size() - IndexStart;
-		PrimInfo.VertexCount = UniqueVertices.size(); // Use the uniqueness count to determine number of vertices for this primitive.
+			PrimInfo.IndexCount = m_Indices.size() - IndexStart;
+			PrimInfo.VertexCount = UniqueVertices.size(); // Use the uniqueness count to determine number of vertices for this primitive.
+		}
+	}
+	else
+	{
+		PrimInfo0.IndexCount = 0;
+		PrimInfo0.VertexCount = m_Positions.size();
 	}
 }
 
@@ -384,15 +320,6 @@ void MeshInfo::Reset(void)
 	m_Joints0.clear();
 	m_Weights0.clear();
 
-	m_FacePrims.clear();
-	m_PointReps.clear();
-	m_Adjacency.clear();
-	m_DupVerts.clear();
-	m_FaceRemap.clear();
-	m_VertRemap.clear();
-
-	m_IndexCount = 0;
-	m_VertexCount = 0;
 	m_Attributes ={ 0 };
 	m_PrimFormat = PrimitiveFormat::Combined;
 }
@@ -405,27 +332,56 @@ void MeshInfo::Optimize(void)
 		return;
 	}
 
-	size_t FaceCount = GetFaceCount();
+	// DirectXMesh intermediate data
+	std::vector<uint32_t> FacePrims; // Mapping from face index to primitive index.
+	std::vector<uint32_t> PointReps;
+	std::vector<uint32_t> Adjacency;
+	std::vector<uint32_t> DupVerts;
+	std::vector<uint32_t> FaceRemap;
+	std::vector<uint32_t> VertRemap;
+	std::vector<uint8_t> VertexBuffer;
+
+	const size_t IndexCount = m_Indices.size();
+	const size_t VertexCount = m_Positions.size();
+	const size_t FaceCount = GetFaceCount();
+
+	for (size_t i = 0; i < m_Primitives.size(); ++i)
+	{
+		// Populate attribute id array with primitive index denoting this is a distinct sub-mesh.
+		size_t OldFaceCount = FacePrims.size();
+		FacePrims.resize(OldFaceCount + m_Primitives[i].FaceCount());
+		std::fill(FacePrims.begin() + OldFaceCount, FacePrims.end(), (uint32_t)i);
+	}
 
 	// Ensure intermediate buffer sizes.
-	m_PointReps.resize(m_VertexCount);
-	m_Adjacency.resize(GetFaceCount() * 3);
-	m_FaceRemap.resize(m_FacePrims.size());
-	m_VertRemap.resize(m_VertexCount);
+	PointReps.resize(VertexCount);
+	Adjacency.resize(GetFaceCount() * 3);
+	FaceRemap.resize(FacePrims.size());
+	VertRemap.resize(VertexCount);
 
 	// Perform DirectXMesh optimizations
-	DirectX::GenerateAdjacencyAndPointReps(m_Indices.data(), FaceCount, m_Positions.data(), m_VertexCount, EPSILON, m_PointReps.data(), m_Adjacency.data());
-	DirectX::Clean(m_Indices.data(), FaceCount, m_VertexCount, m_Adjacency.data(), m_FacePrims.data(), m_DupVerts);
-	DirectX::AttributeSort(FaceCount, m_FacePrims.data(), m_FaceRemap.data());
-	DirectX::ReorderIBAndAdjacency(m_Indices.data(), FaceCount, m_Adjacency.data(), m_FaceRemap.data());
-	DirectX::OptimizeFacesEx(m_Indices.data(), FaceCount, m_Adjacency.data(), m_FacePrims.data(), m_FaceRemap.data());
-	DirectX::ReorderIB(m_Indices.data(), FaceCount, m_FaceRemap.data());
-	DirectX::OptimizeVertices(m_Indices.data(), FaceCount, m_VertexCount, m_VertRemap.data());
-	DirectX::FinalizeIB(m_Indices.data(), FaceCount, m_VertRemap.data(), m_VertexCount);
+	DirectX::GenerateAdjacencyAndPointReps(m_Indices.data(), FaceCount, m_Positions.data(), VertexCount, EPSILON, PointReps.data(), Adjacency.data());
+	DirectX::Clean(m_Indices.data(), FaceCount, VertexCount, Adjacency.data(), FacePrims.data(), DupVerts);
+	DirectX::AttributeSort(FaceCount, FacePrims.data(), FaceRemap.data());
+	DirectX::ReorderIBAndAdjacency(m_Indices.data(), FaceCount, Adjacency.data(), FaceRemap.data());
+	DirectX::OptimizeFacesEx(m_Indices.data(), FaceCount, Adjacency.data(), FacePrims.data(), FaceRemap.data());
+	DirectX::ReorderIB(m_Indices.data(), FaceCount, FaceRemap.data());
+	DirectX::OptimizeVertices(m_Indices.data(), FaceCount, VertexCount, VertRemap.data());
+	DirectX::FinalizeIB(m_Indices.data(), FaceCount, VertRemap.data(), VertexCount);
 
-	size_t Stride = GenerateInterleaved();
-	DirectX::FinalizeVBAndPointReps(m_VertexBuffer.data(), Stride, m_VertexCount, m_PointReps.data(), m_VertRemap.data());
-	RegenerateSeparate();
+	auto Info = PrimitiveInfo::CreateMax(IndexCount, VertexCount, m_Attributes);
+
+	WriteVertInterleaved(Info, VertexBuffer);
+	DirectX::FinalizeVBAndPointReps(VertexBuffer.data(), Info.GetVertexSize(), VertexCount, PointReps.data(), VertRemap.data());
+	ReadVertices(Info, VertexBuffer);
+
+	for (size_t i = 0; i < m_Primitives.size(); ++i)
+	{
+		auto it = std::find(FacePrims.begin(), FacePrims.end(), (uint32_t)i);
+		assert(it != FacePrims.end());
+
+		m_Primitives[i].Offset = size_t(it - FacePrims.begin()) * 3;
+	}
 }
 
 void MeshInfo::GenerateAttributes(bool GenerateTangentSpace)
@@ -436,11 +392,15 @@ void MeshInfo::GenerateAttributes(bool GenerateTangentSpace)
 		return;
 	}
 
+	const size_t IndexCount = m_Indices.size();
+	const size_t VertexCount = m_Positions.size();
+	const size_t FaceCount = GetFaceCount();
+
 	// Always generate normals if not present.
 	if (m_Normals.empty())
 	{
-		m_Normals.resize(m_VertexCount);
-		DirectX::ComputeNormals(m_Indices.data(), GetFaceCount(), m_Positions.data(), m_VertexCount, CNORM_DEFAULT, m_Normals.data());
+		m_Normals.resize(VertexCount);
+		DirectX::ComputeNormals(m_Indices.data(), FaceCount, m_Positions.data(), VertexCount, CNORM_DEFAULT, m_Normals.data());
 
 		// Prompt recompute of tangents if they were supplied (however unlikely if no normals weren't supplied.)
 		m_Tangents.clear();
@@ -449,8 +409,8 @@ void MeshInfo::GenerateAttributes(bool GenerateTangentSpace)
 	// Generate tangents if not present and it's been opted-in.
 	if (GenerateTangentSpace && m_Tangents.empty() && !m_UV0.empty())
 	{
-		m_Tangents.resize(m_VertexCount);
-		DirectX::ComputeTangentFrame(m_Indices.data(), GetFaceCount(), m_Positions.data(), m_Normals.data(), m_UV0.data(), m_VertexCount, m_Tangents.data());
+		m_Tangents.resize(VertexCount);
+		DirectX::ComputeTangentFrame(m_Indices.data(), FaceCount, m_Positions.data(), m_Normals.data(), m_UV0.data(), VertexCount, m_Tangents.data());
 	}
 }
 
@@ -473,13 +433,13 @@ void MeshInfo::Export(const MeshOptions& Options, BufferBuilder2& Builder, Mesh&
 		{
 		case AttributeFormat::Interleaved: ExportSI(Builder, OutMesh); break;
 		case AttributeFormat::Separated:
-			if (m_IndexCount > 0)
+			if (m_Indices.empty())
 			{
-				ExportSSI(Builder, OutMesh);
+				ExportSS(Builder, OutMesh);
 			}
 			else
 			{
-				ExportSS(Builder, OutMesh);
+				ExportSSI(Builder, OutMesh);
 			}
 			break;
 		}
@@ -537,7 +497,7 @@ PrimitiveInfo MeshInfo::DetermineMeshFormat(void) const
 	}
 
 	// Start at most compressed vertex attribute formats.
-	PrimitiveInfo MaxInfo = PrimitiveInfo::CreateMin(m_IndexCount, m_VertexCount, m_Attributes);
+	PrimitiveInfo MaxInfo = PrimitiveInfo::CreateMin(m_Indices.size(), m_Indices.size(), m_Attributes);
 
 	// Accumulate the minimum compression capability of each primitive to determine our overall vertex format.
 	for (size_t i = 0; i < m_Primitives.size(); ++i)
@@ -548,26 +508,66 @@ PrimitiveInfo MeshInfo::DetermineMeshFormat(void) const
 	return MaxInfo;
 }
 
+template <typename From, typename RemapFunc>
+void MeshInfo::LocalizeAttribute(const PrimitiveInfo& Prim, const RemapFunc& Remap, const std::vector<From>& Global, std::vector<From>& Local) const
+{
+	Local.resize(Prim.VertexCount);
+	std::for_each(&m_Indices[Prim.Offset], &m_Indices[Prim.Offset + Prim.IndexCount], [&](auto& i) { Local[Remap(i)] = Global[i]; });
+}
+
+MeshInfo MeshInfo::CreatePrimitive(const PrimitiveInfo& Prim) const
+{
+	MeshInfo m;
+	
+	if (m_Attributes.HasAttribute(Attribute::Indices))
+	{
+		std::unordered_map<uint32_t, uint32_t> IndexRemap;
+		RemapIndices(IndexRemap, m.m_Indices, &m_Indices[Prim.Offset], Prim.IndexCount);
+
+		auto RemapFunc = [&] (uint32_t i) { return IndexRemap[i]; };
+
+		LocalizeAttribute(Prim, RemapFunc, m_Positions, m.m_Positions);
+		LocalizeAttribute(Prim, RemapFunc, m_Normals, m.m_Normals);
+		LocalizeAttribute(Prim, RemapFunc, m_Tangents, m.m_Tangents);
+		LocalizeAttribute(Prim, RemapFunc, m_UV0, m.m_UV0);
+		LocalizeAttribute(Prim, RemapFunc, m_UV1, m.m_UV1);
+		LocalizeAttribute(Prim, RemapFunc, m_Color0, m.m_Color0);
+		LocalizeAttribute(Prim, RemapFunc, m_Joints0, m.m_Joints0);
+		LocalizeAttribute(Prim, RemapFunc, m_Weights0, m.m_Weights0);
+	}
+	else
+	{
+		m.m_Positions.assign(&m_Positions[Prim.Offset], &m_Positions[Prim.Offset + Prim.VertexCount]);
+		m.m_Normals.assign(&m_Normals[Prim.Offset], &m_Normals[Prim.Offset + Prim.VertexCount]);
+		m.m_Tangents.assign(&m_Tangents[Prim.Offset], &m_Tangents[Prim.Offset + Prim.VertexCount]);
+		m.m_UV0.assign(&m_UV0[Prim.Offset], &m_UV0[Prim.Offset + Prim.VertexCount]);
+		m.m_UV1.assign(&m_UV1[Prim.Offset], &m_UV1[Prim.Offset + Prim.VertexCount]);
+		m.m_Color0.assign(&m_Color0[Prim.Offset], &m_Color0[Prim.Offset + Prim.VertexCount]);
+		m.m_Joints0.assign(&m_Joints0[Prim.Offset], &m_Joints0[Prim.Offset + Prim.VertexCount]);
+		m.m_Weights0.assign(&m_Weights0[Prim.Offset], &m_Weights0[Prim.Offset + Prim.VertexCount]);
+	}
+
+	return m;
+}
+
 void MeshInfo::WriteIndices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const
 {
-	size_t WriteLen = Info.IndexCount * Info.GetIndexSize();
-
-	size_t OldSize = Output.size();
+	const size_t WriteLen = Info.IndexCount * Info.GetIndexSize();
+	const size_t OldSize = Output.size();
 	Output.resize(OldSize + WriteLen);
 
 	uint8_t* VertexStart = Output.data() + OldSize;
 	Write(Info[Indices], VertexStart, m_Indices.data(), m_Indices.size());
 }
 
-void MeshInfo::WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const
+void MeshInfo::WriteVertInterleaved(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const
 {
 	size_t Stride;
 	size_t Offsets[Count];
 	Info.GetVertexInfo(Stride, Offsets);
 
-	size_t WriteLen = Info.VertexCount * Stride;
-
-	size_t OldSize = Output.size();
+	const size_t WriteLen = Info.VertexCount * Stride;
+	const size_t OldSize = Output.size();
 	Output.resize(OldSize + WriteLen);
 
 	uint8_t* VertexStart = Output.data() + OldSize;
@@ -579,6 +579,19 @@ void MeshInfo::WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Ou
 	Write(Info[Color0], VertexStart, Stride, Offsets[Color0], m_Color0.data(), m_Color0.size());
 	Write(Info[Joints0], VertexStart, Stride, Offsets[Joints0], m_Joints0.data(), m_Joints0.size());
 	Write(Info[Weights0], VertexStart, Stride, Offsets[Weights0], m_Weights0.data(), m_Weights0.size());
+}
+
+void MeshInfo::WriteVertSeparated(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const
+{
+	size_t Pos = 0;
+	Pos += Write(Info[Positions], Output.data() + Pos, m_Positions.data(), m_Positions.size());
+	Pos += Write(Info[Normals], Output.data() + Pos, m_Normals.data(), m_Normals.size());
+	Pos += Write(Info[Tangents], Output.data() + Pos, m_Tangents.data(), m_Tangents.size());
+	Pos += Write(Info[UV0], Output.data() + Pos, m_UV0.data(), m_UV0.size());
+	Pos += Write(Info[UV1], Output.data() + Pos, m_UV1.data(), m_UV1.size());
+	Pos += Write(Info[Color0], Output.data() + Pos, m_Color0.data(), m_Color0.size());
+	Pos += Write(Info[Joints0], Output.data() + Pos, m_Joints0.data(), m_Joints0.size());
+	Pos += Write(Info[Weights0], Output.data() + Pos, m_Weights0.data(), m_Weights0.size());
 }
 
 void MeshInfo::ReadVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Input)
@@ -599,16 +612,11 @@ void MeshInfo::ReadVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Inp
 
 void MeshInfo::ExportSSI(BufferBuilder2& Builder, Mesh& OutMesh) const
 {
-	assert(m_Attributes.HasAttribute(Indices));
-
 	for (size_t i = 0; i < m_Primitives.size(); ++i)
 	{
 		const auto& PrimInfo = m_Primitives[i];
 
-		auto it = std::find(m_FacePrims.begin(), m_FacePrims.end(), (uint32_t)i);
-		assert(it != m_FacePrims.end());
-
-		uint32_t StartIndex = (uint32_t)(it - m_FacePrims.begin()) * 3;
+		size_t StartIndex = PrimInfo.Offset;
 
 		// Remap indices to a localized range.
 		std::unordered_map<uint32_t, uint32_t> IndexRemap;
@@ -634,49 +642,40 @@ void MeshInfo::ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const
 {
 	for (size_t i = 0; i < m_Primitives.size(); ++i)
 	{
-		const auto& PrimInfo = m_Primitives[i];
-
-		auto FaceIt = std::find(m_FacePrims.begin(), m_FacePrims.end(), (uint32_t)i);
-		assert(FaceIt != m_FacePrims.end());
-
-		size_t StartIndex = (FaceIt - m_FacePrims.begin()) * 3;
+		const auto& p = m_Primitives[i];
 
 		MeshPrimitive& Prim = OutMesh.primitives[i];
-		Prim.positionsAccessorId	= ExportAccessor(Builder, PrimInfo[Positions], m_Positions.data(), PrimInfo.VertexCount, StartIndex);
-		Prim.normalsAccessorId		= ExportAccessor(Builder, PrimInfo[Normals], m_Normals.data(), PrimInfo.VertexCount, StartIndex);
-		Prim.tangentsAccessorId		= ExportAccessor(Builder, PrimInfo[Tangents], m_Tangents.data(), PrimInfo.VertexCount, StartIndex);
-		Prim.uv0AccessorId			= ExportAccessor(Builder, PrimInfo[UV0], m_UV0.data(), PrimInfo.VertexCount, StartIndex);
-		Prim.uv1AccessorId			= ExportAccessor(Builder, PrimInfo[UV1], m_UV1.data(), PrimInfo.VertexCount, StartIndex);
-		Prim.color0AccessorId		= ExportAccessor(Builder, PrimInfo[Color0], m_Color0.data(), PrimInfo.VertexCount, StartIndex);
-		Prim.joints0AccessorId		= ExportAccessor(Builder, PrimInfo[Joints0], m_Joints0.data(), PrimInfo.VertexCount, StartIndex);
-		Prim.weights0AccessorId		= ExportAccessor(Builder, PrimInfo[Weights0], m_Weights0.data(), PrimInfo.VertexCount, StartIndex);
+		Prim.positionsAccessorId	= ExportAccessor(Builder, p[Positions], m_Positions.data(), p.VertexCount, p.Offset);
+		Prim.normalsAccessorId		= ExportAccessor(Builder, p[Normals], m_Normals.data(), p.VertexCount, p.Offset);
+		Prim.tangentsAccessorId		= ExportAccessor(Builder, p[Tangents], m_Tangents.data(), p.VertexCount, p.Offset);
+		Prim.uv0AccessorId			= ExportAccessor(Builder, p[UV0], m_UV0.data(), p.VertexCount, p.Offset);
+		Prim.uv1AccessorId			= ExportAccessor(Builder, p[UV1], m_UV1.data(), p.VertexCount, p.Offset);
+		Prim.color0AccessorId		= ExportAccessor(Builder, p[Color0], m_Color0.data(), p.VertexCount, p.Offset);
+		Prim.joints0AccessorId		= ExportAccessor(Builder, p[Joints0], m_Joints0.data(), p.VertexCount, p.Offset);
+		Prim.weights0AccessorId		= ExportAccessor(Builder, p[Weights0], m_Weights0.data(), p.VertexCount, p.Offset);
 	}
 }
 
 void MeshInfo::ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const
 {
-	assert(m_Attributes.HasAttribute(Indices));
+	const auto PrimInfo = DetermineMeshFormat();
+
+	std::vector<uint8_t> Buffer = std::vector<uint8_t>(PrimInfo.IndexCount * PrimInfo.GetIndexSize());
+	WriteIndices(PrimInfo, Buffer);
+	Builder.AddBufferView(Buffer, 0, ELEMENT_ARRAY_BUFFER);
 
 	std::vector<float> Min, Max;
-	auto PrimInfo = DetermineMeshFormat();
-
-	ExportBufferView(Builder, PrimInfo[Indices], m_Indices.data(), m_Indices.size(), 0);
-	for (size_t i = 0; i < OutMesh.primitives.size(); ++i)
+	for (size_t i = 0; i < m_Primitives.size(); ++i)
 	{
-		auto FaceIt = std::find(m_FacePrims.begin(), m_FacePrims.end(), (uint32_t)i);
-		assert(FaceIt != m_FacePrims.end());
+		const auto& p = m_Primitives[i];
+		const auto& a = PrimInfo[Indices];
 
-		size_t StartIndex = (FaceIt - m_FacePrims.begin()) * 3;
-		size_t IndexCount = m_Primitives[i].IndexCount;
-		size_t IndexSize = PrimInfo.GetIndexSize();
+		FindMinMax(a, m_Indices, p.Offset, p.IndexCount, Min, Max);
 
-		FindMinMax(PrimInfo[Indices], m_Indices.data(), IndexCount, Min, Max);
-
-		 Builder.AddAccessor(IndexCount, StartIndex * IndexSize, PrimInfo[Indices].Type, TYPE_SCALAR, Min, Max);
-		 OutMesh.primitives[i].indicesAccessorId = Builder.GetCurrentAccessor().id;
+		Builder.AddAccessor(p.IndexCount, p.Offset * a.GetElementSize(), a.Type, a.Dimension, Min, Max);
+		OutMesh.primitives[i].indicesAccessorId = Builder.GetCurrentAccessor().id;
 	}
 
-	// Since this indexed + combined, primitive vertex accessors are shared between primitives (vertices are globally indexed).
 	std::string AccessorIds[Count];
 	AccessorIds[Positions]	= ExportAccessor(Builder, PrimInfo[Positions], m_Positions.data(), m_Positions.size(), 0);
 	AccessorIds[Normals]	= ExportAccessor(Builder, PrimInfo[Normals], m_Normals.data(), m_Normals.size(), 0);
@@ -703,104 +702,85 @@ void MeshInfo::ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const
 
 void MeshInfo::ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const
 {
-	auto PrimInfo = DetermineMeshFormat();
+	const auto PrimInfo = DetermineMeshFormat();
 
-	std::string BufferViewId;
+	std::vector<uint8_t> Buffer = std::vector<uint8_t>(PrimInfo.GetVertexSize() * m_Positions.size());
 
-	if (m_Attributes.HasAttribute(Positions))
-	{
-		BufferViewId = ExportBufferView(Builder, PrimInfo[Positions], m_Positions.data(), m_Positions.size(), 0);
-
-		for (size_t i = 0; i < m_Primitives.size(); ++i)
-		{
-			const auto& p = m_Primitives[i];
-
-			// Find the min and max elements of the index list.
-			FindMinMax(PrimInfo[i], OutVertices.data(), Stride, Offsets[i], PrimInfo.VertexCount, Min, Max);
-
-			// Add the interleaved vertex accessors.
-			Builder.AddAccessor(PrimInfo.VertexCount, Offsets[i], PrimInfo[i].Type, PrimInfo[i].Dimension, Min, Max);
-			AccessorIds[i] = Builder.GetCurrentAccessor().id;
-		}
-	}
-
-	BufferViewId = ExportBufferView(Builder, PrimInfo[Normals], m_Normals.data(), m_Normals.size(), 0);
-	BufferViewId = ExportBufferView(Builder, PrimInfo[Tangents], m_Tangents.data(), m_Tangents.size(), 0);
-	BufferViewId = ExportBufferView(Builder, PrimInfo[UV0], m_UV0.data(), m_UV0.size(), 0);
-	BufferViewId = ExportBufferView(Builder, PrimInfo[UV1], m_UV1.data(), m_UV1.size(), 0);
-	BufferViewId = ExportBufferView(Builder, PrimInfo[Color0], m_Color0.data(), m_Color0.size(), 0);
-	BufferViewId = ExportBufferView(Builder, PrimInfo[Joints0], m_Joints0.data(), m_Joints0.size(), 0);
-	BufferViewId = ExportBufferView(Builder, PrimInfo[Weights0], m_Weights0.data(), m_Weights0.size(), 0);
+	Builder.AddBufferView(m_Positions, 0, )
 }
 
 void MeshInfo::ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const
 {
+	std::vector<float> Min, Max;
+
 	for (size_t i = 0; i < m_Primitives.size(); ++i)
 	{
-		const auto& PrimInfo = m_Primitives[i];
+		const auto& p = m_Primitives[i];
+		const auto& a = p[Indices];
 
-		auto it = std::find(m_FacePrims.begin(), m_FacePrims.end(), (uint32_t)i);
-		assert(it != m_FacePrims.end());
+		MeshInfo Prim = CreatePrimitive(p);
 
-		uint32_t StartIndex = (uint32_t)(it - m_FacePrims.begin()) * 3;
-
-		// Remap indices to a localized range.
-		std::unordered_map<uint32_t, uint32_t> IndexRemap;
-		std::vector<uint32_t> NewIndices;
-		RemapIndices(IndexRemap, NewIndices, &m_Indices[StartIndex], PrimInfo.IndexCount);
-
-		auto RemapFunc = [&](uint32_t i) { return IndexRemap.at(i); };
-
+		// Index output.
 		if (m_Attributes.HasAttribute(Indices))
 		{
-			
+			Builder.AddBufferView(Prim.m_Indices, 0, ELEMENT_ARRAY_BUFFER);
+			FindMinMax(a, Prim.m_Indices, 0, Prim.m_Indices.size(), Min, Max);
+
+			Builder.AddAccessor(p.IndexCount, p.Offset * a.GetElementSize(), a.Type, a.Dimension, Min, Max);
+			OutMesh.primitives[i].indicesAccessorId = Builder.GetCurrentAccessor().id;
 		}
+
+		// Vertex output.
+		std::vector<uint8_t> OutVertices;
+		WriteVertInterleaved(p, OutVertices);
+
+		size_t Stride;
+		size_t Offsets[Count];
+		p.GetVertexInfo(Stride, Offsets);
+
+		std::string AccessorIds[Count];
+
+		Builder.AddBufferView(OutVertices, Stride, ARRAY_BUFFER);
+		FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i)
+		{
+			if (m_Attributes.HasAttribute(i))
+			{
+				// Find the min and max elements of the index list.
+				FindMinMax(PrimInfo[i], OutVertices.data(), Stride, Offsets[i], PrimInfo.VertexCount, Min, Max);
+
+				// Add the interleaved vertex accessors.
+				Builder.AddAccessor(PrimInfo.VertexCount, Offsets[i], PrimInfo[i].Type, PrimInfo[i].Dimension, Min, Max);
+				AccessorIds[i] = Builder.GetCurrentAccessor().id;
+			}
+		});
 	}
 }
 
 void MeshInfo::ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const
 {
+	auto PrimInfo = DetermineMeshFormat();
+
 	// Can't write a non-indexed combined mesh with multiple primitives.
 	if (!m_Attributes.HasAttribute(Indices) && m_Primitives.size() > 1)
 	{
 		ExportSI(Builder, OutMesh);
 	}
 
-	auto PrimInfo = DetermineMeshFormat();
 	std::vector<float> Min, Max;
-
-	// Index output.
-	if (m_Attributes.HasAttribute(Indices))
+	for (size_t i = 0; i < m_Primitives.size(); ++i)
 	{
-		// Write indices.
-		std::vector<uint8_t> OutIndices;
-		WriteIndices(PrimInfo, OutIndices);
+		const auto& p = m_Primitives[i];
+		const auto& a = PrimInfo[Indices];
 
-		// Add Buffer View for index list.
-		size_t IndexSize = PrimInfo.GetIndexSize();
-		Builder.AddBufferView(OutIndices, IndexSize, ELEMENT_ARRAY_BUFFER);
+		FindMinMax(a, m_Indices, p.Offset, p.IndexCount, Min, Max);
 
-		// Create Index buffer accessor for each primitive at the appropriate byte offset.
-		for (size_t i = 0; i < m_Primitives.size(); ++i)
-		{
-			const AccessorInfo& AccInfo = PrimInfo[Indices];
-
-			// Find the starting index of the buffer.
-			auto FaceIt = std::find(m_FacePrims.begin(), m_FacePrims.end(), (uint32_t)i);
-			size_t StartIndex = (FaceIt - m_FacePrims.begin()) * 3;
-
-			// Find the min and max elements of the index list.
-			FindMinMax(AccInfo, OutIndices.data(), IndexSize, StartIndex * IndexSize, m_Primitives[i].IndexCount, Min, Max);
-
-			// Add the unique index accessor for this primitive.
-			Builder.AddAccessor(m_Primitives[i].IndexCount, StartIndex * IndexSize, AccInfo.Type, AccInfo.Dimension, Min, Max);
-			OutMesh.primitives[i].indicesAccessorId = Builder.GetCurrentAccessor().id;
-		}
+		Builder.AddAccessor(p.IndexCount, p.Offset * a.GetElementSize(), a.Type, a.Dimension, Min, Max);
+		OutMesh.primitives[i].indicesAccessorId = Builder.GetCurrentAccessor().id;
 	}
 
 	// Vertex output.
 	std::vector<uint8_t> OutVertices;
-	WriteVertices(PrimInfo, OutVertices);
+	WriteVertInterleaved(PrimInfo, OutVertices);
 
 	size_t Stride;
 	size_t Offsets[Count];
@@ -808,7 +788,7 @@ void MeshInfo::ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const
 
 	std::string AccessorIds[Count];
 
-	Builder.AddBufferView(OutVertices, PrimInfo.GetVertexSize(), ARRAY_BUFFER);
+	Builder.AddBufferView(OutVertices, Stride, ARRAY_BUFFER);
 	FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i)
 	{
 		if (m_Attributes.HasAttribute(i))
@@ -836,19 +816,6 @@ void MeshInfo::ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const
 	}
 }
 
-size_t MeshInfo::GenerateInterleaved(void)
-{
-	auto Info = PrimitiveInfo::CreateMax(m_IndexCount, m_VertexCount, m_Attributes);
-	WriteVertices(Info, m_VertexBuffer);
-	return Info.GetVertexSize();
-}
-
-void MeshInfo::RegenerateSeparate(void)
-{
-	auto Info = PrimitiveInfo::CreateMax(m_IndexCount, m_VertexCount, m_Attributes);
-	ReadVertices(Info, m_VertexBuffer);
-}
-
 void MeshInfo::RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count)
 {
 	Map.clear();
@@ -874,42 +841,36 @@ void MeshInfo::RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::ve
 
 PrimitiveFormat MeshInfo::DetermineFormat(const GLTFDocument& Doc, const Mesh& m)
 {
-	auto GetBufferViewId = [&](const std::string& AccessorId) {
-		if (AccessorId.empty())
-		{
-			return std::string();
-		}
-
+	auto GetBufferViewId = [&](const std::string& AccessorId) 
+	{
+		if (AccessorId.empty()) return std::string();
 		int aid = std::stoi(AccessorId);
-		if (aid >= 0 && aid < Doc.accessors.Size())
-		{
-			return std::string();
-		}
 
+		if (aid >= 0 && aid < Doc.accessors.Size()) return std::string();
 		return Doc.accessors[aid].bufferViewId;
 	};
 
-	std::string BufferViewIds[Count];
-	BufferViewIds[Positions]	= GetBufferViewId(m.primitives[0].positionsAccessorId);
-	BufferViewIds[Normals]		= GetBufferViewId(m.primitives[0].normalsAccessorId);
-	BufferViewIds[Tangents]		= GetBufferViewId(m.primitives[0].tangentsAccessorId);
-	BufferViewIds[UV0]			= GetBufferViewId(m.primitives[0].uv0AccessorId);
-	BufferViewIds[UV1]			= GetBufferViewId(m.primitives[0].uv1AccessorId);
-	BufferViewIds[Color0]		= GetBufferViewId(m.primitives[0].color0AccessorId);
-	BufferViewIds[Joints0]		= GetBufferViewId(m.primitives[0].joints0AccessorId);
-	BufferViewIds[Weights0]		= GetBufferViewId(m.primitives[0].weights0AccessorId);
+	std::string ViewIds[Count];
+	ViewIds[Positions]	= GetBufferViewId(m.primitives[0].positionsAccessorId);
+	ViewIds[Normals]	= GetBufferViewId(m.primitives[0].normalsAccessorId);
+	ViewIds[Tangents]	= GetBufferViewId(m.primitives[0].tangentsAccessorId);
+	ViewIds[UV0]		= GetBufferViewId(m.primitives[0].uv0AccessorId);
+	ViewIds[UV1]		= GetBufferViewId(m.primitives[0].uv1AccessorId);
+	ViewIds[Color0]		= GetBufferViewId(m.primitives[0].color0AccessorId);
+	ViewIds[Joints0]	= GetBufferViewId(m.primitives[0].joints0AccessorId);
+	ViewIds[Weights0]	= GetBufferViewId(m.primitives[0].weights0AccessorId);
 
 	// Combined vs. separate primitives is determined by whether the vertex data is combined into a single or separate accessors.
 	for (size_t i = 1; i < m.primitives.size(); ++i)
 	{
-		if (BufferViewIds[Positions]	!= GetBufferViewId(m.primitives[i].positionsAccessorId) ||
-			BufferViewIds[Normals]		!= GetBufferViewId(m.primitives[i].normalsAccessorId) ||
-			BufferViewIds[Tangents]		!= GetBufferViewId(m.primitives[i].tangentsAccessorId) ||
-			BufferViewIds[UV0]			!= GetBufferViewId(m.primitives[i].uv0AccessorId) ||
-			BufferViewIds[UV1]			!= GetBufferViewId(m.primitives[i].uv1AccessorId) ||
-			BufferViewIds[Color0]		!= GetBufferViewId(m.primitives[i].color0AccessorId) ||
-			BufferViewIds[Joints0]		!= GetBufferViewId(m.primitives[i].joints0AccessorId) ||
-			BufferViewIds[Weights0]		!= GetBufferViewId(m.primitives[i].weights0AccessorId))
+		if (ViewIds[Positions]	!= GetBufferViewId(m.primitives[i].positionsAccessorId) ||
+			ViewIds[Normals]	!= GetBufferViewId(m.primitives[i].normalsAccessorId) ||
+			ViewIds[Tangents]	!= GetBufferViewId(m.primitives[i].tangentsAccessorId) ||
+			ViewIds[UV0]		!= GetBufferViewId(m.primitives[i].uv0AccessorId) ||
+			ViewIds[UV1]		!= GetBufferViewId(m.primitives[i].uv1AccessorId) ||
+			ViewIds[Color0]		!= GetBufferViewId(m.primitives[i].color0AccessorId) ||
+			ViewIds[Joints0]	!= GetBufferViewId(m.primitives[i].joints0AccessorId) ||
+			ViewIds[Weights0]	!= GetBufferViewId(m.primitives[i].weights0AccessorId))
 		{
 			return PrimitiveFormat::Separated;
 		}
@@ -918,15 +879,13 @@ PrimitiveFormat MeshInfo::DetermineFormat(const GLTFDocument& Doc, const Mesh& m
 	return PrimitiveFormat::Combined;
 }
 
-bool MeshInfo::CombinedAccessors(const GLTFDocument& Doc, const Mesh& m)
+bool MeshInfo::UsesSharedAccessors(const GLTFDocument& Doc, const Mesh& m)
 {
-	// If there's no indices then the accessors cannot be shared, as primitives are reliant on vertex offsets.
 	if (m.primitives[0].indicesAccessorId.empty())
 	{
 		return false;
 	}
 
-	// Combined vs. separate primitives is determined by whether the vertex data is combined into a single or separate accessors.
 	for (size_t i = 1; i < m.primitives.size(); ++i)
 	{
 		if (m.primitives[0].positionsAccessorId != m.primitives[i].positionsAccessorId ||

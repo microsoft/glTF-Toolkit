@@ -13,8 +13,6 @@
 namespace Microsoft::glTF::Toolkit
 {
 	enum class AttributeFormat : uint8_t;
-	enum class PrimitiveFormat : uint8_t;
-	struct MeshOptions;
 
 
 	//------------------------------------------
@@ -67,6 +65,7 @@ namespace Microsoft::glTF::Toolkit
 		BufferViewTarget	Target;
 
 		bool IsValid(void) const;
+		size_t GetElementSize(void) const;
 
 		static AccessorInfo Invalid(void);
 		static AccessorInfo Create(ComponentType CType, AccessorType AType, BufferViewTarget Target);
@@ -79,11 +78,14 @@ namespace Microsoft::glTF::Toolkit
 
 	struct PrimitiveInfo
 	{
+		size_t Offset; // Could be index or vertex offset.
+
 		size_t IndexCount;
 		size_t VertexCount;
 		AccessorInfo Metadata[Count];
 
-		size_t FaceCount(void) const { return (IndexCount > 0 ? IndexCount : VertexCount) / 3; }
+		size_t GetCount(void) const { return IndexCount > 0 ? IndexCount : VertexCount; };
+		size_t FaceCount(void) const { return GetCount() / 3; }
 		size_t GetIndexSize(void) const { return Accessor::GetComponentTypeSize(Metadata[Indices].Type); }
 		size_t GetVertexSize(void) const;
 
@@ -94,33 +96,10 @@ namespace Microsoft::glTF::Toolkit
 
 		static ComponentType GetIndexType(size_t IndexCount) { return IndexCount < USHORT_MAX ? (IndexCount < BYTE_MAX ? COMPONENT_UNSIGNED_BYTE : COMPONENT_UNSIGNED_SHORT) : COMPONENT_UNSIGNED_INT; }
 
-		static PrimitiveInfo Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, std::pair<ComponentType, AccessorType>(&Types)[Count]);
-		static PrimitiveInfo CreateMin(size_t IndexCount, size_t VertexCount, AttributeList Attributes);
-		static PrimitiveInfo CreateMax(size_t IndexCount, size_t VertexCount, AttributeList Attributes);
+		static PrimitiveInfo Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, std::pair<ComponentType, AccessorType>(&Types)[Count], size_t Offset = 0);
+		static PrimitiveInfo CreateMin(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset = 0);
+		static PrimitiveInfo CreateMax(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset = 0);
 		static PrimitiveInfo Max(const PrimitiveInfo& p0, const PrimitiveInfo& p1);
-	};
-
-
-	//------------------------------------------
-	// MeshData
-
-	struct MeshData
-	{
-		std::vector<uint32_t>			Indices;
-		std::vector<DirectX::XMFLOAT3>  Positions;
-		std::vector<DirectX::XMFLOAT3>  Normals;
-		std::vector<DirectX::XMFLOAT4>  Tangents;
-		std::vector<DirectX::XMFLOAT2>  UV0;
-		std::vector<DirectX::XMFLOAT2>  UV1;
-		std::vector<DirectX::XMFLOAT4>  Color0;
-		std::vector<DirectX::XMUINT4>   Joints0;
-		std::vector<DirectX::XMFLOAT4>  Weights0;
-
-		void Reset(void);
-
-		void WriteIndices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
-		void WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
-		void ReadVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Input);
 	};
 
 
@@ -141,16 +120,18 @@ namespace Microsoft::glTF::Toolkit
 		static bool CanParse(const Mesh& m);
 
 	private:
-		inline size_t GetFaceCount(void) const { return (m_IndexCount > 0 ? m_IndexCount : m_VertexCount) / 3; }
+		inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
 		PrimitiveInfo DetermineMeshFormat(void) const;
 
-		void InitSeparate(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
-		void InitCombined(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
+		void InitSeparateAccessors(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
+		void InitSharedAccessors(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
 
 		void WriteIndices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
-		void WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
+		void WriteVertInterleaved(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
+		void WriteVertSeparated(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
 		void ReadVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Input);
-		
+
+		MeshInfo CreatePrimitive(const PrimitiveInfo& Prim) const;
 		void ExportSSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes, indexed
 		void ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes, non-indexed
 		void ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, indexed
@@ -158,40 +139,28 @@ namespace Microsoft::glTF::Toolkit
 		void ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
 		void ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, interleave attributes
 
-		size_t GenerateInterleaved(void);
-		void RegenerateSeparate(void);
-
-		static PrimitiveFormat DetermineFormat(const GLTFDocument& Doc, const Mesh& m);
+		template <typename From, typename RemapFunc>
+		void LocalizeAttribute(const PrimitiveInfo& Prim, const RemapFunc& Remap, const std::vector<From>& Global, std::vector<From>& Local) const;
+		
 		static void RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count);
-		static bool CombinedAccessors(const GLTFDocument& Doc, const Mesh& m);
+		static bool UsesSharedAccessors(const GLTFDocument& Doc, const Mesh& m);
+		static PrimitiveFormat DetermineFormat(const GLTFDocument& Doc, const Mesh& m);
 
 	private:
 		std::string m_Name;
 		std::vector<PrimitiveInfo> m_Primitives;
 
-		std::vector<uint32_t> m_Indices;
-		std::vector<DirectX::XMFLOAT3> m_Positions;
-		std::vector<DirectX::XMFLOAT3> m_Normals;
-		std::vector<DirectX::XMFLOAT4> m_Tangents;
-		std::vector<DirectX::XMFLOAT2> m_UV0;
-		std::vector<DirectX::XMFLOAT2> m_UV1;
-		std::vector<DirectX::XMFLOAT4> m_Color0;
-		std::vector<DirectX::XMUINT4>  m_Joints0;
-		std::vector<DirectX::XMFLOAT4> m_Weights0;
+		std::vector<uint32_t>			m_Indices;
+		std::vector<DirectX::XMFLOAT3>	m_Positions;
+		std::vector<DirectX::XMFLOAT3>	m_Normals;
+		std::vector<DirectX::XMFLOAT4>	m_Tangents;
+		std::vector<DirectX::XMFLOAT2>	m_UV0;
+		std::vector<DirectX::XMFLOAT2>	m_UV1;
+		std::vector<DirectX::XMFLOAT4>	m_Color0;
+		std::vector<DirectX::XMUINT4>	m_Joints0;
+		std::vector<DirectX::XMFLOAT4>	m_Weights0;
 
-		std::vector<uint8_t> m_VertexBuffer;
-
-		// DirectXMesh intermediate data
-		std::vector<uint32_t> m_FacePrims; // Mapping from face index to primitive index.
-		std::vector<uint32_t> m_PointReps;
-		std::vector<uint32_t> m_Adjacency;
-		std::vector<uint32_t> m_DupVerts;
-		std::vector<uint32_t> m_FaceRemap;
-		std::vector<uint32_t> m_VertRemap;
-
-		size_t m_VertexCount;
-		size_t m_IndexCount;
-		AttributeList m_Attributes;
+		AttributeList	m_Attributes;
 		PrimitiveFormat m_PrimFormat;
 	};
 
@@ -237,9 +206,6 @@ namespace Microsoft::glTF::Toolkit
 
 	// ---- Exporting Mesh Data to GLTFSDK BufferBuilder ----
 
-	template <typename From, typename RemapFunc>
-	void LocalizeAttributes(std::vector<From>& AttributesLocal, const uint32_t* Indices, size_t IndexCount, const RemapFunc& Remap, const From* Attributes);
-
 	template <typename From>
 	std::string ExportAccessor(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset = 0);
 
@@ -258,6 +224,9 @@ namespace Microsoft::glTF::Toolkit
 	
 	template <typename T>
 	void FindMinMax(const AccessorInfo& Info, const T* Src, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
+	
+	template <typename T>
+	void FindMinMax(const AccessorInfo& Info, const std::vector<T>& Src, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
 
 	void FindMinMax(const AccessorInfo& Info, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
 }
