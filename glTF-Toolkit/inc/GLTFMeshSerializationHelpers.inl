@@ -3,6 +3,62 @@
 
 namespace Microsoft::glTF::Toolkit
 {
+	template <typename T>
+	void MeshInfo::ExportSharedView(BufferBuilder2& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const
+	{
+		if (!m_Attributes.HasAttribute(Attr))
+		{
+			return;
+		}
+
+		const auto& Data = this->*AttributePtr;
+
+		m_Scratch.resize(Data.size() * Info[Attr].GetElementSize());
+		Write(Info[Attr], m_Scratch.data(), Data.data(), Data.size());
+
+		// Write the shared view.
+		Builder.AddBufferView(Data, 0, Info[Attr].Target);
+
+		for (size_t i = 0; i < m_Primitives.size(); ++i)
+		{
+			const auto& p = m_Primitives[i];
+			const auto& a = p[Attr];
+
+			FindMinMax(a, m_Scratch.data(), a.GetElementSize(), p.Offset, p.GetCount(Attr), m_Min, m_Max);
+			Builder.AddAccessor(p.GetCount(Attr), p.Offset * a.GetElementSize(), a.Type, a.Dimension, m_Min, m_Max);
+
+			OutMesh.primitives[i].*AccessorIds[Attr] = Builder.GetCurrentAccessor().id;
+		}
+	}
+
+	template <typename T>
+	std::string MeshInfo::ExportAccessor(BufferBuilder2& Builder, const PrimitiveInfo& p, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const
+	{
+		if (!m_Attributes.HasAttribute(Attr))
+		{
+			return std::string();
+		}
+
+		const auto& Data = this->*AttributePtr;
+
+		const auto& a = p[Attr];
+
+		const size_t Dimension = Accessor::GetTypeCount(a.Dimension);
+		const size_t ComponentSize = Accessor::GetComponentTypeSize(a.Type);
+		const size_t ByteStride = Dimension * ComponentSize;
+
+		m_Scratch.resize(Data.size() * ByteStride);
+		Write(a, m_Scratch.data(), ByteStride, 0, Data.data(), Data.size());
+
+		Builder.AddBufferView(m_Scratch, ByteStride, a.Target);
+
+		FindMinMax(a, m_Scratch.data(), ByteStride, 0, Data.size(), m_Min, m_Max);
+		Builder.AddAccessor(Data.size(), 0, a.Type, a.Dimension, m_Min, m_Max);
+
+		return Builder.GetCurrentAccessor().id;
+	}
+
+
 	template <typename From, typename To, size_t Dimension>
 	void Read(To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count)
 	{
@@ -146,37 +202,8 @@ namespace Microsoft::glTF::Toolkit
 	size_t Write(const AccessorInfo& Info, uint8_t* Dest, const From* Src, size_t Count)
 	{
 		const size_t Stride = Accessor::GetComponentTypeSize(Info.Type) * Accessor::GetTypeCount(Info.Dimension);
-		return Write(Info, Dest, Stride, 0, Src, Count);
+		Write(Info, Dest, Stride, 0, Src, Count);
 		return Stride * Count;
-	}
-
-
-	template <typename From>
-	std::string ExportAccessor(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset)
-	{
-		const size_t Dimension = Accessor::GetTypeCount(Info.Dimension);
-		const size_t ComponentSize = Accessor::GetComponentTypeSize(Info.Type);
-		const size_t ByteStride = Dimension * ComponentSize;
-		const size_t ByteOffset = Offset * ComponentSize;
-
-		auto Buffer = std::vector<uint8_t>(Count * ByteStride);
-		Write(Info, Buffer.data(), ByteStride, ByteOffset, Src, Count);
-
-		Builder.AddBufferView(Buffer.data(), Buffer.size(), ByteStride, Info.Target);
-
-		std::vector<float> Min, Max;
-		FindMinMax(Info, Buffer.data(), ByteStride, ByteOffset, Count, Min, Max);
-
-		Builder.AddAccessor(Count, ByteOffset, Info.Type, Info.Dimension, Min, Max);
-		return Builder.GetCurrentAccessor().id;
-	}
-
-	template <typename From, typename RemapFunc>
-	std::string ExportAccessorIndexed(BufferBuilder2& Builder, const AccessorInfo& Info, size_t VertexCount, const uint32_t* Indices, size_t IndexCount, const RemapFunc& Remap, const From* Attributes)
-	{
-		auto Local = std::vector<From>(VertexCount);
-		LocalizeAttribute(Local, Indices, IndexCount, Remap, Attributes);
-		return ExportAccessor(Builder, Info, LocalAttr.data(), IndexCount);
 	}
 
 
@@ -226,6 +253,14 @@ namespace Microsoft::glTF::Toolkit
 	template <typename T>
 	void FindMinMax(const AccessorInfo& Info, const std::vector<T>& Src, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
 	{
-		FindMinMax<T>(Info, (uint8_t*)Src, sizeof(T), sizeof(T) * Offset, Count), Min, Max);
+		FindMinMax<T>(Info, (uint8_t*)Src, sizeof(T), sizeof(T) * Offset, Count, Min, Max);
+	}
+
+
+	template <typename T, typename RemapFunc>
+	void LocalizeAttribute(const PrimitiveInfo& Prim, const RemapFunc& Remap, const std::vector<uint32_t>& Indices, const std::vector<T>& Global, std::vector<T>& Local)
+	{
+		Local.resize(Prim.VertexCount);
+		std::for_each(&Indices[Prim.Offset], &Indices[Prim.Offset + Prim.IndexCount], [&](auto& i) { Local[Remap(i)] = Global[i]; });
 	}
 }

@@ -13,7 +13,8 @@
 namespace Microsoft::glTF::Toolkit
 {
 	enum class AttributeFormat : uint8_t;
-
+	enum class PrimitiveFormat : uint8_t;
+	struct MeshOptions;
 
 	//------------------------------------------
 	// Attribute
@@ -21,14 +22,14 @@ namespace Microsoft::glTF::Toolkit
 	enum Attribute
 	{
 		Indices = 0,
-		Positions,
-		Normals,
-		Tangents,
-		UV0,
-		UV1,
-		Color0,
-		Joints0,
-		Weights0,
+		Positions = 1,
+		Normals = 2,
+		Tangents = 3,
+		UV0 = 4,
+		UV1 = 5,
+		Color0 = 6,
+		Joints0 = 7,
+		Weights0 = 8,
 		Count
 	};
 
@@ -85,6 +86,7 @@ namespace Microsoft::glTF::Toolkit
 		AccessorInfo Metadata[Count];
 
 		size_t GetCount(void) const { return IndexCount > 0 ? IndexCount : VertexCount; };
+		size_t GetCount(Attribute Attr) const { return Attr == Indices ? IndexCount : VertexCount; };
 		size_t FaceCount(void) const { return GetCount() / 3; }
 		size_t GetIndexSize(void) const { return Accessor::GetComponentTypeSize(Metadata[Indices].Type); }
 		size_t GetVertexSize(void) const;
@@ -110,6 +112,7 @@ namespace Microsoft::glTF::Toolkit
 	{
 	public:
 		MeshInfo(void);
+		MeshInfo(const MeshInfo& Parent, size_t PrimIndex);
 
 		bool Initialize(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
 		void Reset(void);
@@ -126,24 +129,25 @@ namespace Microsoft::glTF::Toolkit
 		void InitSeparateAccessors(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
 		void InitSharedAccessors(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
 
-		void WriteIndices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
-		void WriteVertInterleaved(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
-		void WriteVertSeparated(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
-		void ReadVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Input);
+		void WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
+		void ReadVertices(const PrimitiveInfo& Info, const std::vector<uint8_t>& Input);
 
-		MeshInfo CreatePrimitive(const PrimitiveInfo& Prim) const;
-		void ExportSSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes, indexed
 		void ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes, non-indexed
+		void ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
 		void ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, indexed
 		void ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, non-indexed
-		void ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
 		void ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, interleave attributes
 
-		template <typename From, typename RemapFunc>
-		void LocalizeAttribute(const PrimitiveInfo& Prim, const RemapFunc& Remap, const std::vector<From>& Global, std::vector<From>& Local) const;
+		template <typename T>
+		void ExportSharedView(BufferBuilder2& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const;
 		
+		template <typename T>
+		std::string ExportAccessor(BufferBuilder2& Builder, const PrimitiveInfo& Prim, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const;
+
+		void ExportInterleaved(BufferBuilder2& Builder, const PrimitiveInfo& Info, Mesh& OutMesh) const;
+
 		static void RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count);
-		static bool UsesSharedAccessors(const GLTFDocument& Doc, const Mesh& m);
+		static bool UsesSharedAccessors(const Mesh& m);
 		static PrimitiveFormat DetermineFormat(const GLTFDocument& Doc, const Mesh& m);
 
 	private:
@@ -162,6 +166,10 @@ namespace Microsoft::glTF::Toolkit
 
 		AttributeList	m_Attributes;
 		PrimitiveFormat m_PrimFormat;
+
+		mutable std::vector<uint8_t> m_Scratch;
+		mutable std::vector<float> m_Min;
+		mutable std::vector<float> m_Max;
 	};
 
 
@@ -204,16 +212,6 @@ namespace Microsoft::glTF::Toolkit
 	size_t Write(const AccessorInfo& Info, uint8_t* Dest, const From* Src, size_t Count);
 
 
-	// ---- Exporting Mesh Data to GLTFSDK BufferBuilder ----
-
-	template <typename From>
-	std::string ExportAccessor(BufferBuilder2& Builder, const AccessorInfo& Info, const From* Src, size_t Count, size_t Offset = 0);
-
-	// Maps a global mesh buffer to a 
-	template <typename From, typename RemapFunc = std::function<uint32_t(uint32_t)>>
-	std::string ExportAccessorIndexed(BufferBuilder2& Builder, const AccessorInfo& Info, size_t VertexCount, const uint32_t* Indices, size_t IndexCount, const RemapFunc& Remap, const From* GlobalAttr);
-
-
 	// ---- Finding Min & Max ----
 
 	template <typename T, size_t Dimension>
@@ -229,6 +227,10 @@ namespace Microsoft::glTF::Toolkit
 	void FindMinMax(const AccessorInfo& Info, const std::vector<T>& Src, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
 
 	void FindMinMax(const AccessorInfo& Info, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
+
+
+	template <typename T, typename RemapFunc>
+	void LocalizeAttribute(const PrimitiveInfo& Prim, const RemapFunc& Remap, const std::vector<uint32_t>& Indices, const std::vector<T>& Global, std::vector<T>& Local);
 }
 
 #include "GLTFMeshSerializationHelpers.inl"

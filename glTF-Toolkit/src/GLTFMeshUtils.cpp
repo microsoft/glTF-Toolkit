@@ -19,21 +19,20 @@ const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_MESH_OPTIMIZER = "MSFT_mesh
 
 namespace
 {
-	class BasicStreamFactory : public IStreamFactory
+	class BasicStreamWriter : public IStreamWriter
 	{
 	public:
-		BasicStreamFactory(const std::string& filename) 
-			: m_Stream(std::make_shared<std::ofstream>(filename, std::ios_base::binary | std::ios_base::out))
-			, m_TempStream(std::make_shared<std::stringstream>(std::ios_base::binary | std::ios_base::in | std::ios_base::out))
+		BasicStreamWriter(const std::string& OutputDirectory)
+			: m_OutputDir(OutputDirectory)
 		{ }
 
-		std::shared_ptr<std::istream> GetInputStream(const std::string&) const override { throw std::logic_error("Not implemented"); }
-		std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override { return m_Stream; }
-		std::shared_ptr<std::iostream> GetTemporaryStream(const std::string&) const override { return m_TempStream; }
+		std::shared_ptr<std::ostream> GetOutputStream(const std::string& Filename) const override 
+		{ 
+			return std::make_shared<std::ofstream>(m_OutputDir + Filename, std::ios_base::binary | std::ios_base::out);
+		}
 
 	private:
-		std::shared_ptr<std::ofstream> m_Stream;
-		std::shared_ptr<std::stringstream> m_TempStream;
+		std::string m_OutputDir;
 	};
 }
 
@@ -56,13 +55,13 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	}
 
 	// Generate a buffer name based on the old buffer .bin file name in the output directory.
-	std::string BufferName = OutputDirectory + Doc.buffers[0].name;
+	std::string BufferName = Doc.buffers[0].name;
 	size_t Pos = BufferName.find_last_of('.');
 	if (Pos == std::string::npos)
 	{
 		return Doc;
 	}
-	BufferName.insert(Pos, "_optimized_mesh.bin");
+	BufferName.insert(Pos, "_optimized_mesh");
 
 	// Spin up a document copy to modify.
 	GLTFDocument OutputDoc(Doc);
@@ -71,7 +70,9 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	auto GenBufferViewId = [&](const BufferBuilder2& b) { return std::to_string(OutputDoc.bufferViews.Size() + b.GetBufferViewCount()); };
 	auto GenAccessorId = [&](const BufferBuilder2& b) { return std::to_string(OutputDoc.accessors.Size() + b.GetAccessorCount()); };
 
-	BufferBuilder2 Builder = BufferBuilder2(std::make_unique<GLTFResourceWriter2>(std::make_unique<BasicStreamFactory>(BufferName), GenBufferId, GenBufferViewId, GenAccessorId));
+	auto StreamWriter = std::make_unique<BasicStreamWriter>(OutputDirectory);
+	auto ResourceWriter = std::make_unique<GLTFResourceWriter2>(std::move(StreamWriter), BufferName);
+	auto Builder = BufferBuilder2(std::move(ResourceWriter), GenBufferId, GenBufferViewId, GenAccessorId);
 	Builder.AddBuffer();
 
 	MeshInfo MeshData;
