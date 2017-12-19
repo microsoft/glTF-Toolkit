@@ -22,11 +22,11 @@ namespace Microsoft::glTF
 
 			// Primitive index & vertex data are combined into a globalized set over the entire mesh. 
 			// Note: Creates the least number of API objects when rendering.
-			Combined = 1,
+			Combine = 1,
 
-			// Primitives are compacted into their own localized segments.
+			// Primitives are partitioned into their own localized segments.
 			// Note: Allows for additional per-primitive compression on index & vertex data.
-			Separated = 2,
+			Separate = 2,
 		};
 
 
@@ -35,11 +35,11 @@ namespace Microsoft::glTF
 		{
 			// Vertex attribute data is integrated into a single, interleaved stream.
 			// Note: Fastest performance during draw calls with all attributes bound.
-			Interleaved = 0,
+			Interleave = 0,
 
 			// Vertex attribute data is split into separate lists of contiguous streams. 
 			// Note: Worse performance, but provides flexibility of minimizing attribute selection when specifying input layouts.
-			Separated = 1,
+			Separate = 1,
 		};
 	
 
@@ -55,8 +55,8 @@ namespace Microsoft::glTF
 				MeshOptions Options;
 				Options.Optimize = true;
 				Options.GenerateTangentSpace = true;
-				Options.PrimitiveFormat = PrimitiveFormat::Combined;
-				Options.AttributeFormat = AttributeFormat::Interleaved;
+				Options.PrimitiveFormat = PrimitiveFormat::Combine;
+				Options.AttributeFormat = AttributeFormat::Interleave;
 				return Options;
 			}
 		};

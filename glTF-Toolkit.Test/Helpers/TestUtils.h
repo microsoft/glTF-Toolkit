@@ -38,6 +38,25 @@ namespace Microsoft::glTF::Toolkit::Test
 #endif
         }
 
+		static std::string GetFileName(const char * absolutePath)
+		{
+			std::string path(absolutePath);
+			
+
+#ifdef __APPLE__
+			const char Delimiter = '/';
+#else
+			const char Delimiter = '\\';
+#endif
+			if (path.back() == Delimiter)
+			{
+				return std::string();
+			}
+
+			auto Pos = path.find_last_of(Delimiter);
+			return Pos == std::string::npos ? path : path.substr(Pos + 1)
+		}
+
         static std::string GetAbsolutePath(const char * relativePath)
         {
 #ifdef __APPLE__
@@ -159,4 +178,26 @@ namespace Microsoft::glTF::Toolkit::Test
     private:
         const std::string m_basePath;
     };
+
+	class TestStreamWriter : public IStreamWriter
+	{
+	public:
+		TestStreamWriter(std::string gltfAbsolutePath) : m_basePath(TestUtils::GetBasePath(gltfAbsolutePath.c_str())) {}
+
+		virtual ~TestStreamWriter() override {}
+		virtual std::shared_ptr<std::ostream> GetOutputStream(const std::string& filename) const override
+		{
+			auto path = m_basePath;
+
+#ifdef __APPLE__
+			path += "/" + filename;
+#else
+			path += "\\" + filename;
+#endif
+
+			return std::make_shared<std::ofstream>(path, std::ios::binary);
+		}
+	private:
+		const std::string m_basePath;
+	};
 }

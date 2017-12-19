@@ -8,7 +8,7 @@
 
 #include <functional>
 
-namespace Microsoft { namespace glTF
+namespace Microsoft::glTF
 {
 	class BufferBuilder2
 	{
@@ -89,4 +89,4 @@ namespace Microsoft { namespace glTF
 		FnGenId m_fnGenBufferViewId;
 		FnGenId m_fnGenAccessorId;
 	};
-}}
+}

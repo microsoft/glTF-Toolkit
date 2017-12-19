@@ -77,23 +77,23 @@ namespace Microsoft::glTF::Toolkit
 
 		static TComp& Get(T& v, size_t Index) { return *((TComp*)&v + Index); }
 
-		template <typename From, size_t Count>
+		template <typename From, size_t _Count>
 		static void Create(T& v, const From* Ptr)
 		{
-			for (size_t i = 0; i < std::min(Dimension, Count); ++i)
+			for (size_t i = 0; i < std::min(Dimension, _Count); ++i)
 			{
-				Get(v, i) = *(TComp*)Ptr;
+				Get(v, i) = TComp(*(Ptr + i));
 			}
 
 			Normalize<From>(v);
 		}
 
-		template <typename To, size_t Count>
+		template <typename To, size_t _Count>
 		static void Write(To* Ptr, T v)
 		{
 			Denormalize<To>(v);
 
-			for (size_t i = 0; i < std::min(Dimension, Count); ++i)
+			for (size_t i = 0; i < std::min(Dimension, _Count); ++i)
 			{
 				*(Ptr + i) = (To)Get(v, i);
 			}

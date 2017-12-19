@@ -17,7 +17,7 @@ namespace Microsoft::glTF::Toolkit
 		Write(Info[Attr], m_Scratch.data(), Data.data(), Data.size());
 
 		// Write the shared view.
-		Builder.AddBufferView(Data, 0, Info[Attr].Target);
+		Builder.AddBufferView(m_Scratch, 0, Info[Attr].Target);
 
 		for (size_t i = 0; i < m_Primitives.size(); ++i)
 		{
@@ -40,7 +40,6 @@ namespace Microsoft::glTF::Toolkit
 		}
 
 		const auto& Data = this->*AttributePtr;
-
 		const auto& a = p[Attr];
 
 		const size_t Dimension = Accessor::GetTypeCount(a.Dimension);
@@ -62,8 +61,9 @@ namespace Microsoft::glTF::Toolkit
 	template <typename From, typename To, size_t Dimension>
 	void Read(To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count)
 	{
+		const size_t ElementCount = Count / Dimension;
 		const uint8_t* Ptr = Src + Offset;
-		for (size_t i = 0; i < Count; ++i, Ptr += Stride)
+		for (size_t i = 0; i < ElementCount; ++i, Ptr += Stride)
 		{
 			XMSerializer<To>::Create<From, Dimension>(*(Dest + i), (From*)Ptr);
 		}
@@ -82,8 +82,13 @@ namespace Microsoft::glTF::Toolkit
 	}
 
 	template <typename To>
-	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Count, size_t Stride, size_t Offset)
+	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count)
 	{
+		if (Offset == -1)
+		{
+			return;
+		}
+
 		switch (Accessor.Type)
 		{
 		case COMPONENT_UNSIGNED_BYTE:	Read<uint8_t, To>(Accessor, Dest, Src, Stride, Offset, Count); break;
@@ -136,7 +141,7 @@ namespace Microsoft::glTF::Toolkit
 		}
 
 		int AccessorIndex = std::stoi(AccessorId);
-		if (AccessorIndex < 0 || AccessorIndex >= Doc.accessors.Size())
+		if (AccessorIndex < 0 || (size_t)AccessorIndex >= Doc.accessors.Size())
 		{
 			return false;
 		}
@@ -147,7 +152,7 @@ namespace Microsoft::glTF::Toolkit
 			return false;
 		}
 		int BufferViewIndex = std::stoi(Accessor.bufferViewId);
-		if (BufferViewIndex < 0 || BufferViewIndex >= Doc.bufferViews.Size())
+		if (BufferViewIndex < 0 || (size_t)BufferViewIndex >= Doc.bufferViews.Size())
 		{
 			return false;
 		}
@@ -187,7 +192,7 @@ namespace Microsoft::glTF::Toolkit
 	}
 
 	template <typename From>
-	void Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count)
+	size_t Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count)
 	{
 		switch (Info.Type)
 		{
@@ -196,14 +201,20 @@ namespace Microsoft::glTF::Toolkit
 		case COMPONENT_UNSIGNED_INT:	Write<uint16_t, From>(Info, Dest, Stride, Offset, Src, Count); break;
 		case COMPONENT_FLOAT:			Write<float, From>(Info, Dest, Stride, Offset, Src, Count); break;
 		}
+
+		return Stride * Count;
 	}
 
 	template <typename From>
 	size_t Write(const AccessorInfo& Info, uint8_t* Dest, const From* Src, size_t Count)
 	{
+		if (Count == 0)
+		{
+			return 0;
+		}
+
 		const size_t Stride = Accessor::GetComponentTypeSize(Info.Type) * Accessor::GetTypeCount(Info.Dimension);
-		Write(Info, Dest, Stride, 0, Src, Count);
-		return Stride * Count;
+		return Write(Info, Dest, Stride, 0, Src, Count);
 	}
 
 

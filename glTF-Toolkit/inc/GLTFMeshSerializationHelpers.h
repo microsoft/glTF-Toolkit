@@ -47,7 +47,7 @@ namespace Microsoft::glTF::Toolkit
 		}
 		inline void AddAttribute(Attribute Attr) { Mask |= 1 << Attr; }
 		inline void ClearAttribute(Attribute Attr) { Mask &= ~(1 << Attr); }
-		inline bool HasAttribute(Attribute Attr) const { return (Mask & Attr) != 0; }
+		inline bool HasAttribute(Attribute Attr) const { return (Mask & (1 << Attr)) != 0; }
 
 		static AttributeList FromPrimitive(const MeshPrimitive& p);
 		
@@ -132,11 +132,11 @@ namespace Microsoft::glTF::Toolkit
 		void WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
 		void ReadVertices(const PrimitiveInfo& Info, const std::vector<uint8_t>& Input);
 
-		void ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes, non-indexed
-		void ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
 		void ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, indexed
 		void ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, non-indexed
 		void ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, interleave attributes
+		void ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes
+		void ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
 
 		template <typename T>
 		void ExportSharedView(BufferBuilder2& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const;
@@ -185,7 +185,7 @@ namespace Microsoft::glTF::Toolkit
 	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count);
 
 	template <typename To>
-	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Count, size_t Stride, size_t Offset);
+	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count);
 
 	template <typename From, typename To>
 	void Read(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Accessor& Accessor, std::vector<To>& Output);
@@ -206,7 +206,7 @@ namespace Microsoft::glTF::Toolkit
 	void Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count);
 
 	template <typename From>
-	void Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count);
+	size_t Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count);
 
 	template <typename From>
 	size_t Write(const AccessorInfo& Info, uint8_t* Dest, const From* Src, size_t Count);

@@ -20,41 +20,93 @@ using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
 
 
-class GLBStreamFactory : public IStreamFactory
-{
-public:
-	GLBStreamFactory(const std::wstring& filename) 
-		: m_stream(std::make_shared<std::ofstream>(filename, std::ios_base::binary | std::ios_base::out))
-		, m_tempStream(std::make_shared<std::stringstream>(std::ios_base::binary | std::ios_base::in | std::ios_base::out))
-	{ }
-
-	std::shared_ptr<std::istream> GetInputStream(const std::string&) const override { throw std::logic_error("Not implemented"); }
-	std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override { return m_stream; }
-	std::shared_ptr<std::iostream> GetTemporaryStream(const std::string&) const override { return m_tempStream; }
-
-private:
-	std::shared_ptr<std::ofstream> m_stream;
-	std::shared_ptr<std::stringstream> m_tempStream;
-};
-
-
 namespace Microsoft::glTF::Toolkit::Test
 {
 	TEST_CLASS(GLTFMeshUtilsTest)
 	{
-		const char* c_waterBottleJson = "Resources\\gltf\\WaterBottle\\WaterBottle.gltf";
+		const char* c_WaterBottleJson = "Resources\\gltf\\WaterBottle\\WaterBottle.gltf";
+		const char*& c_TestFile = c_WaterBottleJson;
 
-		void ExecuteOptimizationTest(const char* GLTFRelPath, const MeshOptions& Options)
+		void ExecuteTest(const char* GLTFRelPath, const MeshOptions& Options)
 		{
-			TestUtils::LoadAndExecuteGLTFTest(GLTFRelPath, [=](auto Doc, auto Path)
+			TestUtils::LoadAndExecuteGLTFTest(GLTFRelPath, [&](const GLTFDocument& Doc, const std::string& Path)
 			{
-				auto OptimizedDoc = GLTFMeshUtils::ProcessMeshes(TestStreamReader(Path), std::make_unique<GLBStreamFactory>(L"optimized_mesh.bin"), Doc, Options, "");
+				std::string FilePath = Path;
+				std::string Directory = TestUtils::GetBasePath(Path.c_str());
+				std::string OutName;
+
+				auto Pos = Path.find_last_of("\\/");
+
+				auto Pos = FilePath.find_last_of(".\\/");
+				if (Pos != std::string::npos && Path[Pos] == '.')
+				{
+					Pos = FilePath.find_last_of("\\/");
+					if (Pos != std::string::npos)
+					{
+						Directory = FilePath.substr(0, Pos + 1);
+						OutName = Path.substr(Pos + 1);
+					}
+				}
+				else
+				{
+					Directory = FilePath.substr(0, Pos + 1);
+					OutName = Path.substr(Pos + 1);
+				}
+
+				auto OutputDoc = GLTFMeshUtils::ProcessMeshes(TestStreamReader(Path), Doc, Options, Directory);
+
+				std::string Json = Serialize(OutputDoc, SerializeFlags::Pretty);
+				TestStreamWriter(Directory).GetOutputStream(OutName)->write(Json.c_str(), Json.size());
 			});
 		}
 
 		TEST_METHOD(GLTFMeshUtils_Basic)
 		{
-			ExecuteOptimizationTest(c_waterBottleJson, MeshOptions::Defaults());
+			ExecuteTest(c_TestFile, MeshOptions::Defaults());
+		}
+
+		TEST_METHOD(GLTFMeshUtils_CI)
+		{
+			MeshOptions Options;
+			Options.Optimize = false;
+			Options.GenerateTangentSpace = false;
+			Options.AttributeFormat = AttributeFormat::Interleave;
+			Options.PrimitiveFormat = PrimitiveFormat::Combine;
+
+			ExecuteTest(c_TestFile, Options);
+		}
+
+		TEST_METHOD(GLTFMeshUtils_CS)
+		{
+			MeshOptions Options;
+			Options.Optimize = false;
+			Options.GenerateTangentSpace = false;
+			Options.AttributeFormat = AttributeFormat::Separate;
+			Options.PrimitiveFormat = PrimitiveFormat::Combine;
+
+			ExecuteTest(c_TestFile, Options);
+		}
+
+		TEST_METHOD(GLTFMeshUtils_SI)
+		{
+			MeshOptions Options;
+			Options.Optimize = false;
+			Options.GenerateTangentSpace = false;
+			Options.AttributeFormat = AttributeFormat::Interleave;
+			Options.PrimitiveFormat = PrimitiveFormat::Separate;
+
+			ExecuteTest(c_TestFile, Options);
+		}
+
+		TEST_METHOD(GLTFMeshUtils_SS)
+		{
+			MeshOptions Options;
+			Options.Optimize = false;
+			Options.GenerateTangentSpace = false;
+			Options.AttributeFormat = AttributeFormat::Separate;
+			Options.PrimitiveFormat = PrimitiveFormat::Separate;
+
+			ExecuteTest(c_TestFile, Options);
 		}
 	};
 }

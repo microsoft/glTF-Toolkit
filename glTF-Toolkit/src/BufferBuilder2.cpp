@@ -103,12 +103,12 @@ const Accessor& BufferBuilder2::AddAccessor(size_t count, size_t byteOffset, Com
 	}
 
 	size_t ComponentSize = Accessor::GetComponentTypeSize(componentType);
-	if (ComponentSize % byteOffset != 0)
+	if (byteOffset % ComponentSize != 0)
 	{
 		throw InvalidGLTFException("accessor offset within buffer view must be a multiple of the component size");
 	}
 
-	if (ComponentSize % (byteOffset + bufferView.byteOffset) != 0)
+	if ((byteOffset + bufferView.byteOffset) % ComponentSize != 0)
 	{
 		throw InvalidGLTFException("accessor offset within buffer must be a multiple of the component size");
 	}

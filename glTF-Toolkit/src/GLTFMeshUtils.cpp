@@ -19,6 +19,9 @@ const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_MESH_OPTIMIZER = "MSFT_mesh
 
 namespace
 {
+	template <typename T, size_t N>
+	constexpr size_t ArrayCount(T(&)[N]) { return N: }
+
 	class BasicStreamWriter : public IStreamWriter
 	{
 	public:
@@ -26,9 +29,9 @@ namespace
 			: m_OutputDir(OutputDirectory)
 		{ }
 
-		std::shared_ptr<std::ostream> GetOutputStream(const std::string& Filename) const override 
-		{ 
-			return std::make_shared<std::ofstream>(m_OutputDir + Filename, std::ios_base::binary | std::ios_base::out);
+		std::shared_ptr<std::ostream> GetOutputStream(const std::string& Filename) const override
+		{
+			return std::make_shared<std::ofstream>(m_OutputDir + Filename);
 		}
 
 	private:
@@ -55,13 +58,14 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	}
 
 	// Generate a buffer name based on the old buffer .bin file name in the output directory.
-	std::string BufferName = Doc.buffers[0].name;
+	std::string BufferName = Doc.buffers[0].uri;
 	size_t Pos = BufferName.find_last_of('.');
 	if (Pos == std::string::npos)
 	{
 		return Doc;
 	}
-	BufferName.insert(Pos, "_optimized_mesh");
+	BufferName.resize(Pos);
+	BufferName.append("_opmesh");
 
 	// Spin up a document copy to modify.
 	GLTFDocument OutputDoc(Doc);
