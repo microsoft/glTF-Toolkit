@@ -12,6 +12,7 @@
 #include "GLTFSDK/IStreamFactory.h"
 
 #include <GLTFMeshUtils.h>
+#include <experimental\filesystem>
 
 #include "Helpers/TestUtils.h"
 
@@ -19,38 +20,29 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
 
-
 namespace Microsoft::glTF::Toolkit::Test
 {
+	using namespace std::experimental::filesystem;
+
 	TEST_CLASS(GLTFMeshUtilsTest)
 	{
 		const char* c_WaterBottleJson = "Resources\\gltf\\WaterBottle\\WaterBottle.gltf";
-		const char*& c_TestFile = c_WaterBottleJson;
+		const char* c_UntitledJson = "Resources\\gltf\\Primitives\\Primitives.gltf";
 
-		void ExecuteTest(const char* GLTFRelPath, const MeshOptions& Options)
+		const char* c_OutputDirectory = "C:\\Users\\Matt\\Desktop\\GLTFMeshUtils\\";
+		const char*& c_TestFile = c_UntitledJson;
+
+		void ExecuteTest(const char* GLTFRelPath, const char* OutputDir, const MeshOptions& Options)
 		{
 			TestUtils::LoadAndExecuteGLTFTest(GLTFRelPath, [&](const GLTFDocument& Doc, const std::string& Path)
 			{
-				std::string FilePath = Path;
-				std::string Directory = TestUtils::GetBasePath(Path.c_str());
-				std::string OutName;
-
-				auto Pos = Path.find_last_of("\\/");
-
-				auto Pos = FilePath.find_last_of(".\\/");
-				if (Pos != std::string::npos && Path[Pos] == '.')
+				std::string OutName = TestUtils::GetFilenameExt(Path.c_str());
+				std::string Directory = OutputDir + TestUtils::GetFilename(OutName) + "\\";
+				
+				create_directories(Directory);
+				for (const auto& p : directory_iterator(TestUtils::GetBasePath(Path.c_str())))
 				{
-					Pos = FilePath.find_last_of("\\/");
-					if (Pos != std::string::npos)
-					{
-						Directory = FilePath.substr(0, Pos + 1);
-						OutName = Path.substr(Pos + 1);
-					}
-				}
-				else
-				{
-					Directory = FilePath.substr(0, Pos + 1);
-					OutName = Path.substr(Pos + 1);
+					copy_file(p, Directory + p.path().filename().string(), copy_options::overwrite_existing);
 				}
 
 				auto OutputDoc = GLTFMeshUtils::ProcessMeshes(TestStreamReader(Path), Doc, Options, Directory);
@@ -62,7 +54,7 @@ namespace Microsoft::glTF::Toolkit::Test
 
 		TEST_METHOD(GLTFMeshUtils_Basic)
 		{
-			ExecuteTest(c_TestFile, MeshOptions::Defaults());
+			ExecuteTest(c_TestFile, c_OutputDirectory, MeshOptions::Defaults());
 		}
 
 		TEST_METHOD(GLTFMeshUtils_CI)
@@ -73,7 +65,7 @@ namespace Microsoft::glTF::Toolkit::Test
 			Options.AttributeFormat = AttributeFormat::Interleave;
 			Options.PrimitiveFormat = PrimitiveFormat::Combine;
 
-			ExecuteTest(c_TestFile, Options);
+			ExecuteTest(c_TestFile, c_OutputDirectory, Options);
 		}
 
 		TEST_METHOD(GLTFMeshUtils_CS)
@@ -84,7 +76,7 @@ namespace Microsoft::glTF::Toolkit::Test
 			Options.AttributeFormat = AttributeFormat::Separate;
 			Options.PrimitiveFormat = PrimitiveFormat::Combine;
 
-			ExecuteTest(c_TestFile, Options);
+			ExecuteTest(c_TestFile, c_OutputDirectory, Options);
 		}
 
 		TEST_METHOD(GLTFMeshUtils_SI)
@@ -95,7 +87,7 @@ namespace Microsoft::glTF::Toolkit::Test
 			Options.AttributeFormat = AttributeFormat::Interleave;
 			Options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-			ExecuteTest(c_TestFile, Options);
+			ExecuteTest(c_TestFile, c_OutputDirectory, Options);
 		}
 
 		TEST_METHOD(GLTFMeshUtils_SS)
@@ -106,7 +98,7 @@ namespace Microsoft::glTF::Toolkit::Test
 			Options.AttributeFormat = AttributeFormat::Separate;
 			Options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-			ExecuteTest(c_TestFile, Options);
+			ExecuteTest(c_TestFile, c_OutputDirectory, Options);
 		}
 	};
 }

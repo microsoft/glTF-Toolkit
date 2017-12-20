@@ -20,7 +20,7 @@ const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_MESH_OPTIMIZER = "MSFT_mesh
 namespace
 {
 	template <typename T, size_t N>
-	constexpr size_t ArrayCount(T(&)[N]) { return N: }
+	constexpr size_t ArrayCount(T(&)[N]) { return N; }
 
 	class BasicStreamWriter : public IStreamWriter
 	{

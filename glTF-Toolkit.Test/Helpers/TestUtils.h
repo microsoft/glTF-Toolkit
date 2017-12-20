@@ -38,23 +38,27 @@ namespace Microsoft::glTF::Toolkit::Test
 #endif
         }
 
-		static std::string GetFileName(const char * absolutePath)
+		static std::string GetFilenameExt(const std::string& AbsolutePath)
 		{
-			std::string path(absolutePath);
-			
-
 #ifdef __APPLE__
 			const char Delimiter = '/';
 #else
 			const char Delimiter = '\\';
 #endif
-			if (path.back() == Delimiter)
+			if (AbsolutePath.back() == Delimiter)
 			{
 				return std::string();
 			}
 
-			auto Pos = path.find_last_of(Delimiter);
-			return Pos == std::string::npos ? path : path.substr(Pos + 1)
+			auto Pos = AbsolutePath.find_last_of(Delimiter);
+			return Pos == std::string::npos ? AbsolutePath : AbsolutePath.substr(Pos + 1);
+		}
+
+		static std::string GetFilename(const std::string& AbsolutePath)
+		{
+			std::string Filename = GetFilenameExt(AbsolutePath);
+			auto Pos = Filename.find_last_of('.');
+			return Pos == std::string::npos ? AbsolutePath : AbsolutePath.substr(0, Pos);
 		}
 
         static std::string GetAbsolutePath(const char * relativePath)
@@ -182,10 +186,15 @@ namespace Microsoft::glTF::Toolkit::Test
 	class TestStreamWriter : public IStreamWriter
 	{
 	public:
-		TestStreamWriter(std::string gltfAbsolutePath) : m_basePath(TestUtils::GetBasePath(gltfAbsolutePath.c_str())) {}
+		TestStreamWriter(const char* gltfAbsolutePath) 
+			: m_basePath(TestUtils::GetBasePath(gltfAbsolutePath))
+		{ }
 
-		virtual ~TestStreamWriter() override {}
-		virtual std::shared_ptr<std::ostream> GetOutputStream(const std::string& filename) const override
+		TestStreamWriter(const std::string& gltfAbsolutePath) 
+			: TestStreamWriter(gltfAbsolutePath.c_str())
+		{ }
+
+		std::shared_ptr<std::ostream> GetOutputStream(const std::string& filename) const override
 		{
 			auto path = m_basePath;
 

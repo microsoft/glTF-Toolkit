@@ -196,8 +196,22 @@ MeshInfo::MeshInfo(void)
 { }
 
 MeshInfo::MeshInfo(const MeshInfo& Parent, size_t PrimIndex)
-	: MeshInfo()
+	: m_Name()
+	, m_Primitives()
+	, m_Indices()
+	, m_Positions()
+	, m_Normals()
+	, m_Tangents()
+	, m_UV0()
+	, m_UV1()
+	, m_Color0()
+	, m_Joints0()
+	, m_Weights0()
+	, m_Attributes(Parent.m_Attributes)
+	, m_PrimFormat(Parent.m_PrimFormat)
 {
+	m_Attributes = Parent.m_Attributes;
+
 	const auto& Prim = Parent.m_Primitives[PrimIndex];
 
 	if (m_Attributes.HasAttribute(Attribute::Indices))
@@ -207,14 +221,14 @@ MeshInfo::MeshInfo(const MeshInfo& Parent, size_t PrimIndex)
 
 		auto RemapFunc = [&](uint32_t i) { return IndexRemap[i]; };
 
-		LocalizeAttribute(Prim, RemapFunc, m_Indices, Parent.m_Positions, m_Positions);
-		LocalizeAttribute(Prim, RemapFunc, m_Indices, Parent.m_Normals, m_Normals);
-		LocalizeAttribute(Prim, RemapFunc, m_Indices, Parent.m_Tangents, m_Tangents);
-		LocalizeAttribute(Prim, RemapFunc, m_Indices, Parent.m_UV0, m_UV0);
-		LocalizeAttribute(Prim, RemapFunc, m_Indices, Parent.m_UV1, m_UV1);
-		LocalizeAttribute(Prim, RemapFunc, m_Indices, Parent.m_Color0, m_Color0);
-		LocalizeAttribute(Prim, RemapFunc, m_Indices, Parent.m_Joints0, m_Joints0);
-		LocalizeAttribute(Prim, RemapFunc, m_Indices, Parent.m_Weights0, m_Weights0);
+		LocalizeAttribute(Prim, RemapFunc, Parent.m_Indices, Parent.m_Positions, m_Positions);
+		LocalizeAttribute(Prim, RemapFunc, Parent.m_Indices, Parent.m_Normals, m_Normals);
+		LocalizeAttribute(Prim, RemapFunc, Parent.m_Indices, Parent.m_Tangents, m_Tangents);
+		LocalizeAttribute(Prim, RemapFunc, Parent.m_Indices, Parent.m_UV0, m_UV0);
+		LocalizeAttribute(Prim, RemapFunc, Parent.m_Indices, Parent.m_UV1, m_UV1);
+		LocalizeAttribute(Prim, RemapFunc, Parent.m_Indices, Parent.m_Color0, m_Color0);
+		LocalizeAttribute(Prim, RemapFunc, Parent.m_Indices, Parent.m_Joints0, m_Joints0);
+		LocalizeAttribute(Prim, RemapFunc, Parent.m_Indices, Parent.m_Weights0, m_Weights0);
 	}
 	else
 	{
@@ -561,19 +575,16 @@ void MeshInfo::WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Ou
 	size_t Offsets[Count];
 	Info.GetVertexInfo(Stride, Offsets);
 
-	const size_t WriteLen = Info.VertexCount * Stride;
-	const size_t OldSize = Output.size();
-	Output.resize(OldSize + WriteLen);
+	Output.resize(Info.VertexCount * Stride);
 
-	uint8_t* VertexStart = Output.data() + OldSize;
-	Write(Info[Positions], VertexStart, Stride, Offsets[Positions], m_Positions.data(), m_Positions.size());
-	Write(Info[Normals], VertexStart, Stride, Offsets[Normals], m_Normals.data(), m_Normals.size());
-	Write(Info[Tangents], VertexStart, Stride, Offsets[Tangents], m_Tangents.data(), m_Tangents.size());
-	Write(Info[UV0], VertexStart, Stride, Offsets[UV0], m_UV0.data(), m_UV0.size());
-	Write(Info[UV1], VertexStart, Stride, Offsets[UV1], m_UV1.data(), m_UV1.size());
-	Write(Info[Color0], VertexStart, Stride, Offsets[Color0], m_Color0.data(), m_Color0.size());
-	Write(Info[Joints0], VertexStart, Stride, Offsets[Joints0], m_Joints0.data(), m_Joints0.size());
-	Write(Info[Weights0], VertexStart, Stride, Offsets[Weights0], m_Weights0.data(), m_Weights0.size());
+	Write(Info[Positions], Output.data(), Stride, Offsets[Positions], m_Positions.data(), m_Positions.size());
+	Write(Info[Normals], Output.data(), Stride, Offsets[Normals], m_Normals.data(), m_Normals.size());
+	Write(Info[Tangents], Output.data(), Stride, Offsets[Tangents], m_Tangents.data(), m_Tangents.size());
+	Write(Info[UV0], Output.data(), Stride, Offsets[UV0], m_UV0.data(), m_UV0.size());
+	Write(Info[UV1], Output.data(), Stride, Offsets[UV1], m_UV1.data(), m_UV1.size());
+	Write(Info[Color0], Output.data(), Stride, Offsets[Color0], m_Color0.data(), m_Color0.size());
+	Write(Info[Joints0], Output.data(), Stride, Offsets[Joints0], m_Joints0.data(), m_Joints0.size());
+	Write(Info[Weights0], Output.data(), Stride, Offsets[Weights0], m_Weights0.data(), m_Weights0.size());
 }
 
 void MeshInfo::ReadVertices(const PrimitiveInfo& Info, const std::vector<uint8_t>& Input)

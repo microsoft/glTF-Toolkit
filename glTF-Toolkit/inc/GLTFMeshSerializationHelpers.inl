@@ -108,14 +108,15 @@ namespace Microsoft::glTF::Toolkit
 		size_t CompCount = Accessor::GetTypeCount(Accessor.type);
 
 		size_t Count = Buffer.size() / CompCount;
-		Output.resize(Output.size() + Count);
+		size_t OldSize = Output.size();
+		Output.resize(OldSize + Count);
 
 		switch (Accessor.type)
 		{
-		case TYPE_SCALAR:	Read<From, To, 1>(Output.data(), (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
-		case TYPE_VEC2:		Read<From, To, 2>(Output.data(), (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
-		case TYPE_VEC3:		Read<From, To, 3>(Output.data(), (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
-		case TYPE_VEC4:		Read<From, To, 4>(Output.data(), (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
+		case TYPE_SCALAR:	Read<From, To, 1>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
+		case TYPE_VEC2:		Read<From, To, 2>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
+		case TYPE_VEC3:		Read<From, To, 3>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
+		case TYPE_VEC4:		Read<From, To, 4>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
 		}
 	}
 
@@ -271,7 +272,19 @@ namespace Microsoft::glTF::Toolkit
 	template <typename T, typename RemapFunc>
 	void LocalizeAttribute(const PrimitiveInfo& Prim, const RemapFunc& Remap, const std::vector<uint32_t>& Indices, const std::vector<T>& Global, std::vector<T>& Local)
 	{
+		if (Global.size() == 0)
+		{
+			return;
+		}
+
 		Local.resize(Prim.VertexCount);
-		std::for_each(&Indices[Prim.Offset], &Indices[Prim.Offset + Prim.IndexCount], [&](auto& i) { Local[Remap(i)] = Global[i]; });
+		for (size_t i = 0; i < Prim.IndexCount; ++i)
+		{
+			uint32_t Index = Indices[Prim.Offset + i];
+			uint32_t NewIndex = Remap(Index);
+			Local[NewIndex] = Global[Index];
+		}
+
+		//std::for_each(&Indices[Prim.Offset], &Indices[Prim.Offset + Prim.IndexCount], [&](auto& i) { Local[Remap(i)] = Global[i]; });
 	}
 }
