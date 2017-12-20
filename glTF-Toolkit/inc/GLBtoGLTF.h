@@ -27,7 +27,7 @@ namespace Microsoft::glTF::Toolkit
         /// The name of the output glTF manifest file, without the extension. 
         /// This name will be used as a prefix to all unpacked resources.
         /// </param>
-        static void UnpackGLB(std::string glbPath, std::string outDirectory, std::string gltfName);
+        static void UnpackGLB(const std::string& glbPath, const std::string& outDirectory, const std::string& gltfName);
 
         /// <summary>
         /// Extracts the contents of all buffer views from a GLB file into a 
