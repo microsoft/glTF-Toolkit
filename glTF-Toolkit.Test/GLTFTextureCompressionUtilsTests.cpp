@@ -32,6 +32,7 @@ namespace Microsoft::glTF::Toolkit::Test
         const char* c_baseColorPng = "Resources\\gltf\\WaterBottle_ORM\\WaterBottle_baseColor.png";
         const char* c_baseColorBC7 = "Resources\\gltf\\WaterBottle_ORM\\WaterBottle_baseColor.DDS";
         const char* c_waterBottleORMJson = "Resources\\gltf\\WaterBottle_ORM\\WaterBottle.gltf";
+        const char* c_nonMultipleOf4TextureJson = "Resources\\gltf\\TextureTest\\TextureTest.gltf";
 
         TEST_METHOD(GLTFTextureCompressionUtils_CompressImage_BC7)
         {
@@ -229,6 +230,40 @@ namespace Microsoft::glTF::Toolkit::Test
                 Assert::IsTrue(compressedDoc.images.Get(ddsImageId).mimeType == "image/vnd-ms.dds");
                 std::string expectedSuffix = "_BC7.dds";
                 Assert::IsTrue(compressedDoc.images.Get(ddsImageId).uri.compare(9, expectedSuffix.size(), expectedSuffix) == 0); // The emissive texture should have mips and be BC7
+            });
+        }
+
+        TEST_METHOD(GLTFTextureCompressionUtils_CompressTextureAsDDS_NotMultipleOf4)
+        {
+            // This asset has all textures
+            TestUtils::LoadAndExecuteGLTFTest(c_nonMultipleOf4TextureJson, [](auto doc, auto path)
+            {
+                auto maxTextureSize = std::numeric_limits<size_t>::max();
+                auto generateMipMaps = false;
+                auto retainOriginalImages = true;
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
+
+                auto originalUri = compressedDoc.images.Get("0").uri;
+                auto compressedUri = compressedDoc.images.Get("1").uri;
+
+                auto basePath = TestUtils::GetBasePath(path.c_str());
+
+                // load original
+                DirectX::ScratchImage originalImage;
+                DirectX::TexMetadata originalInfo;
+                DirectX::LoadFromWICFile(WStringUtils::ToWString(basePath + originalUri).c_str(), DirectX::WIC_FLAGS_NONE, &originalInfo, originalImage);
+                
+                Assert::IsTrue(101 == originalInfo.width);
+                Assert::IsTrue(51 == originalInfo.height);
+
+                // load compressed
+                DirectX::ScratchImage compressedImage;
+                DirectX::TexMetadata compressedInfo;
+                DirectX::LoadFromDDSFile(WStringUtils::ToWString(compressedUri).c_str(), DirectX::DDS_FLAGS_NONE, &compressedInfo, compressedImage);
+
+                // Check resize
+                Assert::IsTrue(104 == compressedInfo.width);
+                Assert::IsTrue(52 == compressedInfo.height);
             });
         }
     };

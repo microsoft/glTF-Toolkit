@@ -35,6 +35,7 @@
     <None Include="packages.config" />
     <None Include="Resources\gltf\CubeAsset3D.gltf" />
     <None Include="Resources\gltf\CubeWithLOD.gltf" />
+    <None Include="Resources\gltf\TextureTest\TextureTest.gltf" />
     <None Include="Resources\gltf\WaterBottle\WaterBottle.bin" />
     <None Include="Resources\gltf\WaterBottle\WaterBottle.gltf" />
     <None Include="Resources\gltf\WaterBottle_ORM\WaterBottle.bin" />
@@ -42,6 +43,7 @@
     <None Include="Resources\gltf\WaterBottle_ORM\WaterBottle_WindowsMR.gltf" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="Resources\gltf\TextureTest\0.png" />
     <Image Include="Resources\gltf\WaterBottle\WaterBottle_baseColor.png" />
     <Image Include="Resources\gltf\WaterBottle\WaterBottle_diffuse.png" />
     <Image Include="Resources\gltf\WaterBottle\WaterBottle_emissive.png" />

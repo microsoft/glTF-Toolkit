@@ -1,0 +1,16 @@
+{
+  "asset" : {
+    "version" : "2.0"
+  },
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "images": [
+    {
+      "uri": "0.png"
+    }
+  ]
+}

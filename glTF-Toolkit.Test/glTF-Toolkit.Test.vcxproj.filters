@@ -21,6 +21,9 @@
     <Filter Include="Resources\WaterBottle_ORM">
       <UniqueIdentifier>{c7fc3736-b68e-4f6d-b93b-1bb4eda5b1ff}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Resources\TextureTest">
+      <UniqueIdentifier>{e4d4222d-e5af-4dad-b539-28e2dc1c716a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\gltf\CubeAsset3D.gltf">
@@ -44,6 +47,9 @@
     </None>
     <None Include="Resources\gltf\WaterBottle_ORM\WaterBottle_WindowsMR.gltf">
       <Filter>Resources\WaterBottle_ORM</Filter>
+    </None>
+    <None Include="Resources\gltf\TextureTest\TextureTest.gltf">
+      <Filter>Resources\TextureTest</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -103,6 +109,9 @@
     </Image>
     <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_specularGlossiness.png">
       <Filter>Resources\WaterBottle_ORM</Filter>
+    </Image>
+    <Image Include="Resources\gltf\TextureTest\0.png">
+      <Filter>Resources\TextureTest</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
