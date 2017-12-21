@@ -76,6 +76,7 @@ namespace Microsoft::glTF::Toolkit
 		static void Denormalize(T& v) { (v); }
 
 		static TComp& Get(T& v, size_t Index) { return *((TComp*)&v + Index); }
+		static const TComp& Get(const T& v, size_t Index) { return *((TComp*)&v + Index); }
 
 		template <typename From, size_t _Count>
 		static void Create(T& v, const From* Ptr)
@@ -98,5 +99,18 @@ namespace Microsoft::glTF::Toolkit
 				*(Ptr + i) = (To)Get(v, i);
 			}
 		}
+
+		static void Out(std::ostream& s, const T& v)
+		{
+			if constexpr(Dimension > 1) s << '(';
+			for (size_t i = 0; i < Dimension; ++i)
+			{
+				if constexpr(Dimension > 1) if (i > 0) s << ", ";
+				s << Get(v, i);
+			}
+			if constexpr(Dimension > 1) s << ')';
+			s << '\n';
+		}
 	};
+
 }

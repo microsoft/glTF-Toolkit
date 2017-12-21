@@ -5,6 +5,9 @@
     <None Include="inc\GLTFMeshSerializationHelpers.inl">
       <Filter>inc</Filter>
     </None>
+    <None Include="inc\BufferBuilder2.inl">
+      <Filter>inc</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">

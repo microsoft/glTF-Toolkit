@@ -6,8 +6,6 @@
 #include <numeric>
 
 #include <GLTFSDK/GLTF.h>
-#include <GLTFSDK/GLTFResourceWriter2.h>
-#include <GLTFSDK/IStreamFactory.h>
 
 #include "GLTFMeshSerializationHelpers.h"
 #include "GLTFMeshUtils.h"
@@ -31,7 +29,7 @@ namespace
 
 		std::shared_ptr<std::ostream> GetOutputStream(const std::string& Filename) const override
 		{
-			return std::make_shared<std::ofstream>(m_OutputDir + Filename);
+			return std::make_shared<std::ofstream>(m_OutputDir + Filename, std::ios::binary);
 		}
 
 	private:
@@ -45,6 +43,9 @@ namespace
 
 GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, const GLTFDocument& Doc, const MeshOptions& Options, const std::string& OutputDirectory)
 {
+	/*InitStream(0, "C:\\Users\\mahurlim\\Desktop\\data0.txt");
+	InitStream(1, "C:\\Users\\mahurlim\\Desktop\\data1.txt");*/
+
 	// Make sure there's meshes to optimize before performing a bunch of work. 
 	if (Doc.meshes.Size() == 0 || Doc.buffers.Size() == 0)
 	{
@@ -52,7 +53,7 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	}
 
 	// Make sure at least one mesh can be operated on.
-	if (!std::any_of(Doc.meshes.Elements().begin(), Doc.meshes.Elements().end(), [](const auto& x) { return MeshInfo::CanParse(x); }))
+	if (!std::any_of(Doc.meshes.Elements().begin(), Doc.meshes.Elements().end(), [](const auto& x) { return MeshInfo::IsSupported(x); }))
 	{
 		return Doc;
 	}
@@ -70,9 +71,9 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	// Spin up a document copy to modify.
 	GLTFDocument OutputDoc(Doc);
 
-	auto GenBufferId = [&](const BufferBuilder2& b) { return std::to_string(OutputDoc.buffers.Size() + b.GetBufferCount()); };
-	auto GenBufferViewId = [&](const BufferBuilder2& b) { return std::to_string(OutputDoc.bufferViews.Size() + b.GetBufferViewCount()); };
-	auto GenAccessorId = [&](const BufferBuilder2& b) { return std::to_string(OutputDoc.accessors.Size() + b.GetAccessorCount()); };
+	auto GenBufferId = [&](const BufferBuilder2& b) { return OutputDoc.buffers.Size() + b.GetBufferCount(); };
+	auto GenBufferViewId = [&](const BufferBuilder2& b) { return OutputDoc.bufferViews.Size() + b.GetBufferViewCount(); };
+	auto GenAccessorId = [&](const BufferBuilder2& b) { return OutputDoc.accessors.Size() + b.GetAccessorCount(); };
 
 	auto StreamWriter = std::make_unique<BasicStreamWriter>(OutputDirectory);
 	auto ResourceWriter = std::make_unique<GLTFResourceWriter2>(std::move(StreamWriter), BufferName);
@@ -101,7 +102,6 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	}
 
 	Builder.Output(OutputDoc);
-
 	OutputDoc.extensionsUsed.insert(EXTENSION_MSFT_MESH_OPTIMIZER);
 
 	return OutputDoc;

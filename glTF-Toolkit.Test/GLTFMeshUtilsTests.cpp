@@ -29,7 +29,7 @@ namespace Microsoft::glTF::Toolkit::Test
 		const char* c_WaterBottleJson = "Resources\\gltf\\WaterBottle\\WaterBottle.gltf";
 		const char* c_UntitledJson = "Resources\\gltf\\Primitives\\Primitives.gltf";
 
-		const char* c_OutputDirectory = "C:\\Users\\Matt\\Desktop\\GLTFMeshUtils\\";
+		const char* c_OutputDirectory = "C:\\Users\\mahurlim\\Desktop\\GLTFMeshUtils\\";
 		const char*& c_TestFile = c_UntitledJson;
 
 		void ExecuteTest(const char* GLTFRelPath, const char* OutputDir, const MeshOptions& Options)

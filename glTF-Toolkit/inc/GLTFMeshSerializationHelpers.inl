@@ -3,6 +3,9 @@
 
 namespace Microsoft::glTF::Toolkit
 {
+	void InitStream(int i, const std::string& filename);
+	std::ofstream& GetStream(int i);
+
 	template <typename T>
 	void MeshInfo::ExportSharedView(BufferBuilder2& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const
 	{
@@ -12,20 +15,19 @@ namespace Microsoft::glTF::Toolkit
 		}
 
 		const auto& Data = this->*AttributePtr;
+		const auto Stride = Info[Attr].GetElementSize();
 
-		m_Scratch.resize(Data.size() * Info[Attr].GetElementSize());
+		m_Scratch.resize(Data.size() * Stride);
 		Write(Info[Attr], m_Scratch.data(), Data.data(), Data.size());
 
-		// Write the shared view.
 		Builder.AddBufferView(m_Scratch, 0, Info[Attr].Target);
 
 		for (size_t i = 0; i < m_Primitives.size(); ++i)
 		{
 			const auto& p = m_Primitives[i];
-			const auto& a = p[Attr];
 
-			FindMinMax(a, m_Scratch.data(), a.GetElementSize(), p.Offset, p.GetCount(Attr), m_Min, m_Max);
-			Builder.AddAccessor(p.GetCount(Attr), p.Offset * a.GetElementSize(), a.Type, a.Dimension, m_Min, m_Max);
+			FindMinMax(Info[Attr], m_Scratch.data(), Stride, Stride * p.Offset, p.GetCount(Attr), m_Min, m_Max);
+			Builder.AddAccessor(p.GetCount(Attr), Stride * p.Offset, Info[Attr].Type, Info[Attr].Dimension, m_Min, m_Max);
 
 			OutMesh.primitives[i].*AccessorIds[Attr] = Builder.GetCurrentAccessor().id;
 		}
@@ -47,13 +49,12 @@ namespace Microsoft::glTF::Toolkit
 		const size_t ByteStride = Dimension * ComponentSize;
 
 		m_Scratch.resize(Data.size() * ByteStride);
+
 		Write(a, m_Scratch.data(), ByteStride, 0, Data.data(), Data.size());
-
-		Builder.AddBufferView(m_Scratch, ByteStride, a.Target);
-
 		FindMinMax(a, m_Scratch.data(), ByteStride, 0, Data.size(), m_Min, m_Max);
-		Builder.AddAccessor(Data.size(), 0, a.Type, a.Dimension, m_Min, m_Max);
 
+		Builder.AddBufferView(a.Target);
+		Builder.AddAccessor(m_Scratch, a.Type, a.Dimension, m_Min, m_Max);
 		return Builder.GetCurrentAccessor().id;
 	}
 
@@ -61,9 +62,8 @@ namespace Microsoft::glTF::Toolkit
 	template <typename From, typename To, size_t Dimension>
 	void Read(To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count)
 	{
-		const size_t ElementCount = Count / Dimension;
 		const uint8_t* Ptr = Src + Offset;
-		for (size_t i = 0; i < ElementCount; ++i, Ptr += Stride)
+		for (size_t i = 0; i < Count; ++i, Ptr += Stride)
 		{
 			XMSerializer<To>::Create<From, Dimension>(*(Dest + i), (From*)Ptr);
 		}
@@ -113,10 +113,10 @@ namespace Microsoft::glTF::Toolkit
 
 		switch (Accessor.type)
 		{
-		case TYPE_SCALAR:	Read<From, To, 1>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
-		case TYPE_VEC2:		Read<From, To, 2>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
-		case TYPE_VEC3:		Read<From, To, 3>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
-		case TYPE_VEC4:		Read<From, To, 4>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Buffer.size()); break;
+		case TYPE_SCALAR:	Read<From, To, 1>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Count); break;
+		case TYPE_VEC2:		Read<From, To, 2>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Count); break;
+		case TYPE_VEC3:		Read<From, To, 3>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Count); break;
+		case TYPE_VEC4:		Read<From, To, 4>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Count); break;
 		}
 	}
 

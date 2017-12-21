@@ -91,7 +91,7 @@ namespace Microsoft::glTF::Toolkit
 		size_t GetIndexSize(void) const { return Accessor::GetComponentTypeSize(Metadata[Indices].Type); }
 		size_t GetVertexSize(void) const;
 
-		void GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count]) const;
+		void GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count], size_t* pAlignment = nullptr) const;
 
 		AccessorInfo& operator[] (size_t Index) { return Metadata[Index]; }
 		const AccessorInfo& operator[] (size_t Index) const { return Metadata[Index]; }
@@ -104,6 +104,7 @@ namespace Microsoft::glTF::Toolkit
 		static PrimitiveInfo Max(const PrimitiveInfo& p0, const PrimitiveInfo& p1);
 	};
 
+	using namespace Microsoft::glTF::exp;
 
 	//------------------------------------------
 	// MeshInfo
@@ -114,15 +115,29 @@ namespace Microsoft::glTF::Toolkit
 		MeshInfo(void);
 		MeshInfo(const MeshInfo& Parent, size_t PrimIndex);
 
+		// Populates the mesh with data from the specified glTF document & mesh.
 		bool Initialize(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
+
+		// Clears the existing mesh data.
 		void Reset(void);
+
+		// Leverages DirectXMesh facilities to optimize the mesh data.
 		void Optimize(void);
+
+		// Generates normal and optionally tangent data.
 		void GenerateAttributes(bool GenerateTangentSpace);
+
+		// Exports the mesh to a BufferBuilder and Mesh in a format specified in the options.
 		void Export(const MeshOptions& Options, BufferBuilder2& Builder, Mesh& OutMesh) const;
 
-		static bool CanParse(const Mesh& m);
+		// Determines whether a specific mesh exists in a supported format.
+		static bool IsSupported(const Mesh& m);
 
 	private:
+		template <typename T>
+		void Out(int iStream, const std::vector<T>& v) const { std::for_each(v.begin(), v.end(), [&](const auto& i) { XMSerializer<T>::Out(GetStream(iStream), i); }); }
+		void Out(int iStream) const;
+
 		inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
 		PrimitiveInfo DetermineMeshFormat(void) const;
 
@@ -132,22 +147,31 @@ namespace Microsoft::glTF::Toolkit
 		void WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
 		void ReadVertices(const PrimitiveInfo& Info, const std::vector<uint8_t>& Input);
 
+		// Exports the mesh data to a BufferBuilder and Mesh in a specific format.
 		void ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, indexed
 		void ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, non-indexed
 		void ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, interleave attributes
 		void ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes
 		void ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
 
+		// Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
 		template <typename T>
 		void ExportSharedView(BufferBuilder2& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const;
-		
+
+		// Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
 		template <typename T>
 		std::string ExportAccessor(BufferBuilder2& Builder, const PrimitiveInfo& Prim, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const;
 
-		void ExportInterleaved(BufferBuilder2& Builder, const PrimitiveInfo& Info, Mesh& OutMesh) const;
+		// Writes mesh vertex data in an interleaved fashion, and exports one buffer view and shared accessors to a BufferBuilder.
+		void ExportInterleaved(BufferBuilder2& Builder, const PrimitiveInfo& Info, std::string (&OutIds)[Count]) const;
 
+		// Maps indices from global vertex list to local (per-primitive) index list.
 		static void RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count);
+
+		// Determines if all primitives within a glTF mesh shares accessors (aka interleaved vertex data.)
 		static bool UsesSharedAccessors(const Mesh& m);
+
+		// Determines whether primitives within a glTF mesh are combined into a global buffer, or separated into their own local buffers.
 		static PrimitiveFormat DetermineFormat(const GLTFDocument& Doc, const Mesh& m);
 
 	private:

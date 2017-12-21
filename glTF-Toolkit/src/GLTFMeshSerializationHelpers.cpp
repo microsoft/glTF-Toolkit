@@ -22,6 +22,23 @@ using namespace DirectX;
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
 
+std::ofstream g_Stream[2];
+
+void Microsoft::glTF::Toolkit::InitStream(int i, const std::string& filename)
+{
+	g_Stream[i].open(filename);
+}
+
+std::ofstream& Microsoft::glTF::Toolkit::GetStream(int i)
+{
+	if (!g_Stream[i].is_open())
+	{
+		throw "Stream is not open";
+	}
+
+	return g_Stream[i];
+}
+
 std::string(MeshPrimitive::*AccessorIds[Count]) =
 {
 	&MeshPrimitive::indicesAccessorId,		// 0 Indices
@@ -88,8 +105,9 @@ size_t PrimitiveInfo::GetVertexSize(void) const
 	return Stride;
 }
 
-void PrimitiveInfo::GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count]) const
+void PrimitiveInfo::GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count], size_t* pAlignment) const
 {
+	size_t MaxCompSize = 0;
 	Stride = 0;
 	std::fill(Offsets, Offsets + Count, -1);
 
@@ -108,9 +126,15 @@ void PrimitiveInfo::GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count]) const
 				Stride += CompSize - Stride % CompSize;
 			}
 
+			MaxCompSize = std::max(MaxCompSize, CompSize);
 			Offsets[i] = Stride;
 			Stride += CompSize * Accessor::GetTypeCount(Metadata[i].Dimension);
 		}
+	}
+
+	if (pAlignment)
+	{
+		*pAlignment = MaxCompSize;
 	}
 }
 
@@ -247,7 +271,7 @@ MeshInfo::MeshInfo(const MeshInfo& Parent, size_t PrimIndex)
 bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh)
 {
 	// Ensure mesh has the correct properties for us to process.
-	if (!CanParse(Mesh))
+	if (!IsSupported(Mesh))
 	{
 		return false;
 	}
@@ -305,7 +329,10 @@ void MeshInfo::InitSeparateAccessors(const IStreamReader& StreamReader, const GL
 		PrimInfo.VertexCount = m_Positions.size() - PositionStart;
 
 		// Conversion from local to global index buffer; add vertex offset to each index.
-		std::for_each(m_Indices.begin() + IndexStart, m_Indices.end(), [=](auto& v) { v = v + PositionStart; });
+		if (PositionStart > 0)
+		{
+			std::for_each(m_Indices.begin() + IndexStart, m_Indices.end(), [=](auto& v) { v = v + PositionStart; });
+		}
 	}
 }
 
@@ -522,7 +549,7 @@ void MeshInfo::Export(const MeshOptions& Options, BufferBuilder2& Builder, Mesh&
 	OutMesh.extensions.insert(std::pair<std::string, std::string>(EXTENSION_MSFT_MESH_OPTIMIZER, buffer.GetString()));
 }
 
-bool MeshInfo::CanParse(const Mesh& m)
+bool MeshInfo::IsSupported(const Mesh& m)
 {
 	if (m.primitives.empty())
 	{
@@ -651,6 +678,19 @@ void MeshInfo::ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const
 	ExportSharedView(Builder, PrimInfo, Weights0, &MeshInfo::m_Weights0, OutMesh);
 }
 
+void MeshInfo::Out(int iStream) const
+{
+	Out(iStream, m_Indices);
+	Out(iStream, m_Positions);
+	Out(iStream, m_Normals);
+	Out(iStream, m_Tangents);
+	Out(iStream, m_UV0);
+	Out(iStream, m_UV1);
+	Out(iStream, m_Color0);
+	Out(iStream, m_Joints0);
+	Out(iStream, m_Weights0);
+}
+
 // Combine primitives, interleave attributes
 void MeshInfo::ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const
 {
@@ -661,9 +701,18 @@ void MeshInfo::ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const
 	}
 
 	auto PrimInfo = DetermineMeshFormat();
-
 	ExportSharedView(Builder, PrimInfo, Indices, &MeshInfo::m_Indices, OutMesh);
-	ExportInterleaved(Builder, PrimInfo, OutMesh);
+
+	std::string Ids[Count];
+	ExportInterleaved(Builder, PrimInfo, Ids);
+
+	for (size_t i = 0; i < m_Primitives.size(); ++i)
+	{
+		FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto j)
+		{
+			OutMesh.primitives[i].*AccessorIds[j] = Ids[j];
+		});
+	}
 }
 
 // Separate primitives, separate attributes
@@ -693,21 +742,27 @@ void MeshInfo::ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const
 		MeshInfo Prim = MeshInfo(*this, i);
 
 		OutMesh.primitives[i].indicesAccessorId = Prim.ExportAccessor(Builder, m_Primitives[i], Indices, &MeshInfo::m_Indices);
-		Prim.ExportInterleaved(Builder, m_Primitives[i], OutMesh);
+
+		std::string Ids[Count];
+		Prim.ExportInterleaved(Builder, m_Primitives[i], Ids);
+
+		FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto j)
+		{
+			OutMesh.primitives[i].*AccessorIds[j] = Ids[j];
+		});
 	}
 }
 
-void MeshInfo::ExportInterleaved(BufferBuilder2& Builder, const PrimitiveInfo& Info, Mesh& OutMesh) const
+void MeshInfo::ExportInterleaved(BufferBuilder2& Builder, const PrimitiveInfo& Info, std::string(&OutIds)[Count]) const
 {
 	WriteVertices(Info, m_Scratch);
 
+	size_t Alignment = 1;
 	size_t Stride;
 	size_t Offsets[Count];
-	Info.GetVertexInfo(Stride, Offsets);
+	Info.GetVertexInfo(Stride, Offsets, &Alignment);
 
-	std::string Ids[Count];
-
-	Builder.AddBufferView(m_Scratch, Stride, ARRAY_BUFFER);
+	Builder.AddBufferView(m_Scratch, Stride, ARRAY_BUFFER, Alignment);
 	FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i)
 	{
 		if (m_Attributes.HasAttribute(i))
@@ -715,10 +770,7 @@ void MeshInfo::ExportInterleaved(BufferBuilder2& Builder, const PrimitiveInfo& I
 			FindMinMax(Info[i], m_Scratch.data(), Stride, Offsets[i], Info.VertexCount, m_Min, m_Max);
 			Builder.AddAccessor(Info.VertexCount, Offsets[i], Info[i].Type, Info[i].Dimension, m_Min, m_Max);
 
-			for (auto& x : OutMesh.primitives)
-			{
-				x.*AccessorIds[i] = Builder.GetCurrentAccessor().id;
-			}
+			OutIds[i] = Builder.GetCurrentAccessor().id;
 		}
 	});
 }
