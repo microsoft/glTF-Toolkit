@@ -133,11 +133,9 @@ namespace Microsoft::glTF::Toolkit
 		// Determines whether a specific mesh exists in a supported format.
 		static bool IsSupported(const Mesh& m);
 
-	private:
-		template <typename T>
-		void Out(int iStream, const std::vector<T>& v) const { std::for_each(v.begin(), v.end(), [&](const auto& i) { XMSerializer<T>::Out(GetStream(iStream), i); }); }
-		void Out(int iStream) const;
+		static void Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
 
+	private:
 		inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
 		PrimitiveInfo DetermineMeshFormat(void) const;
 

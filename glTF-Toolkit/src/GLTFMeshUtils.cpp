@@ -4,6 +4,7 @@
 #include "pch.h"
 
 #include <numeric>
+#include <experimental\filesystem>
 
 #include <GLTFSDK/GLTF.h>
 
@@ -12,6 +13,7 @@
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
+using namespace std::experimental::filesystem;
 
 const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_MESH_OPTIMIZER = "MSFT_mesh_optimizer";
 
@@ -37,15 +39,11 @@ namespace
 	};
 }
 
-
 //-----------------------------------------
 // Main Entrypoint
 
 GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, const GLTFDocument& Doc, const MeshOptions& Options, const std::string& OutputDirectory)
 {
-	/*InitStream(0, "C:\\Users\\mahurlim\\Desktop\\data0.txt");
-	InitStream(1, "C:\\Users\\mahurlim\\Desktop\\data1.txt");*/
-
 	// Make sure there's meshes to optimize before performing a bunch of work. 
 	if (Doc.meshes.Size() == 0 || Doc.buffers.Size() == 0)
 	{
@@ -67,6 +65,9 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	}
 	BufferName.resize(Pos);
 	BufferName.append("_opmesh");
+
+	// Create output directory for file output.
+	create_directories(OutputDirectory);
 
 	// Spin up a document copy to modify.
 	GLTFDocument OutputDoc(Doc);
@@ -103,6 +104,8 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 
 	Builder.Output(OutputDoc);
 	OutputDoc.extensionsUsed.insert(EXTENSION_MSFT_MESH_OPTIMIZER);
+
+	MeshInfo::Cleanup(Doc, OutputDoc);
 
 	return OutputDoc;
 }

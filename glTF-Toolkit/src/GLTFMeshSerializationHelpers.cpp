@@ -22,23 +22,6 @@ using namespace DirectX;
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
 
-std::ofstream g_Stream[2];
-
-void Microsoft::glTF::Toolkit::InitStream(int i, const std::string& filename)
-{
-	g_Stream[i].open(filename);
-}
-
-std::ofstream& Microsoft::glTF::Toolkit::GetStream(int i)
-{
-	if (!g_Stream[i].is_open())
-	{
-		throw "Stream is not open";
-	}
-
-	return g_Stream[i];
-}
-
 std::string(MeshPrimitive::*AccessorIds[Count]) =
 {
 	&MeshPrimitive::indicesAccessorId,		// 0 Indices
@@ -534,13 +517,13 @@ void MeshInfo::Export(const MeshOptions& Options, BufferBuilder2& Builder, Mesh&
 		}
 	}
 
+	auto& Buffer = Builder.GetCurrentBuffer();
+
 	rapidjson::Document meshExtJson;
 	meshExtJson.SetObject();
 
 	meshExtJson.AddMember("clean", rapidjson::Value(Options.Optimize), meshExtJson.GetAllocator());
-	meshExtJson.AddMember("tangents", rapidjson::Value(m_Tangents.size() > 0), meshExtJson.GetAllocator());
-	meshExtJson.AddMember("primitive_format", rapidjson::Value((uint8_t)PrimFormat), meshExtJson.GetAllocator());
-	meshExtJson.AddMember("attribute_format", rapidjson::Value((uint8_t)Options.AttributeFormat), meshExtJson.GetAllocator());
+	meshExtJson.AddMember("uri", rapidjson::Value(Buffer.uri.c_str(), Buffer.uri.size()), meshExtJson.GetAllocator());
 
 	rapidjson::StringBuffer buffer;
 	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -575,6 +558,67 @@ bool MeshInfo::IsSupported(const Mesh& m)
 	}
 
 	return true;
+}
+
+void MeshInfo::Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
+{
+	// Remove references to old accessors.
+	for (const auto& m : OldDoc.meshes.Elements())
+	{
+		if (!NewDoc.meshes.Has(m.id))
+		{
+			// Generally shouldn't occur assuming NewDoc is a copy of the OldDoc.
+			continue;
+		}
+
+		// Only perform cleanup on meshes that we successfully processed.
+		auto& NewMesh = NewDoc.meshes.Get(m.id);
+		if (NewMesh.extensions.count(EXTENSION_MSFT_MESH_OPTIMIZER) == 0)
+		{
+			continue;
+		}
+
+		for (const auto& p : m.primitives)
+		{
+			FOREACH_ATTRIBUTE([&](auto i)
+			{
+				if (!(p.*AccessorIds[i]).empty())
+				{
+					NewDoc.accessors.Remove(p.*AccessorIds[i]);
+				}
+			});
+		}
+	}
+
+	// Iterate through the still existing accessors and accumulate all referenced buffer view ids.
+	auto BufferViews = std::unordered_set<std::string>(OldDoc.bufferViews.Size());
+	for (const auto& a : NewDoc.accessors.Elements())
+	{
+		BufferViews.insert(a.bufferViewId);
+	}
+
+	// Determine the buffer views which are no longer referenced; accumulate all referenced buffer ids.
+	auto Buffers = std::unordered_set<std::string>(OldDoc.buffers.Size());
+	for (const auto& bv : OldDoc.bufferViews.Elements())
+	{
+		if (BufferViews.count(bv.id) == 0)
+		{
+			NewDoc.bufferViews.Remove(bv.id);
+		}
+		else
+		{
+			Buffers.insert(bv.bufferId);
+		}
+	}
+
+	// Determine the buffers which are no longer referenced.
+	for (const auto& b : OldDoc.buffers.Elements())
+	{
+		if (Buffers.count(b.id) == 0)
+		{
+			NewDoc.buffers.Remove(b.id);
+		}
+	}
 }
 
 PrimitiveInfo MeshInfo::DetermineMeshFormat(void) const
@@ -676,19 +720,6 @@ void MeshInfo::ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const
 	ExportSharedView(Builder, PrimInfo, Color0, &MeshInfo::m_Color0, OutMesh);
 	ExportSharedView(Builder, PrimInfo, Joints0, &MeshInfo::m_Joints0, OutMesh);
 	ExportSharedView(Builder, PrimInfo, Weights0, &MeshInfo::m_Weights0, OutMesh);
-}
-
-void MeshInfo::Out(int iStream) const
-{
-	Out(iStream, m_Indices);
-	Out(iStream, m_Positions);
-	Out(iStream, m_Normals);
-	Out(iStream, m_Tangents);
-	Out(iStream, m_UV0);
-	Out(iStream, m_UV1);
-	Out(iStream, m_Color0);
-	Out(iStream, m_Joints0);
-	Out(iStream, m_Weights0);
 }
 
 // Combine primitives, interleave attributes

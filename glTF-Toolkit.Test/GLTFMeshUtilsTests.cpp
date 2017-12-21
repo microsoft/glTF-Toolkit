@@ -27,34 +27,74 @@ namespace Microsoft::glTF::Toolkit::Test
 	TEST_CLASS(GLTFMeshUtilsTest)
 	{
 		const char* c_WaterBottleJson = "Resources\\gltf\\WaterBottle\\WaterBottle.gltf";
-		const char* c_UntitledJson = "Resources\\gltf\\Primitives\\Primitives.gltf";
+		const char* c_PrimitivesJson = "Resources\\gltf\\Primitives\\Primitives.gltf";
 
-		const char* c_OutputDirectory = "C:\\Users\\mahurlim\\Desktop\\GLTFMeshUtils\\";
-		const char*& c_TestFile = c_UntitledJson;
+		const char* c_OutputDirectory = "C:\\Users\\Gibroni\\Desktop\\GLTFMeshUtils\\";
+		const char*& c_TestFile = c_WaterBottleJson;
 
 		void ExecuteTest(const char* GLTFRelPath, const char* OutputDir, const MeshOptions& Options)
 		{
 			TestUtils::LoadAndExecuteGLTFTest(GLTFRelPath, [&](const GLTFDocument& Doc, const std::string& Path)
 			{
-				std::string OutName = TestUtils::GetFilenameExt(Path.c_str());
-				std::string Directory = OutputDir + TestUtils::GetFilename(OutName) + "\\";
+				std::string OutputName = TestUtils::GetFilenameExt(Path.c_str());
+				std::string OutputDirectory = OutputDir + TestUtils::GetFilename(OutputName) + "\\";
+				std::string BasePath = TestUtils::GetBasePath(Path.c_str());
+
+				auto OutputDoc = GLTFMeshUtils::ProcessMeshes(TestStreamReader(Path), Doc, Options, OutputDirectory);
 				
-				create_directories(Directory);
-				for (const auto& p : directory_iterator(TestUtils::GetBasePath(Path.c_str())))
+				// Create output directory and copy files referenced by the output document.
+				create_directories(OutputDirectory);
+				for (const auto& p : OutputDoc.buffers.Elements())
 				{
-					copy_file(p, Directory + p.path().filename().string(), copy_options::overwrite_existing);
+					if (exists(BasePath + p.uri))
+					{
+						copy_file(BasePath + p.uri, OutputDirectory + p.uri, copy_options::overwrite_existing);
+					}
+				}
+				for (const auto& p : OutputDoc.images.Elements())
+				{
+					if (exists(BasePath + p.uri))
+					{
+						copy_file(BasePath + p.uri, OutputDirectory + p.uri, copy_options::overwrite_existing);
+					}
 				}
 
-				auto OutputDoc = GLTFMeshUtils::ProcessMeshes(TestStreamReader(Path), Doc, Options, Directory);
-
 				std::string Json = Serialize(OutputDoc, SerializeFlags::Pretty);
-				TestStreamWriter(Directory).GetOutputStream(OutName)->write(Json.c_str(), Json.size());
+				TestStreamWriter(OutputDirectory).GetOutputStream(OutputName)->write(Json.c_str(), Json.size());
 			});
 		}
 
-		TEST_METHOD(GLTFMeshUtils_Basic)
+		TEST_METHOD(GLTFMeshUtils_Default)
 		{
-			ExecuteTest(c_TestFile, c_OutputDirectory, MeshOptions::Defaults());
+			MeshOptions Options;
+			Options.Optimize = true;
+			Options.GenerateTangentSpace = true;
+			Options.AttributeFormat = AttributeFormat::Interleave;
+			Options.PrimitiveFormat = PrimitiveFormat::Preserved;
+
+			ExecuteTest(c_TestFile, c_OutputDirectory, Options);
+		}
+
+		TEST_METHOD(GLTFMeshUtils_Optimize)
+		{
+			MeshOptions Options;
+			Options.Optimize = true;
+			Options.GenerateTangentSpace = false;
+			Options.AttributeFormat = AttributeFormat::Interleave;
+			Options.PrimitiveFormat = PrimitiveFormat::Preserved;
+
+			ExecuteTest(c_TestFile, c_OutputDirectory, Options);
+		}
+
+		TEST_METHOD(GLTFMeshUtils_Tangents)
+		{
+			MeshOptions Options;
+			Options.Optimize = false;
+			Options.GenerateTangentSpace = true;
+			Options.AttributeFormat = AttributeFormat::Interleave;
+			Options.PrimitiveFormat = PrimitiveFormat::Combine;
+
+			ExecuteTest(c_TestFile, c_OutputDirectory, Options);
 		}
 
 		TEST_METHOD(GLTFMeshUtils_CI)
