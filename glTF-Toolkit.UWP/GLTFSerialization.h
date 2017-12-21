@@ -1,8 +1,11 @@
-﻿#pragma once
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
 
-namespace glTF_Toolkit_WinRTComp
+#pragma once
+
+namespace Microsoft::glTF::Toolkit::UWP
 {
-    public ref class glTFSerialization sealed
+    public ref class GLTFSerialization sealed
     {
     public:
         /// <summary>
@@ -12,7 +15,7 @@ namespace glTF_Toolkit_WinRTComp
         /// <param name="glbFile">The GLB file to unpack. The name of the GLB file, without the extension, 
         /// will be used as a prefix to all unpacked resources.</param>
         /// <param name="outputFolder">The output folder to which the glTF manifest and resources will be unpacked.</param>
-        static void UnpackGLB(Windows::Storage::StorageFile^ glbFile, Windows::Storage::StorageFolder^ outputFolder);
+        static Windows::Foundation::IAsyncAction^ UnpackGLBAsync(Windows::Storage::StorageFile^ glbFile, Windows::Storage::StorageFolder^ outputFolder);
 
         /// <summary>
         /// Serializes a glTF asset as a glTF binary (GLB) file.
@@ -23,6 +26,6 @@ namespace glTF_Toolkit_WinRTComp
         /// <returns>
         /// The resulting GLB file, named with glbName and located in outputFolder.
         /// </returns>
-        static Windows::Storage::StorageFile^ PackGLTF(Windows::Storage::StorageFile^ sourceGltf, Windows::Storage::StorageFolder^ outputFolder, Platform::String^ glbName);
+        static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ PackGLTFAsync(Windows::Storage::StorageFile^ sourceGltf, Windows::Storage::StorageFolder^ outputFolder, Platform::String^ glbName);
     };
 }

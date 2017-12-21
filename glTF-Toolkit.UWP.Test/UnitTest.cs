@@ -1,101 +1,67 @@
-﻿
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Windows.Foundation;
+using Windows.Security.Cryptography;
 using Windows.Storage;
-using Windows.Storage.Streams;
 
-namespace glTF_Toolkit.UWP.Test
+namespace Microsoft.glTF.Toolkit.UWP.Test
 {
     [TestClass]
     public class SerializationTest
     {
-        private async Task<StorageFile> CopyFileToTempFolder(Uri uri)
+        private async Task<StorageFile> CopyFileToTempFolderAsync(Uri uri)
         {
             StorageFile appxAssetFile = await StorageFile.GetFileFromApplicationUriAsync(uri);
-            StorageFile destinationFile = await appxAssetFile.CopyAsync(ApplicationData.Current.TemporaryFolder);
+            StorageFile destinationFile = await appxAssetFile.CopyAsync(ApplicationData.Current.TemporaryFolder, appxAssetFile.Name, NameCollisionOption.ReplaceExisting);
             return destinationFile;
         }
 
-        private async Task<StorageFolder> CreateTemporaryOutputFolder(string folderName)
+        private IAsyncOperation<StorageFolder> CreateTemporaryOutputFolderAsync(string folderName)
         {
-            StorageFolder folder = await ApplicationData.Current.TemporaryFolder.CreateFolderAsync(folderName);
-            return folder;
+            return ApplicationData.Current.TemporaryFolder.CreateFolderAsync(folderName, CreationCollisionOption.ReplaceExisting);
         }
 
-        private async Task<StorageFile> OpenFileInFolder(StorageFolder folder, string fileName)
+        private async Task<bool> CompareFilesAsync(StorageFile file1, StorageFile file2)
         {
-            StorageFile outputFile = await folder.GetFileAsync(fileName);
-            return outputFile;
-        }
+            var buffer1 = await FileIO.ReadBufferAsync(file1);
+            var buffer2 = await FileIO.ReadBufferAsync(file2);
 
-        private async Task<bool> AreStorageFilesEqual(StorageFile file1, StorageFile file2)
-        {
-            IRandomAccessStreamWithContentType file1Stream = await file1.OpenReadAsync();
-            IRandomAccessStreamWithContentType file2Stream = await file2.OpenReadAsync();
-
-            Stream stream1 = file1Stream.AsStreamForRead();
-            Stream stream2 = file2Stream.AsStreamForRead();
-
-            if (stream1.Length != stream2.Length)
-            {
-                return false;
-            }
-
-            for (int i = 0; i < stream1.Length; i++)
-            {
-                if (stream1.ReadByte() != stream2.ReadByte())
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return CryptographicBuffer.Compare(buffer1, buffer2);
         }
 
         [TestMethod]
         public async Task GLBDeserializeSerialize()
         {
-            try
-            {
-                const string glbBaseName = "WaterBottle";
-                const string glbFileName = glbBaseName + ".glb";
+            const string glbBaseName = "WaterBottle";
+            const string glbFileName = glbBaseName + ".glb";
 
-                StorageFile sourceGlbFile = await CopyFileToTempFolder(new Uri("ms-appx:///Assets/3DModels/" + glbFileName));
+            StorageFile sourceGlbFile = await CopyFileToTempFolderAsync(new Uri("ms-appx:///Assets/3DModels/" + glbFileName));
 
-                StorageFolder outputFolder = await CreateTemporaryOutputFolder("Out_" + glbBaseName);
+            StorageFolder outputFolder = await CreateTemporaryOutputFolderAsync("Out_" + glbBaseName);
 
-                // unpack the glb into gltf and all its companion files
-                glTF_Toolkit_WinRTComp.glTFSerialization.UnpackGLB(sourceGlbFile, outputFolder);
+            // unpack the glb into gltf and all its companion files
+            await GLTFSerialization.UnpackGLBAsync(sourceGlbFile, outputFolder);
 
-                bool areFilesEqual = false;
+            // compare one of the extracted images to the source images
+            StorageFile sourceImageFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appx:///Assets/3DModels/WaterBottle_diffuse.png"));
+            StorageFile outputImageFile = await outputFolder.GetFileAsync(glbBaseName + "_image5.png");
+            Assert.IsTrue(await CompareFilesAsync(sourceImageFile, outputImageFile));
 
-                // compare one of the extracted images to the source images
-                StorageFile sourceImageFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appx:///Assets/3DModels/WaterBottle_diffuse.png"));
-                StorageFile outputImageFile = await OpenFileInFolder(outputFolder, glbBaseName + "_image5.png");
-                areFilesEqual = await AreStorageFilesEqual(sourceImageFile, outputImageFile);
-                Assert.IsTrue(areFilesEqual);
+            // compare the extracted model (.bin) to the source model (.bin) file
+            StorageFile sourceBinFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appx:///Assets/3DModels/" + glbBaseName + ".bin"));
+            StorageFile outputBinFile = await outputFolder.GetFileAsync(glbBaseName + ".bin");
+            Assert.IsTrue(await CompareFilesAsync(sourceBinFile, outputBinFile));
 
-                // compare the extracted model (.bin) to the source model (.bin) file
-                StorageFile sourceBinFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appx:///Assets/3DModels/" + glbBaseName + ".bin"));
-                StorageFile outputBinFile = await OpenFileInFolder(outputFolder, glbBaseName + ".bin");
-                areFilesEqual = await AreStorageFilesEqual(sourceBinFile, outputBinFile);
-                Assert.IsTrue(areFilesEqual);
+            // Pack the gltf back into a glb file
+            StorageFile gltfFile = await outputFolder.GetFileAsync(glbBaseName + ".gltf");
+            StorageFile outputGlbFile = await GLTFSerialization.PackGLTFAsync(gltfFile, outputFolder, glbFileName);
 
-                // Pack the gltf back into a glb file
-                StorageFile gltfFile = await OpenFileInFolder(outputFolder, glbBaseName + ".gltf");
-                StorageFile outputGlbFile = glTF_Toolkit_WinRTComp.glTFSerialization.PackGLTF(gltfFile, outputFolder, glbFileName);
-
-                // compare the new glb to the old glb
-                areFilesEqual = await AreStorageFilesEqual(sourceGlbFile, outputGlbFile);
-
-                Assert.IsTrue(areFilesEqual);
-            }
-            catch (Exception e)
-            {
-                Assert.Fail(e.Message);
-            }
+            // compare the new glb to the old glb
+            Assert.IsTrue(await CompareFilesAsync(sourceGlbFile, outputGlbFile));
         }
     }
 }
