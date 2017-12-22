@@ -3,11 +3,8 @@
 
 namespace Microsoft::glTF::Toolkit
 {
-	void InitStream(int i, const std::string& filename);
-	std::ofstream& GetStream(int i);
-
 	template <typename T>
-	void MeshInfo::ExportSharedView(BufferBuilder2& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const
+	void MeshInfo::ExportSharedView(BufferBuilder& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const
 	{
 		if (!m_Attributes.HasAttribute(Attr))
 		{
@@ -34,7 +31,7 @@ namespace Microsoft::glTF::Toolkit
 	}
 
 	template <typename T>
-	std::string MeshInfo::ExportAccessor(BufferBuilder2& Builder, const PrimitiveInfo& p, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const
+	std::string MeshInfo::ExportAccessor(BufferBuilder& Builder, const PrimitiveInfo& p, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const
 	{
 		if (!m_Attributes.HasAttribute(Attr))
 		{

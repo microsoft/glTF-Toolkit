@@ -5,9 +5,6 @@
     <None Include="inc\GLTFMeshSerializationHelpers.inl">
       <Filter>inc</Filter>
     </None>
-    <None Include="inc\BufferBuilder2.inl">
-      <Filter>inc</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">
@@ -54,6 +51,9 @@
     <ClInclude Include="inc\GLTFMeshUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="inc\BufferBuilder.h">
+      <Filter>inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DeviceResources.cpp">
@@ -80,13 +80,13 @@
     <ClCompile Include="src\GLBtoGLTF.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\BufferBuilder2.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\GLTFMeshSerializationHelpers.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\GLTFMeshUtils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BufferBuilder.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

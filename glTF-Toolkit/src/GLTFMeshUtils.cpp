@@ -7,6 +7,7 @@
 #include <experimental\filesystem>
 
 #include <GLTFSDK/GLTF.h>
+#include <GLTFSDK/GLTFResourceWriter2.h>
 
 #include "GLTFMeshSerializationHelpers.h"
 #include "GLTFMeshUtils.h"
@@ -19,9 +20,6 @@ const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_MESH_OPTIMIZER = "MSFT_mesh
 
 namespace
 {
-	template <typename T, size_t N>
-	constexpr size_t ArrayCount(T(&)[N]) { return N; }
-
 	class BasicStreamWriter : public IStreamWriter
 	{
 	public:
@@ -56,7 +54,7 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 		return Doc;
 	}
 
-	// Generate a buffer name based on the old buffer .bin file name in the output directory.
+	// Generate a buffer name, based on the old buffer .bin filename, in the output directory.
 	std::string BufferName = Doc.buffers[0].uri;
 	size_t Pos = BufferName.find_last_of('.');
 	if (Pos == std::string::npos)
@@ -72,13 +70,14 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	// Spin up a document copy to modify.
 	GLTFDocument OutputDoc(Doc);
 
-	auto GenBufferId = [&](const BufferBuilder2& b) { return OutputDoc.buffers.Size() + b.GetBufferCount(); };
-	auto GenBufferViewId = [&](const BufferBuilder2& b) { return OutputDoc.bufferViews.Size() + b.GetBufferViewCount(); };
-	auto GenAccessorId = [&](const BufferBuilder2& b) { return OutputDoc.accessors.Size() + b.GetAccessorCount(); };
-
 	auto StreamWriter = std::make_unique<BasicStreamWriter>(OutputDirectory);
 	auto ResourceWriter = std::make_unique<GLTFResourceWriter2>(std::move(StreamWriter), BufferName);
-	auto Builder = BufferBuilder2(std::move(ResourceWriter), GenBufferId, GenBufferViewId, GenAccessorId);
+
+	auto GenBufferId = [&](const BufferBuilder& b) { return std::to_string(OutputDoc.buffers.Size() + b.GetBufferCount()); };
+	auto GenBufferViewId = [&](const BufferBuilder& b) { return std::to_string(OutputDoc.bufferViews.Size() + b.GetBufferViewCount()); };
+	auto GenAccessorId = [&](const BufferBuilder& b) { return std::to_string(OutputDoc.accessors.Size() + b.GetAccessorCount()); };
+
+	auto Builder = BufferBuilder(std::move(ResourceWriter), GenBufferId, GenBufferViewId, GenAccessorId);
 	Builder.AddBuffer();
 
 	MeshInfo MeshData;

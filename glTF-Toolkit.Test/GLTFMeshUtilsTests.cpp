@@ -29,7 +29,7 @@ namespace Microsoft::glTF::Toolkit::Test
 		const char* c_WaterBottleJson = "Resources\\gltf\\WaterBottle\\WaterBottle.gltf";
 		const char* c_PrimitivesJson = "Resources\\gltf\\Primitives\\Primitives.gltf";
 
-		const char* c_OutputDirectory = "C:\\Users\\Gibroni\\Desktop\\GLTFMeshUtils\\";
+		const char* c_OutputDirectory = "C:\\Users\\mahurlim\\Desktop\\GLTFMeshUtils\\";
 		const char*& c_TestFile = c_WaterBottleJson;
 
 		void ExecuteTest(const char* GLTFRelPath, const char* OutputDir, const MeshOptions& Options)
@@ -46,16 +46,20 @@ namespace Microsoft::glTF::Toolkit::Test
 				create_directories(OutputDirectory);
 				for (const auto& p : OutputDoc.buffers.Elements())
 				{
-					if (exists(BasePath + p.uri))
+					std::string FilePath = BasePath + p.uri;
+
+					if (exists(FilePath))
 					{
-						copy_file(BasePath + p.uri, OutputDirectory + p.uri, copy_options::overwrite_existing);
+						copy_file(FilePath, OutputDirectory + p.uri, copy_options::overwrite_existing);
 					}
 				}
 				for (const auto& p : OutputDoc.images.Elements())
 				{
-					if (exists(BasePath + p.uri))
+					std::string FilePath = BasePath + p.uri;
+
+					if (exists(FilePath))
 					{
-						copy_file(BasePath + p.uri, OutputDirectory + p.uri, copy_options::overwrite_existing);
+						copy_file(FilePath, OutputDirectory + p.uri, copy_options::overwrite_existing);
 					}
 				}
 

@@ -7,14 +7,18 @@
 #include <GLTFSDK/GLTFResourceReader.h>
 #include <GLTFSDK/GLTFResourceWriter.h>
 #include <GLTFSDK/IResourceWriter.h>
+
 #include <DirectXMath.h>
-#include "BufferBuilder2.h"
+
+#include "BufferBuilder.h"
+using namespace Microsoft::glTF::exp;
 
 namespace Microsoft::glTF::Toolkit
 {
 	enum class AttributeFormat : uint8_t;
 	enum class PrimitiveFormat : uint8_t;
 	struct MeshOptions;
+
 
 	//------------------------------------------
 	// Attribute
@@ -104,7 +108,6 @@ namespace Microsoft::glTF::Toolkit
 		static PrimitiveInfo Max(const PrimitiveInfo& p0, const PrimitiveInfo& p1);
 	};
 
-	using namespace Microsoft::glTF::exp;
 
 	//------------------------------------------
 	// MeshInfo
@@ -128,11 +131,12 @@ namespace Microsoft::glTF::Toolkit
 		void GenerateAttributes(bool GenerateTangentSpace);
 
 		// Exports the mesh to a BufferBuilder and Mesh in a format specified in the options.
-		void Export(const MeshOptions& Options, BufferBuilder2& Builder, Mesh& OutMesh) const;
+		void Export(const MeshOptions& Options, BufferBuilder& Builder, Mesh& OutMesh) const;
 
 		// Determines whether a specific mesh exists in a supported format.
 		static bool IsSupported(const Mesh& m);
 
+		// Cleans up orphaned & unnecessary accessors, buffer views, and buffers caused by the mesh cleaning/formatting procedure.
 		static void Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
 
 	private:
@@ -146,22 +150,22 @@ namespace Microsoft::glTF::Toolkit
 		void ReadVertices(const PrimitiveInfo& Info, const std::vector<uint8_t>& Input);
 
 		// Exports the mesh data to a BufferBuilder and Mesh in a specific format.
-		void ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, indexed
-		void ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, non-indexed
-		void ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Combine primitives, interleave attributes
-		void ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes
-		void ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
+		void ExportCSI(BufferBuilder& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, indexed
+		void ExportCS(BufferBuilder& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, non-indexed
+		void ExportCI(BufferBuilder& Builder, Mesh& OutMesh) const;	// Combine primitives, interleave attributes
+		void ExportSS(BufferBuilder& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes
+		void ExportSI(BufferBuilder& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
 
 		// Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
 		template <typename T>
-		void ExportSharedView(BufferBuilder2& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const;
+		void ExportSharedView(BufferBuilder& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const;
 
 		// Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
 		template <typename T>
-		std::string ExportAccessor(BufferBuilder2& Builder, const PrimitiveInfo& Prim, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const;
+		std::string ExportAccessor(BufferBuilder& Builder, const PrimitiveInfo& Prim, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const;
 
 		// Writes mesh vertex data in an interleaved fashion, and exports one buffer view and shared accessors to a BufferBuilder.
-		void ExportInterleaved(BufferBuilder2& Builder, const PrimitiveInfo& Info, std::string (&OutIds)[Count]) const;
+		void ExportInterleaved(BufferBuilder& Builder, const PrimitiveInfo& Info, std::string (&OutIds)[Count]) const;
 
 		// Maps indices from global vertex list to local (per-primitive) index list.
 		static void RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count);
@@ -189,9 +193,9 @@ namespace Microsoft::glTF::Toolkit
 		AttributeList	m_Attributes;
 		PrimitiveFormat m_PrimFormat;
 
-		mutable std::vector<uint8_t> m_Scratch;
-		mutable std::vector<float> m_Min;
-		mutable std::vector<float> m_Max;
+		mutable std::vector<uint8_t> m_Scratch; // Temp staging buffer used when organizing data for writes to buffer files.
+		mutable std::vector<float> m_Min; // Temp min buffer used when calculing min components of accessor data.
+		mutable std::vector<float> m_Max; // Temp max buffer used when calculing max components of accessor data.
 	};
 
 

@@ -1,8 +1,12 @@
-// Copyright (c) Microsoft Corporation. All rights reserved.
-// Licensed under the MIT License. See LICENSE in the project root for license information.
+/**************************************************************
+*                                                             *
+*  Copyright (c) Microsoft Corporation. All rights reserved.  *
+*               Licensed under the MIT License.               *
+*                                                             *
+**************************************************************/
 
 #include "pch.h"
-#include "BufferBuilder2.h"
+#include "BufferBuilder.h"
 
 
 using namespace Microsoft::glTF;
@@ -24,48 +28,49 @@ namespace
 	}
 }
 
-BufferBuilder2::BufferBuilder2(std::unique_ptr<ResourceWriter2>&& resourceWriter,
-	FnGenId&& fnGenBufferId,
-	FnGenId&& fnGenBufferViewId,
-	FnGenId&& fnGenAccessorId) 
-	: m_resourceWriter(std::move(resourceWriter))
-	, m_fnGenBufferId(std::move(fnGenBufferId))
-	, m_fnGenBufferViewId(std::move(fnGenBufferViewId))
-	, m_fnGenAccessorId(std::move(fnGenAccessorId))
-{ }
+BufferBuilder::BufferBuilder(std::unique_ptr<ResourceWriter2>&& resourceWriter,
+	FnGenId fnGenBufferId,
+	FnGenId fnGenBufferViewId,
+	FnGenId fnGenAccessorId) : m_resourceWriter(std::move(resourceWriter)),
+	m_fnGenBufferId(std::move(fnGenBufferId)),
+	m_fnGenBufferViewId(std::move(fnGenBufferViewId)),
+	m_fnGenAccessorId(std::move(fnGenAccessorId))
+{
+}
 
-const Buffer& BufferBuilder2::AddBuffer(const char* bufferId)
+const Buffer& BufferBuilder::AddBuffer(const char* bufferId)
 {
 	Buffer buffer;
-	buffer.id = bufferId ? bufferId : std::to_string(m_fnGenBufferId(*this));
-	buffer.byteLength = 0U; // The buffer's length is updated whenever an Accessor or BufferView is added (and data is written to the underlying buffer)
+
+	buffer.id = bufferId ? bufferId : m_fnGenBufferId(*this);
+	buffer.byteLength = 0U;// The buffer's length is updated whenever an Accessor or BufferView is added (and data is written to the underlying buffer)
 	buffer.uri = m_resourceWriter->GenerateBufferUri(buffer.id);
 
 	m_buffers.push_back(std::move(buffer));
 	return m_buffers.back();
 }
 
-const BufferView& BufferBuilder2::AddBufferView(BufferViewTarget target, size_t byteAlignment)
+const BufferView& BufferBuilder::AddBufferView(BufferViewTarget target, size_t byteAlignment)
 {
 	Buffer& buffer = m_buffers.back();
-
 	BufferView bufferView;
-	bufferView.id = std::to_string(m_fnGenBufferViewId(*this));
+
+	bufferView.id = m_fnGenBufferViewId(*this);
 	bufferView.bufferId = buffer.id;
 	bufferView.byteOffset = buffer.byteLength + ::GetPadding(buffer.byteLength, byteAlignment);
-	bufferView.byteLength = 0U; // The BufferView's length is updated whenever an Accessor is added (and data is written to the underlying buffer)
+	bufferView.byteLength = 0U;// The BufferView's length is updated whenever an Accessor is added (and data is written to the underlying buffer)
 	bufferView.target = target;
 
 	m_bufferViews.push_back(std::move(bufferView));
 	return m_bufferViews.back();
 }
 
-const BufferView& BufferBuilder2::AddBufferView(const void* data, size_t byteLength, size_t byteStride, BufferViewTarget target, size_t byteAlignment)
+const BufferView& BufferBuilder::AddBufferView(const void* data, size_t byteLength, size_t byteStride, BufferViewTarget target, size_t byteAlignment)
 {
 	Buffer& buffer = m_buffers.back();
-
 	BufferView bufferView;
-	bufferView.id = std::to_string(m_fnGenBufferViewId(*this));
+
+	bufferView.id = m_fnGenBufferViewId(*this);
 	bufferView.bufferId = buffer.id;
 	bufferView.byteOffset = buffer.byteLength + ::GetPadding(buffer.byteLength, byteAlignment);
 	bufferView.byteLength = byteLength;
@@ -83,7 +88,8 @@ const BufferView& BufferBuilder2::AddBufferView(const void* data, size_t byteLen
 	return m_bufferViews.back();
 }
 
-const Accessor& BufferBuilder2::AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, std::vector<float>& minValues, std::vector<float>& maxValues)
+const Accessor& BufferBuilder::AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, 
+	std::vector<float> minValues, std::vector<float> maxValues)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
@@ -102,9 +108,12 @@ const Accessor& BufferBuilder2::AddAccessor(size_t count, size_t byteOffset, Com
 	}
 
 	Accessor accessor;
+
+	// TODO: make accessor min & max members be vectors of doubles
 	accessor.min = std::move(minValues);
 	accessor.max = std::move(maxValues);
-	accessor.id = std::to_string(m_fnGenAccessorId(*this));
+
+	accessor.id = m_fnGenAccessorId(*this);
 	accessor.bufferViewId = bufferView.id;
 	accessor.count = count;
 	accessor.byteOffset = byteOffset;
@@ -140,7 +149,8 @@ const Accessor& BufferBuilder2::AddAccessor(size_t count, size_t byteOffset, Com
 	return m_accessors.back();
 }
 
-const Accessor& BufferBuilder2::AddAccessor(const void* data, size_t count, ComponentType componentType, AccessorType accessorType, std::vector<float>& minValues, std::vector<float>& maxValues)
+const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, ComponentType componentType, AccessorType accessorType, 
+	std::vector<float> minValues, std::vector<float> maxValues)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
@@ -165,11 +175,13 @@ const Accessor& BufferBuilder2::AddAccessor(const void* data, size_t count, Comp
 		bufferView.byteOffset += ::GetPadding(bufferView.byteOffset, componentType);
 	}
 
-	// TODO: make accessor min & max members be vectors of doubles
 	Accessor accessor;
+
+	// TODO: make accessor min & max members be vectors of doubles
 	accessor.min = std::move(minValues);
 	accessor.max = std::move(maxValues);
-	accessor.id = std::to_string(m_fnGenAccessorId(*this));
+
+	accessor.id = m_fnGenAccessorId(*this);
 	accessor.bufferViewId = bufferView.id;
 	accessor.count = count;
 	accessor.byteOffset = bufferView.byteLength;
@@ -188,7 +200,7 @@ const Accessor& BufferBuilder2::AddAccessor(const void* data, size_t count, Comp
 	return m_accessors.back();
 }
 
-void BufferBuilder2::Output(GLTFDocument& gltfDocument)
+void BufferBuilder::Output(GLTFDocument& gltfDocument)
 {
 	for (auto& buffer : m_buffers)
 	{
@@ -208,4 +220,44 @@ void BufferBuilder2::Output(GLTFDocument& gltfDocument)
 	m_buffers.clear();
 	m_bufferViews.clear();
 	m_accessors.clear();
+}
+
+const Buffer& BufferBuilder::GetCurrentBuffer() const
+{
+	return m_buffers.back();
+}
+
+const BufferView& BufferBuilder::GetCurrentBufferView() const
+{
+	return m_bufferViews.back();
+}
+
+const Accessor& BufferBuilder::GetCurrentAccessor() const
+{
+	return m_accessors.back();
+}
+
+size_t BufferBuilder::GetBufferCount() const
+{
+	return m_buffers.size();
+}
+
+size_t BufferBuilder::GetBufferViewCount() const
+{
+	return m_bufferViews.size();
+}
+
+size_t BufferBuilder::GetAccessorCount() const
+{
+	return m_accessors.size();
+}
+
+ResourceWriter2& BufferBuilder::GetResourceWriter()
+{
+	return *m_resourceWriter;
+}
+
+const ResourceWriter2& BufferBuilder::GetResourceWriter() const
+{
+	return *m_resourceWriter;
 }

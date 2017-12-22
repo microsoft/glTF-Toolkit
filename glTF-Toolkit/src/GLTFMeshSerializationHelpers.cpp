@@ -483,7 +483,7 @@ void MeshInfo::GenerateAttributes(bool GenerateTangentSpace)
 	}
 }
 
-void MeshInfo::Export(const MeshOptions& Options, BufferBuilder2& Builder, Mesh& OutMesh) const
+void MeshInfo::Export(const MeshOptions& Options, BufferBuilder& Builder, Mesh& OutMesh) const
 {
 	auto PrimFormat = Options.PrimitiveFormat == PrimitiveFormat::Preserved ? m_PrimFormat : Options.PrimitiveFormat;
 
@@ -522,7 +522,6 @@ void MeshInfo::Export(const MeshOptions& Options, BufferBuilder2& Builder, Mesh&
 	rapidjson::Document meshExtJson;
 	meshExtJson.SetObject();
 
-	meshExtJson.AddMember("clean", rapidjson::Value(Options.Optimize), meshExtJson.GetAllocator());
 	meshExtJson.AddMember("uri", rapidjson::Value(Buffer.uri.c_str(), Buffer.uri.size()), meshExtJson.GetAllocator());
 
 	rapidjson::StringBuffer buffer;
@@ -684,7 +683,7 @@ void MeshInfo::ReadVertices(const PrimitiveInfo& Info, const std::vector<uint8_t
 }
 
 // Combine primitives, separate attributes, indexed
-void MeshInfo::ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const
+void MeshInfo::ExportCSI(BufferBuilder& Builder, Mesh& OutMesh) const
 {
 	const auto PrimInfo = DetermineMeshFormat();
 
@@ -708,7 +707,7 @@ void MeshInfo::ExportCSI(BufferBuilder2& Builder, Mesh& OutMesh) const
 }
 
 // Combine primitives, separate attributes, non-indexed
-void MeshInfo::ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const
+void MeshInfo::ExportCS(BufferBuilder& Builder, Mesh& OutMesh) const
 {
 	const auto PrimInfo = DetermineMeshFormat();
 
@@ -723,7 +722,7 @@ void MeshInfo::ExportCS(BufferBuilder2& Builder, Mesh& OutMesh) const
 }
 
 // Combine primitives, interleave attributes
-void MeshInfo::ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const
+void MeshInfo::ExportCI(BufferBuilder& Builder, Mesh& OutMesh) const
 {
 	// Can't write a non-indexed combined mesh with multiple primitives.
 	if (!m_Attributes.HasAttribute(Indices) && m_Primitives.size() > 1)
@@ -747,7 +746,7 @@ void MeshInfo::ExportCI(BufferBuilder2& Builder, Mesh& OutMesh) const
 }
 
 // Separate primitives, separate attributes
-void MeshInfo::ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const
+void MeshInfo::ExportSS(BufferBuilder& Builder, Mesh& OutMesh) const
 {
 	for (size_t i = 0; i < m_Primitives.size(); ++i)
 	{
@@ -766,7 +765,7 @@ void MeshInfo::ExportSS(BufferBuilder2& Builder, Mesh& OutMesh) const
 }
 
 // Separate primitives, interleave attributes
-void MeshInfo::ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const
+void MeshInfo::ExportSI(BufferBuilder& Builder, Mesh& OutMesh) const
 {
 	for (size_t i = 0; i < m_Primitives.size(); ++i)
 	{
@@ -784,7 +783,7 @@ void MeshInfo::ExportSI(BufferBuilder2& Builder, Mesh& OutMesh) const
 	}
 }
 
-void MeshInfo::ExportInterleaved(BufferBuilder2& Builder, const PrimitiveInfo& Info, std::string(&OutIds)[Count]) const
+void MeshInfo::ExportInterleaved(BufferBuilder& Builder, const PrimitiveInfo& Info, std::string(&OutIds)[Count]) const
 {
 	WriteVertices(Info, m_Scratch);
 
