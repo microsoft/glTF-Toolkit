@@ -4,6 +4,7 @@
 #include "pch.h"
 
 #include <numeric>
+#include <regex>
 #include <experimental\filesystem>
 
 #include <GLTFSDK/GLTF.h>
@@ -17,6 +18,7 @@ using namespace Microsoft::glTF::Toolkit;
 using namespace std::experimental::filesystem;
 
 const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_MESH_OPTIMIZER = "MSFT_mesh_optimizer";
+const char* GLTFMeshUtils::s_DataUriRegex = R"(^data:application/.+;base\d{1,2},)";
 
 namespace
 {
@@ -40,7 +42,7 @@ namespace
 //-----------------------------------------
 // Main Entrypoint
 
-GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, const GLTFDocument& Doc, const MeshOptions& Options, const std::string& OutputDirectory)
+GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& Filename, const GLTFDocument& Doc, const IStreamReader& StreamReader, const MeshOptions& Options, const std::string& OutputDirectory)
 {
 	// Make sure there's meshes to optimize before performing a bunch of work. 
 	if (Doc.meshes.Size() == 0 || Doc.buffers.Size() == 0)
@@ -55,14 +57,14 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 	}
 
 	// Generate a buffer name, based on the old buffer .bin filename, in the output directory.
-	std::string BufferName = Doc.buffers[0].uri;
+	std::string BufferName = Filename;
 	size_t Pos = BufferName.find_last_of('.');
 	if (Pos == std::string::npos)
 	{
 		return Doc;
 	}
 	BufferName.resize(Pos);
-	BufferName.append("_opmesh");
+	BufferName.append("_op");
 
 	// Create output directory for file output.
 	create_directories(OutputDirectory);
@@ -95,9 +97,12 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const IStreamReader& StreamReader, con
 			MeshData.Optimize();
 		}
 
-		MeshData.GenerateAttributes(Options.GenerateTangentSpace);
-		MeshData.Export(Options, Builder, m);
+		if (Options.GenerateTangentSpace)
+		{
+			MeshData.GenerateAttributes();
+		}
 
+		MeshData.Export(Options, Builder, m);
 		OutputDoc.meshes.Replace(m);
 	}
 

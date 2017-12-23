@@ -38,7 +38,7 @@ std::string(MeshPrimitive::*AccessorIds[Count]) =
 AttributeList AttributeList::FromPrimitive(const MeshPrimitive& p)
 {
 	AttributeList a ={ 0 };
-	FOREACH_ATTRIBUTE([&](auto i) { a.SetAttribute(i, !(p.*AccessorIds[i]).empty()); });
+	FOREACH_ATTRIBUTE([&](auto i) { a.Set(i, !(p.*AccessorIds[i]).empty()); });
 	return a;
 }
 
@@ -129,7 +129,7 @@ PrimitiveInfo PrimitiveInfo::Create(size_t IndexCount, size_t VertexCount, Attri
 	Info.VertexCount	= VertexCount;
 	FOREACH_ATTRIBUTE([&](auto i)
 	{
-		if (Attributes.HasAttribute(i))
+		if (Attributes.Has(i))
 		{
 			Info[i] = AccessorInfo::Create(Types[i].first, Types[i].second, i == Indices ? ELEMENT_ARRAY_BUFFER : ARRAY_BUFFER);
 		}
@@ -221,7 +221,7 @@ MeshInfo::MeshInfo(const MeshInfo& Parent, size_t PrimIndex)
 
 	const auto& Prim = Parent.m_Primitives[PrimIndex];
 
-	if (m_Attributes.HasAttribute(Attribute::Indices))
+	if (m_Attributes.Has(Attribute::Indices))
 	{
 		std::unordered_map<uint32_t, uint32_t> IndexRemap;
 		RemapIndices(IndexRemap, m_Indices, &Parent.m_Indices[Prim.Offset], Prim.IndexCount);
@@ -396,7 +396,7 @@ void MeshInfo::Reset(void)
 
 void MeshInfo::Optimize(void)
 {
-	if (!m_Attributes.HasAttribute(Indices))
+	if (!m_Attributes.Has(Indices))
 	{
 		std::cout << "Mesh '" << m_Name << "': optimize operation failed - this operation requires mesh to use indices.";
 		return;
@@ -453,9 +453,9 @@ void MeshInfo::Optimize(void)
 	}
 }
 
-void MeshInfo::GenerateAttributes(bool GenerateTangentSpace)
+void MeshInfo::GenerateAttributes(void)
 {
-	if (!m_Attributes.HasAttribute(Indices))
+	if (!m_Attributes.Has(Indices))
 	{
 		std::cout << "Mesh '" << m_Name << "': normal/tangent generation operation failed - this operation requires mesh to use indices.";
 		return;
@@ -465,19 +465,27 @@ void MeshInfo::GenerateAttributes(bool GenerateTangentSpace)
 	const size_t VertexCount = m_Positions.size();
 	const size_t FaceCount = GetFaceCount();
 
-	// Always generate normals if not present.
+	// Generate normals if not present.
 	if (m_Normals.empty())
 	{
+		m_Attributes.Add(Normals);
+		std::for_each(m_Primitives.begin(), m_Primitives.end(), [](auto& p) { p[Normals] = AccessorInfo::Create(COMPONENT_FLOAT, TYPE_VEC3, ARRAY_BUFFER); });
+
+
 		m_Normals.resize(VertexCount);
 		DirectX::ComputeNormals(m_Indices.data(), FaceCount, m_Positions.data(), VertexCount, CNORM_DEFAULT, m_Normals.data());
 
-		// Prompt recompute of tangents if they were supplied (however unlikely if no normals weren't supplied.)
+		// Prompt recompute of tangents if they were supplied (however unlikely if normals weren't supplied.)
 		m_Tangents.clear();
+		m_Attributes.Remove(Tangents);
 	}
 
-	// Generate tangents if not present and it's been opted-in.
-	if (GenerateTangentSpace && m_Tangents.empty() && !m_UV0.empty())
+	// Generate tangents if not present. Requires a UV set.
+	if (m_Tangents.empty() && !m_UV0.empty())
 	{
+		m_Attributes.Add(Tangents);
+		std::for_each(m_Primitives.begin(), m_Primitives.end(), [](auto& p) { p[Tangents] = AccessorInfo::Create(COMPONENT_FLOAT, TYPE_VEC4, ARRAY_BUFFER); });
+
 		m_Tangents.resize(VertexCount);
 		DirectX::ComputeTangentFrame(m_Indices.data(), FaceCount, m_Positions.data(), m_Normals.data(), m_UV0.data(), VertexCount, m_Tangents.data());
 	}
@@ -577,15 +585,17 @@ void MeshInfo::Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
 			continue;
 		}
 
+
 		for (const auto& p : m.primitives)
 		{
-			FOREACH_ATTRIBUTE([&](auto i)
+			for (size_t i = Indices; i < Count; ++i)
 			{
-				if (!(p.*AccessorIds[i]).empty())
+				const auto& Id = p.*AccessorIds[i];
+				if (!Id.empty() && NewDoc.accessors.Has(Id))
 				{
-					NewDoc.accessors.Remove(p.*AccessorIds[i]);
+					NewDoc.accessors.Remove(Id);
 				}
-			});
+			}
 		}
 	}
 
@@ -659,14 +669,14 @@ void MeshInfo::WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Ou
 
 void MeshInfo::ReadVertices(const PrimitiveInfo& Info, const std::vector<uint8_t>& Input)
 {
-	m_Positions.resize(Info.VertexCount);
-	m_Normals.resize(Info.VertexCount);
-	m_Tangents.resize(Info.VertexCount);
-	m_UV0.resize(Info.VertexCount);
-	m_UV1.resize(Info.VertexCount);
-	m_Color0.resize(Info.VertexCount);
-	m_Joints0.resize(Info.VertexCount);
-	m_Weights0.resize(Info.VertexCount);
+	if (m_Attributes.Has(Positions)) m_Positions.resize(Info.VertexCount);
+	if (m_Attributes.Has(Normals)) m_Normals.resize(Info.VertexCount);
+	if (m_Attributes.Has(Tangents)) m_Tangents.resize(Info.VertexCount);
+	if (m_Attributes.Has(UV0)) m_UV0.resize(Info.VertexCount);
+	if (m_Attributes.Has(UV1)) m_UV1.resize(Info.VertexCount);
+	if (m_Attributes.Has(Color0)) m_Color0.resize(Info.VertexCount);
+	if (m_Attributes.Has(Joints0)) m_Joints0.resize(Info.VertexCount);
+	if (m_Attributes.Has(Weights0)) m_Weights0.resize(Info.VertexCount);
 
 	size_t Stride;
 	size_t Offsets[Count];
@@ -725,7 +735,7 @@ void MeshInfo::ExportCS(BufferBuilder& Builder, Mesh& OutMesh) const
 void MeshInfo::ExportCI(BufferBuilder& Builder, Mesh& OutMesh) const
 {
 	// Can't write a non-indexed combined mesh with multiple primitives.
-	if (!m_Attributes.HasAttribute(Indices) && m_Primitives.size() > 1)
+	if (!m_Attributes.Has(Indices) && m_Primitives.size() > 1)
 	{
 		ExportSI(Builder, OutMesh);
 	}
@@ -795,7 +805,7 @@ void MeshInfo::ExportInterleaved(BufferBuilder& Builder, const PrimitiveInfo& In
 	Builder.AddBufferView(m_Scratch, Stride, ARRAY_BUFFER, Alignment);
 	FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i)
 	{
-		if (m_Attributes.HasAttribute(i))
+		if (m_Attributes.Has(i))
 		{
 			FindMinMax(Info[i], m_Scratch.data(), Stride, Offsets[i], Info.VertexCount, m_Min, m_Max);
 			Builder.AddAccessor(Info.VertexCount, Offsets[i], Info[i].Type, Info[i].Dimension, m_Min, m_Max);

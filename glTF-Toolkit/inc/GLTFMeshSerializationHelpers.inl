@@ -6,7 +6,7 @@ namespace Microsoft::glTF::Toolkit
 	template <typename T>
 	void MeshInfo::ExportSharedView(BufferBuilder& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const
 	{
-		if (!m_Attributes.HasAttribute(Attr))
+		if (!m_Attributes.Has(Attr))
 		{
 			return;
 		}
@@ -33,7 +33,7 @@ namespace Microsoft::glTF::Toolkit
 	template <typename T>
 	std::string MeshInfo::ExportAccessor(BufferBuilder& Builder, const PrimitiveInfo& p, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const
 	{
-		if (!m_Attributes.HasAttribute(Attr))
+		if (!m_Attributes.Has(Attr))
 		{
 			return std::string();
 		}

@@ -45,13 +45,10 @@ namespace Microsoft::glTF::Toolkit
 	{
 		uint32_t Mask;
 
-		inline void SetAttribute(Attribute Attr, bool Value) 
-		{
-			Value ? AddAttribute(Attr) : ClearAttribute(Attr);
-		}
-		inline void AddAttribute(Attribute Attr) { Mask |= 1 << Attr; }
-		inline void ClearAttribute(Attribute Attr) { Mask &= ~(1 << Attr); }
-		inline bool HasAttribute(Attribute Attr) const { return (Mask & (1 << Attr)) != 0; }
+		inline void Set(Attribute Attr, bool Cond) { Cond ? Add(Attr) : Remove(Attr); }
+		inline void Add(Attribute Attr) { Mask |= 1 << Attr; }
+		inline void Remove(Attribute Attr) { Mask &= ~(1 << Attr); }
+		inline bool Has(Attribute Attr) const { return (Mask & (1 << Attr)) != 0; }
 
 		static AttributeList FromPrimitive(const MeshPrimitive& p);
 		
@@ -128,7 +125,7 @@ namespace Microsoft::glTF::Toolkit
 		void Optimize(void);
 
 		// Generates normal and optionally tangent data.
-		void GenerateAttributes(bool GenerateTangentSpace);
+		void GenerateAttributes(void);
 
 		// Exports the mesh to a BufferBuilder and Mesh in a format specified in the options.
 		void Export(const MeshOptions& Options, BufferBuilder& Builder, Mesh& OutMesh) const;
