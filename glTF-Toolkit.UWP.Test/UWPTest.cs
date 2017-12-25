@@ -11,7 +11,7 @@ using Windows.Storage;
 namespace Microsoft.glTF.Toolkit.UWP.Test
 {
     [TestClass]
-    public class SerializationTest
+    public class UWPTest
     {
         private async Task<StorageFile> CopyFileToTempFolderAsync(Uri uri)
         {
@@ -62,6 +62,21 @@ namespace Microsoft.glTF.Toolkit.UWP.Test
 
             // compare the new glb to the old glb
             Assert.IsTrue(await CompareFilesAsync(sourceGlbFile, outputGlbFile));
+        }
+
+        [TestMethod]
+        public async Task GLBConvertToWindowsMR()
+        {
+            const string glbBaseName = "WaterBottle";
+            const string glbFileName = glbBaseName + ".glb";
+
+            StorageFile sourceGlbFile = await CopyFileToTempFolderAsync(new Uri("ms-appx:///Assets/3DModels/" + glbFileName));
+
+            StorageFolder outputFolder = await CreateTemporaryOutputFolderAsync("Out_" + glbBaseName);
+
+            var converted = await WindowsMRConversion.ConvertAssetForWindowsMR(sourceGlbFile, outputFolder);
+
+            Assert.IsTrue(converted.Name == "WaterBottle_converted.glb");
         }
     }
 }

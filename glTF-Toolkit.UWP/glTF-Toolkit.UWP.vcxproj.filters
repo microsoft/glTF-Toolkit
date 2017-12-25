@@ -9,10 +9,13 @@
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="GLTFSerialization.cpp" />
+    <ClCompile Include="WindowsMRConversion.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="GLTFSerialization.h" />
+    <ClInclude Include="WindowsMRConversion.h" />
+    <ClInclude Include="GLTFStreams.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

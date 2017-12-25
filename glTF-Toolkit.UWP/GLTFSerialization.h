@@ -15,7 +15,7 @@ namespace Microsoft::glTF::Toolkit::UWP
         /// <param name="glbFile">The GLB file to unpack. The name of the GLB file, without the extension, 
         /// will be used as a prefix to all unpacked resources.</param>
         /// <param name="outputFolder">The output folder to which the glTF manifest and resources will be unpacked.</param>
-        static Windows::Foundation::IAsyncAction^ UnpackGLBAsync(Windows::Storage::StorageFile^ glbFile, Windows::Storage::StorageFolder^ outputFolder);
+        static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ UnpackGLBAsync(Windows::Storage::StorageFile^ glbFile, Windows::Storage::StorageFolder^ outputFolder);
 
         /// <summary>
         /// Serializes a glTF asset as a glTF binary (GLB) file.
