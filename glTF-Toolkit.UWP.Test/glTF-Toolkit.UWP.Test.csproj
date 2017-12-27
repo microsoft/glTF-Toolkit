@@ -149,7 +149,6 @@
   <ItemGroup Condition="'$(Platform)'!='x86'">
     <Reference Include="Microsoft.glTF.Toolkit.UWP">
       <HintPath>..\Built\Out\v141\$(Platform)\$(Configuration)\glTF-Toolkit.UWP\Microsoft.glTF.Toolkit.UWP.winmd</HintPath>
-      <Implementation>glTF-Toolkit.UWP.dll</Implementation>
     </Reference>
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">

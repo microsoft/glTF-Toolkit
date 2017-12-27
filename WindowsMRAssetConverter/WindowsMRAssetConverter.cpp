@@ -98,7 +98,7 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
         inputFilePath = tempDirectory + inputGltfName + EXTENSION_GLTF;
     }
 
-    auto stream = std::make_shared<std::ifstream>(inputFilePath, std::ios::binary);
+    auto stream = std::make_shared<std::ifstream>(inputFilePath, std::ios::in);
     GLTFDocument document = DeserializeJson(*stream);
 
     // Get the base path from where to read all the assets

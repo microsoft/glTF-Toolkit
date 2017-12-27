@@ -47,7 +47,7 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
         })
         .then([maxTextureSize, outputFolder, isGlb](StorageFile^ gltfFile)
         {
-            auto stream = std::make_shared<std::ifstream>(gltfFile->Path->Data(), std::ios::binary);
+            auto stream = std::make_shared<std::ifstream>(gltfFile->Path->Data(), std::ios::in);
             GLTFDocument document = DeserializeJson(*stream);
 
             return create_task(gltfFile->GetParentAsync())

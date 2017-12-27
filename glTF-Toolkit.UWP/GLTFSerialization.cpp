@@ -46,7 +46,7 @@ IAsyncOperation<StorageFile^>^ GLTFSerialization::PackGLTFAsync(StorageFile^ sou
     {
         std::wstring gltfPathW = sourceGltf->Path->Data();
 
-        auto stream = std::make_shared<std::ifstream>(gltfPathW, std::ios::binary);
+        auto stream = std::make_shared<std::ifstream>(gltfPathW, std::ios::in);
 
         return create_task([stream]()
         {
