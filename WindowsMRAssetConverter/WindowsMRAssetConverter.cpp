@@ -171,7 +171,13 @@ int wmain(int argc, wchar_t *argv[])
             document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages);
         }
 
-        // 4. GLB Export
+        // 4. Make sure there's a default scene
+        if (!document.HasDefaultScene())
+        {
+            document.defaultSceneId = document.scenes.Elements()[0].id;
+        }
+
+        // 5. GLB Export
         std::wcout << L"Exporting as GLB..." << std::endl;
 
         // The Windows MR Fall Creators update has restrictions on the supported

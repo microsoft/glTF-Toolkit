@@ -63,7 +63,13 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 // 2. Texture Compression
                 convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
 
-                // 3. GLB Export
+                // 3. Make sure there's a default scene set
+                if (!convertedDoc.HasDefaultScene())
+                {
+                    convertedDoc.defaultSceneId = convertedDoc.scenes.Elements()[0].id;
+                }
+
+                // 4. GLB Export
 
                 // The Windows MR Fall Creators update has restrictions on the supported
                 // component types of accessors.
