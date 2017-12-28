@@ -169,7 +169,10 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     // Serialize accessors
     for (auto accessor : gltfDocument.accessors.Elements())
     {
-        SerializeAccessor(accessor, gltfDocument, gltfResourceReader, *builder, accessorConversion);
+        if (accessor.count > 0)
+        {
+            SerializeAccessor(accessor, gltfDocument, gltfResourceReader, *builder, accessorConversion);
+        }
     }
 
     // Serialize images
