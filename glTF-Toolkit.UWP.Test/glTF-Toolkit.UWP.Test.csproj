@@ -143,7 +143,6 @@
   <ItemGroup Condition="'$(Platform)'=='x86'">
     <Reference Include="Microsoft.glTF.Toolkit.UWP">
       <HintPath>..\Built\Out\v141\Win32\$(Configuration)\glTF-Toolkit.UWP\Microsoft.glTF.Toolkit.UWP.winmd</HintPath>
-      <Implementation>glTF-Toolkit.UWP.dll</Implementation>
     </Reference>
   </ItemGroup>
   <ItemGroup Condition="'$(Platform)'!='x86'">
