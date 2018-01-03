@@ -11,9 +11,6 @@ namespace Microsoft::glTF
 
 	namespace Toolkit
 	{
-		extern const char* EXTENSION_MSFT_MESH_OPTIMIZER;
-
-
 		// Specifies the format of how each primitive is stored.
 		enum class PrimitiveFormat : uint8_t
 		{
@@ -43,6 +40,7 @@ namespace Microsoft::glTF
 		};
 	
 
+		// Specifies the parameters under which to perform mesh optimization, vertex attribute generation, and output format.
 		struct MeshOptions
 		{
 			bool Optimize;						// Perform an optimization pass on the mesh data (requires indices.)
@@ -56,7 +54,7 @@ namespace Microsoft::glTF
 				Options.Optimize = true;
 				Options.GenerateTangentSpace = true;
 				Options.PrimitiveFormat = PrimitiveFormat::Separate;
-				Options.AttributeFormat = AttributeFormat::Separate;
+				Options.AttributeFormat = AttributeFormat::Interleave;
 				return Options;
 			}
 		};
@@ -69,8 +67,6 @@ namespace Microsoft::glTF
 		{
 		public:
 			static GLTFDocument ProcessMeshes(const std::string& GLTFPath, const GLTFDocument& Doc, const IStreamReader& StreamReader, const MeshOptions& Options, const std::string& OutputDirectory);
-
-			static const char* s_DataUriRegex;
 		};
 	}
 }

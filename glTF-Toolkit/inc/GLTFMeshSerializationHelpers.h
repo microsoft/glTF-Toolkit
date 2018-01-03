@@ -136,6 +136,8 @@ namespace Microsoft::glTF::Toolkit
 		// Cleans up orphaned & unnecessary accessors, buffer views, and buffers caused by the mesh cleaning/formatting procedure.
 		static void Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
 
+		static void CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
+
 	private:
 		inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
 		PrimitiveInfo DetermineMeshFormat(void) const;

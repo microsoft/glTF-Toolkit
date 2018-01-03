@@ -51,7 +51,7 @@ namespace Microsoft::glTF::Toolkit
 		FindMinMax(a, m_Scratch.data(), ByteStride, 0, Data.size(), m_Min, m_Max);
 
 		Builder.AddBufferView(a.Target);
-		Builder.AddAccessor(m_Scratch, a.Type, a.Dimension, m_Min, m_Max);
+		Builder.AddAccessor(m_Scratch.data(), p.GetCount(Attr), a.Type, a.Dimension, m_Min, m_Max);
 		return Builder.GetCurrentAccessor().id;
 	}
 

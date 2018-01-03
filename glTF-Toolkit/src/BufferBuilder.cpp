@@ -88,48 +88,13 @@ const BufferView& BufferBuilder::AddBufferView(const void* data, size_t byteLeng
 	return m_bufferViews.back();
 }
 
-const Accessor& BufferBuilder::AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, 
+const Accessor& BufferBuilder::AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType,
 	std::vector<float> minValues, std::vector<float> maxValues)
 {
-	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
 
-	const auto componentCount = Accessor::GetTypeCount(accessorType);
-
-	if (buffer.id != bufferView.bufferId)
-	{
-		throw InvalidGLTFException("bufferView.bufferId does not match buffer.id");
-	}
-
-	// Only check for a valid number of min and max values if they exist
-	if ((!minValues.empty() || !maxValues.empty()) && ((minValues.size() != componentCount) || (maxValues.size() != componentCount)))
-	{
-		throw InvalidGLTFException("the number of min and max values must be equal to the number of elements to be stored in the accessor");
-	}
-
-	Accessor accessor;
-
-	// TODO: make accessor min & max members be vectors of doubles
-	accessor.min = std::move(minValues);
-	accessor.max = std::move(maxValues);
-
-	accessor.id = m_fnGenAccessorId(*this);
-	accessor.bufferViewId = bufferView.id;
-	accessor.count = count;
-	accessor.byteOffset = byteOffset;
-	accessor.type = accessorType;
-	accessor.componentType = componentType;
-
+	size_t componentCount = Accessor::GetTypeCount(accessorType);
 	size_t componentSize = Accessor::GetComponentTypeSize(componentType);
-	if (byteOffset % componentSize != 0)
-	{
-		throw InvalidGLTFException("accessor offset within buffer view must be a multiple of the component size");
-	}
-
-	if ((byteOffset + bufferView.byteOffset) % componentSize != 0)
-	{
-		throw InvalidGLTFException("accessor offset within buffer must be a multiple of the component size");
-	}
 
 	// Stride is determined implicitly by the accessor size if none is provided in the buffer view.
 	const auto elementSize = componentCount * componentSize;
@@ -145,29 +110,17 @@ const Accessor& BufferBuilder::AddAccessor(size_t count, size_t byteOffset, Comp
 		throw InvalidGLTFException("Position of last accessor element exceeds the buffer view's byte length");
 	}
 
+	Accessor accessor = CreateAccessor(count, byteOffset, componentType, accessorType, std::move(minValues), std::move(maxValues));
+
 	m_accessors.push_back(std::move(accessor));
 	return m_accessors.back();
 }
 
-const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, ComponentType componentType, AccessorType accessorType, 
+const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, ComponentType componentType, AccessorType accessorType,
 	std::vector<float> minValues, std::vector<float> maxValues)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
-
-	const auto accessorTypeSize = Accessor::GetTypeCount(accessorType);
-
-	if (buffer.id != bufferView.bufferId)
-	{
-		throw InvalidGLTFException("bufferView.bufferId does not match buffer.id");
-	}
-
-	// Only check for a valid number of min and max values if they exist
-	if ((!minValues.empty() || !maxValues.empty()) &&
-		((minValues.size() != accessorTypeSize) || (maxValues.size() != accessorTypeSize)))
-	{
-		throw InvalidGLTFException("the number of min and max values must be equal to the number of elements to be stored in the accessor");
-	}
 
 	// If the bufferView has not yet been written to then ensure it is correctly aligned for this accessor's component type
 	if (bufferView.byteLength == 0U)
@@ -175,18 +128,7 @@ const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, Compo
 		bufferView.byteOffset += ::GetPadding(bufferView.byteOffset, componentType);
 	}
 
-	Accessor accessor;
-
-	// TODO: make accessor min & max members be vectors of doubles
-	accessor.min = std::move(minValues);
-	accessor.max = std::move(maxValues);
-
-	accessor.id = m_fnGenAccessorId(*this);
-	accessor.bufferViewId = bufferView.id;
-	accessor.count = count;
-	accessor.byteOffset = bufferView.byteLength;
-	accessor.type = accessorType;
-	accessor.componentType = componentType;
+	Accessor accessor = CreateAccessor(count, bufferView.byteLength, componentType, accessorType, std::move(minValues), std::move(maxValues));
 
 	bufferView.byteLength += accessor.GetByteLength();
 	buffer.byteLength = bufferView.byteOffset + bufferView.byteLength;
@@ -207,19 +149,67 @@ void BufferBuilder::Output(GLTFDocument& gltfDocument)
 		gltfDocument.buffers.Append(std::move(buffer));
 	}
 
+	m_buffers.clear();
+
 	for (auto& bufferView : m_bufferViews)
 	{
 		gltfDocument.bufferViews.Append(std::move(bufferView));
 	}
+
+	m_bufferViews.clear();
 
 	for (auto& accessor : m_accessors)
 	{
 		gltfDocument.accessors.Append(std::move(accessor));
 	}
 
-	m_buffers.clear();
-	m_bufferViews.clear();
 	m_accessors.clear();
+}
+
+Accessor BufferBuilder::CreateAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, std::vector<float> minValues, std::vector<float> maxValues)
+{
+	Buffer& buffer = m_buffers.back();
+	BufferView& bufferView = m_bufferViews.back();
+
+	const auto accessorTypeSize = Accessor::GetTypeCount(accessorType);
+	size_t componentTypeSize = Accessor::GetComponentTypeSize(componentType);
+
+	if (buffer.id != bufferView.bufferId)
+	{
+		throw InvalidGLTFException("bufferView.bufferId does not match buffer.id");
+	}
+
+	// Only check for a valid number of min and max values if they exist
+	if ((!minValues.empty() || !maxValues.empty()) &&
+		((minValues.size() != accessorTypeSize) || (maxValues.size() != accessorTypeSize)))
+	{
+		throw InvalidGLTFException("the number of min and max values must be equal to the number of elements to be stored in the accessor");
+	}
+
+	if (byteOffset % componentTypeSize != 0)
+	{
+		throw InvalidGLTFException("accessor offset within buffer view must be a multiple of the component size");
+	}
+
+	if ((byteOffset + bufferView.byteOffset) % componentTypeSize != 0)
+	{
+		throw InvalidGLTFException("accessor offset within buffer must be a multiple of the component size");
+	}
+
+	Accessor accessor;
+
+	// TODO: make accessor min & max members be vectors of doubles
+	accessor.min = std::move(minValues);
+	accessor.max = std::move(maxValues);
+
+	accessor.id = m_fnGenAccessorId(*this);
+	accessor.bufferViewId = bufferView.id;
+	accessor.count = count;
+	accessor.byteOffset = byteOffset;
+	accessor.type = accessorType;
+	accessor.componentType = componentType;
+
+	return accessor;
 }
 
 const Buffer& BufferBuilder::GetCurrentBuffer() const

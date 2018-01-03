@@ -117,6 +117,8 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     // 2. Texture Compression
     document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
 
+	std::wcout << L"Optimizing mesh" << std::endl;
+
 	// 3. Mesh Optimization
 	auto inputFileNameA = std::string(inputFileName.begin(), inputFileName.end());
 	document = GLTFMeshUtils::ProcessMeshes(inputFileNameA, document, streamReader, MeshOptions::Defaults(), tempDirectoryA);

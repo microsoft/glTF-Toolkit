@@ -524,19 +524,6 @@ void MeshInfo::Export(const MeshOptions& Options, BufferBuilder& Builder, Mesh& 
 			ExportSS(Builder, OutMesh);
 		}
 	}
-
-	auto& Buffer = Builder.GetCurrentBuffer();
-
-	rapidjson::Document meshExtJson;
-	meshExtJson.SetObject();
-
-	meshExtJson.AddMember("uri", rapidjson::Value(Buffer.uri.c_str(), Buffer.uri.size()), meshExtJson.GetAllocator());
-
-	rapidjson::StringBuffer buffer;
-	rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-	meshExtJson.Accept(writer);
-
-	OutMesh.extensions.insert(std::pair<std::string, std::string>(EXTENSION_MSFT_MESH_OPTIMIZER, buffer.GetString()));
 }
 
 bool MeshInfo::IsSupported(const Mesh& m)
@@ -567,6 +554,53 @@ bool MeshInfo::IsSupported(const Mesh& m)
 	return true;
 }
 
+void MeshInfo::CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
+{
+	(NewDoc);
+	(Builder);
+	auto MeshAccessors = std::unordered_set<std::string>(OldDoc.accessors.Size());
+
+	for (const auto& m : OldDoc.meshes.Elements())
+	{
+		for (const auto& p : m.primitives)
+		{
+			for (size_t i = Indices; i < Count; ++i)
+			{
+				const auto& Id = p.*AccessorIds[i];
+
+				MeshAccessors.insert(Id);
+			}
+		}
+	}
+
+	auto MeshBufferViews = std::unordered_set<std::string>(OldDoc.bufferViews.Size());
+	for (const auto& aid : MeshAccessors)
+	{
+		MeshBufferViews.insert(OldDoc.accessors[aid].bufferViewId);
+	}
+
+	auto OtherAccessors = std::unordered_set<std::string>(OldDoc.accessors.Size());
+	for (auto& a : OldDoc.accessors.Elements())
+	{
+		if (MeshAccessors.count(a.id) == 0)
+		{
+			OtherAccessors.insert(a.id);
+		}
+	}
+
+	auto OtherBufferViews = std::unordered_set<std::string>(OldDoc.bufferViews.Size());
+	for (auto& bv : OldDoc.bufferViews.Elements())
+	{
+		if (MeshBufferViews.count(bv.id) == 0)
+		{
+			OtherBufferViews.insert(bv.id);
+		}
+	}
+
+	GLTFResourceReader r = GLTFResourceReader(StreamReader);
+
+}
+
 void MeshInfo::Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
 {
 	// Remove references to old accessors.
@@ -580,33 +614,32 @@ void MeshInfo::Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
 
 		// Only perform cleanup on meshes that we successfully processed.
 		auto& NewMesh = NewDoc.meshes.Get(m.id);
-		if (NewMesh.extensions.count(EXTENSION_MSFT_MESH_OPTIMIZER) == 0)
+		if (!IsSupported(NewMesh))
 		{
 			continue;
 		}
 
-
 		for (const auto& p : m.primitives)
 		{
-			for (size_t i = Indices; i < Count; ++i)
+			FOREACH_ATTRIBUTE([&](auto i)
 			{
 				const auto& Id = p.*AccessorIds[i];
 				if (!Id.empty() && NewDoc.accessors.Has(Id))
 				{
 					NewDoc.accessors.Remove(Id);
 				}
-			}
+			});
 		}
 	}
 
-	// Iterate through the still existing accessors and accumulate all referenced buffer view ids.
+	// Iterate through the existing accessors and accumulate all referenced buffer view ids.
 	auto BufferViews = std::unordered_set<std::string>(OldDoc.bufferViews.Size());
 	for (const auto& a : NewDoc.accessors.Elements())
 	{
 		BufferViews.insert(a.bufferViewId);
 	}
 
-	// Determine the buffer views which are no longer referenced; accumulate all referenced buffer ids.
+	// Determine which buffer views are no longer referenced & accumulate all referenced buffer ids.
 	auto Buffers = std::unordered_set<std::string>(OldDoc.buffers.Size());
 	for (const auto& bv : OldDoc.bufferViews.Elements())
 	{

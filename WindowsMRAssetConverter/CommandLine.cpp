@@ -35,7 +35,8 @@ void CommandLine::PrintHelp()
         << L"=====================================" << std::endl
         << std::endl
         << L"A command line tool to convert core GLTF 2.0 assets for use in "
-        << L"the Windows Mixed Reality home, with the proper texture packing, compression and merged LODs." << std::endl << std::endl
+        << L"the Windows Mixed Reality home, with the proper texture packing, "
+		<< L"compression, mesh optimization, and merged LODs." << std::endl << std::endl
         << L"Usage: WindowsMRAssetConverter <path to GLTF/GLB>" << std::endl
         << std::endl
         << L"Optional arguments:" << std::endl
