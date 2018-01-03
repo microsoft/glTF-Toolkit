@@ -556,10 +556,8 @@ bool MeshInfo::IsSupported(const Mesh& m)
 
 void MeshInfo::CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
 {
-	(NewDoc);
-	(Builder);
+	// Find all mesh accessors & buffer views.
 	auto MeshAccessors = std::unordered_set<std::string>(OldDoc.accessors.Size());
-
 	for (const auto& m : OldDoc.meshes.Elements())
 	{
 		for (const auto& p : m.primitives)
@@ -567,8 +565,10 @@ void MeshInfo::CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& B
 			for (size_t i = Indices; i < Count; ++i)
 			{
 				const auto& Id = p.*AccessorIds[i];
-
-				MeshAccessors.insert(Id);
+				if (!Id.empty())
+				{
+					MeshAccessors.insert(Id);
+				}
 			}
 		}
 	}
@@ -579,6 +579,7 @@ void MeshInfo::CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& B
 		MeshBufferViews.insert(OldDoc.accessors[aid].bufferViewId);
 	}
 
+	// Find all non-mesh accessors & buffer views by filtering out the mesh accessors & buffer views.
 	auto OtherAccessors = std::unordered_set<std::string>(OldDoc.accessors.Size());
 	for (auto& a : OldDoc.accessors.Elements())
 	{
@@ -597,8 +598,29 @@ void MeshInfo::CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& B
 		}
 	}
 
+	// Copy-pasta data to new buffer, replacing the old buffer views with new ones that contain proper byte offsets.
 	GLTFResourceReader r = GLTFResourceReader(StreamReader);
+	for (auto& bvid : OtherBufferViews)
+	{
+		auto& obv = OldDoc.bufferViews[bvid];
 
+		// Read from old bin file.
+		std::vector<uint8_t> Buffer = r.ReadBinaryData<uint8_t>(OldDoc, obv);
+		// Write to the new bin file.
+		Builder.AddBufferView(Buffer, obv.byteStride, obv.target);
+
+		// Bit of a hack: 
+		// BufferView references can exist in any number of arbitrary document locations due to extensions - thus we must ensure the original ids remain intact.
+		// Could do this a more legal way by having the id generator lambda function observe a global string variable, but this seemed more contained & less work.
+		auto& nbv = const_cast<BufferView&>(Builder.GetCurrentBufferView());
+		nbv.id = bvid;
+
+		// Remove the old buffer view from the new document, which will be replaced by the BufferBuilder::Output(...) call.
+		NewDoc.bufferViews.Remove(bvid);
+	}
+
+	// We've copied out all data from other buffers, BufferBuilder::Output(...) call will append newest buffer.
+	NewDoc.buffers.Clear();
 }
 
 void MeshInfo::Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc)

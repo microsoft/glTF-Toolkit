@@ -74,7 +74,8 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     std::wstring& inputFilePath,
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
-    size_t maxTextureSize)
+    size_t maxTextureSize,
+	bool generateTangents)
 {
     // Load the document
     std::wstring inputFileName = PathFindFileName(inputFilePath.c_str());
@@ -120,8 +121,11 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
 	std::wcout << L"Optimizing mesh" << std::endl;
 
 	// 3. Mesh Optimization
+	MeshOptions options = MeshOptions::Defaults();
+	options.GenerateTangentSpace = generateTangents;
+
 	auto inputFileNameA = std::string(inputFileName.begin(), inputFileName.end());
-	document = GLTFMeshUtils::ProcessMeshes(inputFileNameA, document, streamReader, MeshOptions::Defaults(), tempDirectoryA);
+	document = GLTFMeshUtils::ProcessMeshes(inputFileNameA, document, streamReader, options, tempDirectoryA);
 
     return document;
 }
@@ -147,13 +151,14 @@ int wmain(int argc, wchar_t *argv[])
         std::vector<std::wstring> lodFilePaths;
         std::vector<double> screenCoveragePercentages;
         size_t maxTextureSize;
+		bool generateTangents;
 
-        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize);
+        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize, generateTangents);
 
         // Load document, and perform steps:
         // 1. Texture Packing
         // 2. Texture Compression
-        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize);
+        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize, generateTangents);
 
         // 3. LOD Merging
         if (lodFilePaths.size() > 0)
@@ -169,7 +174,7 @@ int wmain(int argc, wchar_t *argv[])
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
-                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize));
+                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, generateTangents));
             }
 
             // TODO: LOD assets can be in different places in disk, so the merged document will not have 

@@ -30,11 +30,11 @@ namespace Microsoft
 					FnGenId fnGenAccessorId = DefaultFnGenAccessorId);
 
 				const Buffer&     AddBuffer(const char* bufferId = nullptr);
-				const BufferView& AddBufferView(BufferViewTarget target, size_t byteAlignment = 1);
-				const BufferView& AddBufferView(const void* data, size_t byteLength, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER, size_t byteAlignment = 1);
+				const BufferView& AddBufferView(BufferViewTarget target, size_t byteAlignment = 4);
+				const BufferView& AddBufferView(const void* data, size_t byteLength, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER, size_t byteAlignment = 4);
 
 				template<typename T>
-				const BufferView& AddBufferView(const std::vector<T>& data, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER, size_t byteAlignment = 1)
+				const BufferView& AddBufferView(const std::vector<T>& data, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER, size_t byteAlignment = 4)
 				{
 					return AddBufferView(data.data(), data.size() * sizeof(T), byteStride, target, byteAlignment);
 				}

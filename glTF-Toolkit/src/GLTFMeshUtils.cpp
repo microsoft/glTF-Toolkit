@@ -61,7 +61,6 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& Filename, const GLT
 		return Doc;
 	}
 	BufferName.resize(Pos);
-	BufferName.append("_op");
 
 	// Create output directory for file output.
 	create_directories(OutputDirectory);
@@ -103,10 +102,8 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& Filename, const GLT
 		OutputDoc.meshes.Replace(m);
 	}
 
-	//MeshInfo::CopyOtherData(StreamReader, Builder, Doc, OutputDoc);
-
+	MeshInfo::CopyOtherData(StreamReader, Builder, Doc, OutputDoc);
 	Builder.Output(OutputDoc);
-
 	MeshInfo::Cleanup(Doc, OutputDoc);
 
 	return OutputDoc;

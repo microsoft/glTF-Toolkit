@@ -26,11 +26,12 @@ namespace Microsoft::glTF::Toolkit::Test
 	using namespace std::experimental::filesystem;
 
 	const char* s_TestFiles[] ={
+		"Resources\\gltf\\03_all_animations\\03_all_animations.gltf",
 		"Resources\\gltf\\03_skinned_cylinder\\03_skinned_cylinder.gltf",
 		"Resources\\gltf\\WaterBottle\\WaterBottle.gltf",
 		"Resources\\gltf\\Primitives\\Primitives.gltf"
 	};
-	const size_t s_TestFileIdx = 2;
+	const size_t s_TestFileIdx = 0;
 
 	TEST_CLASS(GLTFMeshUtilsTest)
 	{
