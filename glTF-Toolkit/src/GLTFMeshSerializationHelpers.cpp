@@ -257,15 +257,25 @@ MeshInfo::MeshInfo(const MeshInfo& Parent, size_t PrimIndex)
 	}
 }
 
-size_t index222 = 1;
-template <typename T>
-void Write2(std::ofstream (&stream)[2], std::vector<T>& vec)
+std::ofstream g_Files;
+size_t g_Index = 0;
+
+std::ofstream& GetStream(void)
 {
-	std::for_each(vec.begin(), vec.end(), [&](auto& i)
+	if (!g_Files.is_open())
 	{
-		XMSerializer<T>::Out(stream[index222], i);
-	});
+		g_Files.open("C:\\Users\\Matt\\Desktop\\OutFile" + std::to_string(g_Index) + ".txt");
+	}
+	return g_Files;
 }
+
+template <typename T>
+void Write2(const std::vector<T>& vec)
+{
+	auto& s = GetStream();
+	std::for_each(vec.begin(), vec.end(), [&](auto& i) { XMSerializer<T>::Out(s, i); });
+}
+
 
 bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh)
 {
@@ -299,22 +309,6 @@ bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument&
 	m_Name = Mesh.name;
 	m_Attributes = AttributeList::FromPrimitive(Mesh.primitives[0]);
 	m_PrimFormat = DetermineFormat(Doc, Mesh);
-
-	std::ofstream Files[2] =
-	{
-		std::ofstream("C:\\Users\\mahurlim\\Desktop\\OutFile1.txt"),
-		std::ofstream("C:\\Users\\mahurlim\\Desktop\\OutFile2.txt")
-	};
-
-	Write2(Files, m_Indices);
-	Write2(Files, m_Positions);
-	Write2(Files, m_Normals);
-	Write2(Files, m_Tangents);
-	Write2(Files, m_UV0);
-	Write2(Files, m_UV1);
-	Write2(Files, m_Color0);
-	Write2(Files, m_Joints0);
-	Write2(Files, m_Weights0);
 
 	return true;
 }
@@ -375,6 +369,7 @@ void MeshInfo::InitSharedAccessors(const IStreamReader& StreamReader, const GLTF
 		{
 			ReadAccessor(StreamReader, Doc, p0.indicesAccessorId, m_Indices, PrimInfo0[Indices]);
 
+			PrimInfo0.Offset = 0;
 			PrimInfo0.IndexCount = m_Indices.size();
 			PrimInfo0.VertexCount = m_Positions.size();
 		}
@@ -395,6 +390,8 @@ void MeshInfo::InitSharedAccessors(const IStreamReader& StreamReader, const GLTF
 				UniqueVertices.clear();
 				UniqueVertices.insert(m_Indices.begin() + IndexStart, m_Indices.end());
 
+				PrimInfo = PrimInfo0;
+				PrimInfo.Offset = IndexStart;
 				PrimInfo.IndexCount = m_Indices.size() - IndexStart;
 				PrimInfo.VertexCount = UniqueVertices.size(); 
 			}
@@ -402,6 +399,7 @@ void MeshInfo::InitSharedAccessors(const IStreamReader& StreamReader, const GLTF
 	}
 	else
 	{
+		PrimInfo0.Offset = 0;
 		PrimInfo0.IndexCount = 0;
 		PrimInfo0.VertexCount = m_Positions.size();
 	}
@@ -525,6 +523,16 @@ void MeshInfo::GenerateAttributes(void)
 
 void MeshInfo::Export(const MeshOptions& Options, BufferBuilder& Builder, Mesh& OutMesh) const
 {
+	Write2(m_Indices);
+	Write2(m_Positions);
+	Write2(m_Normals);
+	Write2(m_Tangents);
+	Write2(m_UV0);
+	Write2(m_UV1);
+	Write2(m_Color0);
+	Write2(m_Joints0);
+	Write2(m_Weights0);
+
 	auto PrimFormat = Options.PrimitiveFormat == PrimitiveFormat::Preserved ? m_PrimFormat : Options.PrimitiveFormat;
 
 	if (PrimFormat == PrimitiveFormat::Combine)
