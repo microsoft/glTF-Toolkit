@@ -19,6 +19,17 @@ namespace Microsoft
 
 		namespace exp
 		{
+			struct AccessorDesc
+			{
+				size_t count;
+				size_t byteOffset;
+				ComponentType componentType;
+				AccessorType accessorType;
+				std::vector<float> min;
+				std::vector<float> max;
+			};
+
+
 			class BufferBuilder final
 			{
 				typedef std::function<std::string(const BufferBuilder&)> FnGenId;
@@ -30,7 +41,7 @@ namespace Microsoft
 					FnGenId fnGenAccessorId = DefaultFnGenAccessorId);
 
 				const Buffer&     AddBuffer(const char* bufferId = nullptr);
-				const BufferView& AddBufferView(BufferViewTarget target, size_t byteAlignment = 4);
+				const BufferView& AddBufferView(BufferViewTarget target);
 				const BufferView& AddBufferView(const void* data, size_t byteLength, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER, size_t byteAlignment = 4);
 
 				template<typename T>
@@ -39,8 +50,8 @@ namespace Microsoft
 					return AddBufferView(data.data(), data.size() * sizeof(T), byteStride, target, byteAlignment);
 				}
 
-				const Accessor& AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType,
-					std::vector<float> minValues ={}, std::vector<float> maxValues ={});
+				void AddAccessors(const void* data, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* outIds = nullptr);
+
 				const Accessor& AddAccessor(const void* data, size_t count, ComponentType componentType, AccessorType accessorType,
 					std::vector<float> minValues ={}, std::vector<float> maxValues ={});
 
@@ -72,7 +83,7 @@ namespace Microsoft
 				const ResourceWriter2& GetResourceWriter() const;
 
 			private:
-				Accessor CreateAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, std::vector<float> minValues, std::vector<float> maxValues);
+				const Accessor& AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, std::vector<float> minValues, std::vector<float> maxValues);
 				static std::string DefaultFnGenBufferId(const BufferBuilder& builder)
 				{
 					return std::to_string(builder.GetBufferCount());

@@ -79,7 +79,7 @@ namespace Microsoft::glTF::Toolkit
 		static const TComp& Get(const T& v, size_t Index) { return *((TComp*)&v + Index); }
 
 		template <typename From, size_t _Count>
-		static void Create(T& v, const From* Ptr)
+		static void Read(T& v, const From* Ptr)
 		{
 			for (size_t i = 0; i < std::min(Dimension, _Count); ++i)
 			{

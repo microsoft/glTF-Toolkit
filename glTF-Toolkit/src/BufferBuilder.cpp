@@ -26,6 +26,27 @@ namespace
 	{
 		return GetPadding(offset, Accessor::GetComponentTypeSize(componentType));
 	}
+
+	size_t GetAlignment(const AccessorDesc& desc)
+	{
+		return Accessor::GetComponentTypeSize(desc.componentType);
+	}
+
+	size_t GetExtent(size_t byteStride, const AccessorDesc& desc)
+	{
+		if (byteStride == 0)
+		{
+			// Non-strided elements, aka contiguous chunks of data.
+			// (offset to first element) + (size of element * count)
+			return desc.byteOffset + desc.count * Accessor::GetComponentTypeSize(desc.componentType) * Accessor::GetTypeCount(desc.accessorType);
+		}
+		else
+		{
+			// Strided elements.
+			// (offset to first element) + (stride * count) + (size of element)
+			return desc.byteOffset + desc.count * byteStride + Accessor::GetComponentTypeSize(desc.componentType) * Accessor::GetTypeCount(desc.accessorType);
+		}
+	}
 }
 
 BufferBuilder::BufferBuilder(std::unique_ptr<ResourceWriter2>&& resourceWriter,
@@ -50,14 +71,14 @@ const Buffer& BufferBuilder::AddBuffer(const char* bufferId)
 	return m_buffers.back();
 }
 
-const BufferView& BufferBuilder::AddBufferView(BufferViewTarget target, size_t byteAlignment)
+const BufferView& BufferBuilder::AddBufferView(BufferViewTarget target)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView bufferView;
 
 	bufferView.id = m_fnGenBufferViewId(*this);
 	bufferView.bufferId = buffer.id;
-	bufferView.byteOffset = buffer.byteLength + ::GetPadding(buffer.byteLength, byteAlignment);
+	bufferView.byteOffset = buffer.byteLength;
 	bufferView.byteLength = 0U;// The BufferView's length is updated whenever an Accessor is added (and data is written to the underlying buffer)
 	bufferView.target = target;
 
@@ -88,32 +109,56 @@ const BufferView& BufferBuilder::AddBufferView(const void* data, size_t byteLeng
 	return m_bufferViews.back();
 }
 
-const Accessor& BufferBuilder::AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType,
-	std::vector<float> minValues, std::vector<float> maxValues)
+void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* outIds)
 {
-	BufferView& bufferView = m_bufferViews.back();
-
-	size_t componentCount = Accessor::GetTypeCount(accessorType);
-	size_t componentSize = Accessor::GetComponentTypeSize(componentType);
-
-	// Stride is determined implicitly by the accessor size if none is provided in the buffer view.
-	const auto elementSize = componentCount * componentSize;
-	const auto stride = bufferView.byteStride > 0 ? bufferView.byteStride : elementSize;
-
-	// Start of last element, s = Stride * (count - 1) + byteOffset. 
-	// End of last element, e = s + ElementSize.
-	const auto accessorEnd = stride * (count - 1) + byteOffset + elementSize;
-
-	// Ensure there is enough room in the BufferView for the accessor's data
-	if (accessorEnd > bufferView.byteLength)
+	// Calculate the max alignment and extents of the accessors.
+	size_t alignment = 1, extent = 0;
+	for (size_t i = 0; i < descCount; ++i)
 	{
-		throw InvalidGLTFException("Position of last accessor element exceeds the buffer view's byte length");
+		const AccessorDesc& desc = pDescs[i];
+		if (desc.count == 0 || desc.accessorType == TYPE_UNKNOWN || desc.componentType == COMPONENT_UNKNOWN)
+		{
+			continue;
+		}
+
+		alignment = std::max(alignment, GetAlignment(desc));
+		extent = std::max(extent, GetExtent(byteStride, desc));
 	}
 
-	Accessor accessor = CreateAccessor(count, byteOffset, componentType, accessorType, std::move(minValues), std::move(maxValues));
+	// ResourceWriter2 only supports writing full buffer views.
+	BufferView& bufferView = m_bufferViews.back();
+	if (bufferView.byteLength != 0U)
+	{
+		throw InvalidGLTFException("current buffer view already has written data - this interface doesn't support appending to an existing buffer view");
+	}
 
-	m_accessors.push_back(std::move(accessor));
-	return m_accessors.back();
+	bufferView.byteStride = byteStride;
+	bufferView.byteLength = extent;
+	bufferView.byteOffset += ::GetPadding(bufferView.byteOffset, alignment);
+
+	Buffer& buffer = m_buffers.back();
+	buffer.byteLength = bufferView.byteOffset + bufferView.byteLength;
+
+	for (size_t i = 0; i < descCount; ++i)
+	{
+		const AccessorDesc& desc = pDescs[i];
+		if (desc.count == 0 || desc.accessorType == TYPE_UNKNOWN || desc.componentType == COMPONENT_UNKNOWN)
+		{
+			continue;
+		}
+
+		AddAccessor(desc.count, desc.byteOffset, desc.componentType, desc.accessorType, std::move(desc.min), std::move(desc.max));
+
+		if (outIds != nullptr)
+		{
+			outIds[i] = GetCurrentAccessor().id;
+		}
+	}
+
+	if (m_resourceWriter)
+	{
+		m_resourceWriter->Write(bufferView, data);
+	}
 }
 
 const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, ComponentType componentType, AccessorType accessorType,
@@ -128,7 +173,7 @@ const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, Compo
 		bufferView.byteOffset += ::GetPadding(bufferView.byteOffset, componentType);
 	}
 
-	Accessor accessor = CreateAccessor(count, bufferView.byteLength, componentType, accessorType, std::move(minValues), std::move(maxValues));
+	const Accessor& accessor = AddAccessor(count, bufferView.byteLength, componentType, accessorType, std::move(minValues), std::move(maxValues));
 
 	bufferView.byteLength += accessor.GetByteLength();
 	buffer.byteLength = bufferView.byteOffset + bufferView.byteLength;
@@ -138,7 +183,6 @@ const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, Compo
 		m_resourceWriter->Write(bufferView, data, accessor);
 	}
 
-	m_accessors.push_back(std::move(accessor));
 	return m_accessors.back();
 }
 
@@ -166,7 +210,7 @@ void BufferBuilder::Output(GLTFDocument& gltfDocument)
 	m_accessors.clear();
 }
 
-Accessor BufferBuilder::CreateAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, std::vector<float> minValues, std::vector<float> maxValues)
+const Accessor& BufferBuilder::AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, std::vector<float> minValues, std::vector<float> maxValues)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
@@ -209,7 +253,8 @@ Accessor BufferBuilder::CreateAccessor(size_t count, size_t byteOffset, Componen
 	accessor.type = accessorType;
 	accessor.componentType = componentType;
 
-	return accessor;
+	m_accessors.push_back(std::move(accessor));
+	return m_accessors.back();
 }
 
 const Buffer& BufferBuilder::GetCurrentBuffer() const

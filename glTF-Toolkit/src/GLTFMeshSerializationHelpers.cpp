@@ -22,18 +22,25 @@ using namespace DirectX;
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
 
-std::string(MeshPrimitive::*AccessorIds[Count]) =
+namespace 
 {
-	&MeshPrimitive::indicesAccessorId,		// 0 Indices
-	&MeshPrimitive::positionsAccessorId,	// 1 Positions
-	&MeshPrimitive::normalsAccessorId,		// 2 Normals
-	&MeshPrimitive::tangentsAccessorId,		// 3 Tangents
-	&MeshPrimitive::uv0AccessorId,			// 4 UV0
-	&MeshPrimitive::uv1AccessorId,			// 5 UV1
-	&MeshPrimitive::color0AccessorId,		// 6 Color0
-	&MeshPrimitive::joints0AccessorId,		// 7 Joints0
-	&MeshPrimitive::weights0AccessorId,		// 8 Weights0
-};
+	template <typename T, size_t N>
+	constexpr auto ArrayCount(T(&)[N]) { return N; }
+
+	std::string(MeshPrimitive::*AccessorIds[Count]) =
+	{
+		&MeshPrimitive::indicesAccessorId,		// 0 Indices
+		&MeshPrimitive::positionsAccessorId,	// 1 Positions
+		&MeshPrimitive::normalsAccessorId,		// 2 Normals
+		&MeshPrimitive::tangentsAccessorId,		// 3 Tangents
+		&MeshPrimitive::uv0AccessorId,			// 4 UV0
+		&MeshPrimitive::uv1AccessorId,			// 5 UV1
+		&MeshPrimitive::color0AccessorId,		// 6 Color0
+		&MeshPrimitive::joints0AccessorId,		// 7 Joints0
+		&MeshPrimitive::weights0AccessorId,		// 8 Weights0
+	};
+}
+
 
 AttributeList AttributeList::FromPrimitive(const MeshPrimitive& p)
 {
@@ -250,6 +257,15 @@ MeshInfo::MeshInfo(const MeshInfo& Parent, size_t PrimIndex)
 	}
 }
 
+size_t index222 = 1;
+template <typename T>
+void Write2(std::ofstream (&stream)[2], std::vector<T>& vec)
+{
+	std::for_each(vec.begin(), vec.end(), [&](auto& i)
+	{
+		XMSerializer<T>::Out(stream[index222], i);
+	});
+}
 
 bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh)
 {
@@ -283,6 +299,22 @@ bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument&
 	m_Name = Mesh.name;
 	m_Attributes = AttributeList::FromPrimitive(Mesh.primitives[0]);
 	m_PrimFormat = DetermineFormat(Doc, Mesh);
+
+	std::ofstream Files[2] =
+	{
+		std::ofstream("C:\\Users\\mahurlim\\Desktop\\OutFile1.txt"),
+		std::ofstream("C:\\Users\\mahurlim\\Desktop\\OutFile2.txt")
+	};
+
+	Write2(Files, m_Indices);
+	Write2(Files, m_Positions);
+	Write2(Files, m_Normals);
+	Write2(Files, m_Tangents);
+	Write2(Files, m_UV0);
+	Write2(Files, m_UV1);
+	Write2(Files, m_Color0);
+	Write2(Files, m_Joints0);
+	Write2(Files, m_Weights0);
 
 	return true;
 }
@@ -554,58 +586,77 @@ bool MeshInfo::IsSupported(const Mesh& m)
 	return true;
 }
 
-void MeshInfo::CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
+void MeshInfo::CopyAndCleanup(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
 {
-	// Find all mesh accessors & buffer views.
-	auto MeshAccessors = std::unordered_set<std::string>(OldDoc.accessors.Size());
+	// Find all mesh buffers & buffer views.
+	auto MeshBufferViews = std::unordered_set<std::string>(OldDoc.bufferViews.Size());
+	auto MeshBuffers = std::unordered_set<std::string>(OldDoc.buffers.Size());
+
 	for (const auto& m : OldDoc.meshes.Elements())
 	{
+		if (!MeshInfo::IsSupported(m))
+		{
+			continue;
+		}
+
 		for (const auto& p : m.primitives)
 		{
 			for (size_t i = Indices; i < Count; ++i)
 			{
-				const auto& Id = p.*AccessorIds[i];
-				if (!Id.empty())
+				auto& aid = p.*AccessorIds[i];
+				if (aid.empty())
 				{
-					MeshAccessors.insert(Id);
+					continue;
 				}
+
+				// Remove all mesh accessors for new document.
+				if (NewDoc.accessors.Has(aid))
+				{
+					NewDoc.accessors.Remove(aid);
+				}
+
+				// Remove all mesh buffer views for new document.
+				auto& bvid = OldDoc.accessors[aid].bufferViewId;
+				if (NewDoc.bufferViews.Has(bvid))
+				{
+					NewDoc.bufferViews.Remove(bvid);
+				}
+				MeshBufferViews.insert(bvid);
+
+				// Remove all mesh buffers for new document.
+				auto& bid = OldDoc.bufferViews[bvid].bufferId;
+				if (NewDoc.buffers.Has(bid))
+				{
+					NewDoc.buffers.Remove(bid);
+				}
+				MeshBuffers.insert(bid);
 			}
 		}
 	}
 
-	auto MeshBufferViews = std::unordered_set<std::string>(OldDoc.bufferViews.Size());
-	for (const auto& aid : MeshAccessors)
-	{
-		MeshBufferViews.insert(OldDoc.accessors[aid].bufferViewId);
-	}
-
-	// Find all non-mesh accessors & buffer views by filtering out the mesh accessors & buffer views.
-	auto OtherAccessors = std::unordered_set<std::string>(OldDoc.accessors.Size());
-	for (auto& a : OldDoc.accessors.Elements())
-	{
-		if (MeshAccessors.count(a.id) == 0)
-		{
-			OtherAccessors.insert(a.id);
-		}
-	}
-
-	auto OtherBufferViews = std::unordered_set<std::string>(OldDoc.bufferViews.Size());
+	// Copy-pasta data to new buffer, replacing the old buffer views with new ones that contain proper byte offsets.
+	GLTFResourceReader Reader = GLTFResourceReader(StreamReader);
 	for (auto& bv : OldDoc.bufferViews.Elements())
 	{
-		if (MeshBufferViews.count(bv.id) == 0)
+		// Check if this is a mesh buffer view.
+		if (MeshBufferViews.count(bv.id) > 0)
 		{
-			OtherBufferViews.insert(bv.id);
+			// Disregard mesh buffer views.
+			continue;
 		}
-	}
 
-	// Copy-pasta data to new buffer, replacing the old buffer views with new ones that contain proper byte offsets.
-	GLTFResourceReader r = GLTFResourceReader(StreamReader);
-	for (auto& bvid : OtherBufferViews)
-	{
-		auto& obv = OldDoc.bufferViews[bvid];
+		// Grab the buffer view.
+		auto& obv = OldDoc.bufferViews[bv.id];
+
+		// Check if this buffer contains mesh data.
+		if (MeshBuffers.count(obv.bufferId) == 0)
+		{
+			// The target buffer doesn't contain mesh data, so transferral is unnecessary.
+			continue;
+		}
 
 		// Read from old bin file.
-		std::vector<uint8_t> Buffer = r.ReadBinaryData<uint8_t>(OldDoc, obv);
+		std::vector<uint8_t> Buffer = Reader.ReadBinaryData<uint8_t>(OldDoc, obv);
 		// Write to the new bin file.
 		Builder.AddBufferView(Buffer, obv.byteStride, obv.target);
 
@@ -613,75 +664,10 @@ void MeshInfo::CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& B
 		// BufferView references can exist in any number of arbitrary document locations due to extensions - thus we must ensure the original ids remain intact.
 		// Could do this a more legal way by having the id generator lambda function observe a global string variable, but this seemed more contained & less work.
 		auto& nbv = const_cast<BufferView&>(Builder.GetCurrentBufferView());
-		nbv.id = bvid;
+		nbv.id = bv.id;
 
 		// Remove the old buffer view from the new document, which will be replaced by the BufferBuilder::Output(...) call.
-		NewDoc.bufferViews.Remove(bvid);
-	}
-
-	// We've copied out all data from other buffers, BufferBuilder::Output(...) call will append newest buffer.
-	NewDoc.buffers.Clear();
-}
-
-void MeshInfo::Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc)
-{
-	// Remove references to old accessors.
-	for (const auto& m : OldDoc.meshes.Elements())
-	{
-		if (!NewDoc.meshes.Has(m.id))
-		{
-			// Generally shouldn't occur assuming NewDoc is a copy of the OldDoc.
-			continue;
-		}
-
-		// Only perform cleanup on meshes that we successfully processed.
-		auto& NewMesh = NewDoc.meshes.Get(m.id);
-		if (!IsSupported(NewMesh))
-		{
-			continue;
-		}
-
-		for (const auto& p : m.primitives)
-		{
-			FOREACH_ATTRIBUTE([&](auto i)
-			{
-				const auto& Id = p.*AccessorIds[i];
-				if (!Id.empty() && NewDoc.accessors.Has(Id))
-				{
-					NewDoc.accessors.Remove(Id);
-				}
-			});
-		}
-	}
-
-	// Iterate through the existing accessors and accumulate all referenced buffer view ids.
-	auto BufferViews = std::unordered_set<std::string>(OldDoc.bufferViews.Size());
-	for (const auto& a : NewDoc.accessors.Elements())
-	{
-		BufferViews.insert(a.bufferViewId);
-	}
-
-	// Determine which buffer views are no longer referenced & accumulate all referenced buffer ids.
-	auto Buffers = std::unordered_set<std::string>(OldDoc.buffers.Size());
-	for (const auto& bv : OldDoc.bufferViews.Elements())
-	{
-		if (BufferViews.count(bv.id) == 0)
-		{
-			NewDoc.bufferViews.Remove(bv.id);
-		}
-		else
-		{
-			Buffers.insert(bv.bufferId);
-		}
-	}
-
-	// Determine the buffers which are no longer referenced.
-	for (const auto& b : OldDoc.buffers.Elements())
-	{
-		if (Buffers.count(b.id) == 0)
-		{
-			NewDoc.buffers.Remove(b.id);
-		}
+		NewDoc.bufferViews.Remove(bv.id);
 	}
 }
 
@@ -857,17 +843,23 @@ void MeshInfo::ExportInterleaved(BufferBuilder& Builder, const PrimitiveInfo& In
 	size_t Offsets[Count];
 	Info.GetVertexInfo(Stride, Offsets, &Alignment);
 
-	Builder.AddBufferView(m_Scratch, Stride, ARRAY_BUFFER, Alignment);
-	FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i)
-	{
-		if (m_Attributes.Has(i))
-		{
-			FindMinMax(Info[i], m_Scratch.data(), Stride, Offsets[i], Info.VertexCount, m_Min, m_Max);
-			Builder.AddAccessor(Info.VertexCount, Offsets[i], Info[i].Type, Info[i].Dimension, m_Min, m_Max);
+	Builder.AddBufferView(ARRAY_BUFFER);
 
-			OutIds[i] = Builder.GetCurrentAccessor().id;
+	AccessorDesc Descs[Count] ={ 0 };
+	for (size_t i = Positions; i < Count; ++i)
+	{
+		if (m_Attributes.Has((Attribute)i))
+		{
+			Descs[i].count = Info.VertexCount;
+			Descs[i].byteOffset = Offsets[i];
+			Descs[i].accessorType = Info[i].Dimension;
+			Descs[i].componentType = Info[i].Type;
+
+			FindMinMax(Info[i], m_Scratch.data(), Stride, Offsets[i], Info.VertexCount, Descs[i].min, Descs[i].max);
 		}
-	});
+	}
+
+	Builder.AddAccessors(m_Scratch.data(), Stride, Descs, ArrayCount(Descs), OutIds);
 }
 
 void MeshInfo::RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count)

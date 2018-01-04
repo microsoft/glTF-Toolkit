@@ -17,16 +17,32 @@ namespace Microsoft::glTF::Toolkit
 		m_Scratch.resize(Data.size() * Stride);
 		Write(Info[Attr], m_Scratch.data(), Data.data(), Data.size());
 
-		Builder.AddBufferView(m_Scratch, 0, Info[Attr].Target);
+		Builder.AddBufferView(Info[Attr].Target);
+
+		std::vector<AccessorDesc> Descs;
+		Descs.resize(m_Primitives.size());
 
 		for (size_t i = 0; i < m_Primitives.size(); ++i)
 		{
 			const auto& p = m_Primitives[i];
 
-			FindMinMax(Info[Attr], m_Scratch.data(), Stride, Stride * p.Offset, p.GetCount(Attr), m_Min, m_Max);
-			Builder.AddAccessor(p.GetCount(Attr), Stride * p.Offset, Info[Attr].Type, Info[Attr].Dimension, m_Min, m_Max);
+			auto& Desc = Descs[i];
+			Desc.count = p.GetCount(Attr);
+			Desc.byteOffset = Stride * p.Offset;
+			Desc.componentType = Info[Attr].Type;
+			Desc.accessorType = Info[Attr].Dimension;
 
-			OutMesh.primitives[i].*AccessorIds[Attr] = Builder.GetCurrentAccessor().id;
+			FindMinMax(Info[Attr], m_Scratch.data(), Stride, Stride * p.Offset, p.GetCount(Attr), Desc.min, Desc.max);
+		}
+
+		std::vector<std::string> Ids;
+		Ids.resize(m_Primitives.size());
+
+		Builder.AddAccessors(m_Scratch.data(), 0, Descs.data(), Descs.size(), Ids.data());
+
+		for (size_t i = 0; i < m_Primitives.size(); ++i)
+		{
+			OutMesh.primitives[i].*AccessorIds[Attr] = Ids[i];
 		}
 	}
 
@@ -62,7 +78,7 @@ namespace Microsoft::glTF::Toolkit
 		const uint8_t* Ptr = Src + Offset;
 		for (size_t i = 0; i < Count; ++i, Ptr += Stride)
 		{
-			XMSerializer<To>::Create<From, Dimension>(*(Dest + i), (From*)Ptr);
+			XMSerializer<To>::Read<From, Dimension>(*(Dest + i), (From*)Ptr);
 		}
 	}
 
@@ -281,7 +297,5 @@ namespace Microsoft::glTF::Toolkit
 			uint32_t NewIndex = Remap(Index);
 			Local[NewIndex] = Global[Index];
 		}
-
-		//std::for_each(&Indices[Prim.Offset], &Indices[Prim.Offset + Prim.IndexCount], [&](auto& i) { Local[Remap(i)] = Global[i]; });
 	}
 }

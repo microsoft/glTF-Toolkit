@@ -134,9 +134,7 @@ namespace Microsoft::glTF::Toolkit
 		static bool IsSupported(const Mesh& m);
 
 		// Cleans up orphaned & unnecessary accessors, buffer views, and buffers caused by the mesh cleaning/formatting procedure.
-		static void Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
-
-		static void CopyOtherData(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
+		static void CopyAndCleanup(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
 
 	private:
 		inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
@@ -150,10 +148,10 @@ namespace Microsoft::glTF::Toolkit
 
 		// Exports the mesh data to a BufferBuilder and Mesh in a specific format.
 		void ExportCSI(BufferBuilder& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, indexed
-		void ExportCS(BufferBuilder& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, non-indexed
-		void ExportCI(BufferBuilder& Builder, Mesh& OutMesh) const;	// Combine primitives, interleave attributes
-		void ExportSS(BufferBuilder& Builder, Mesh& OutMesh) const;	// Separate primitives, separate attributes
-		void ExportSI(BufferBuilder& Builder, Mesh& OutMesh) const;	// Separate primitives, interleave attributes
+		void ExportCS(BufferBuilder& Builder, Mesh& OutMesh) const;		// Combine primitives, separate attributes, non-indexed
+		void ExportCI(BufferBuilder& Builder, Mesh& OutMesh) const;		// Combine primitives, interleave attributes
+		void ExportSS(BufferBuilder& Builder, Mesh& OutMesh) const;		// Separate primitives, separate attributes
+		void ExportSI(BufferBuilder& Builder, Mesh& OutMesh) const;		// Separate primitives, interleave attributes
 
 		// Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
 		template <typename T>

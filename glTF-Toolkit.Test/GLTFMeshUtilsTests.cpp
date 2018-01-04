@@ -26,12 +26,14 @@ namespace Microsoft::glTF::Toolkit::Test
 	using namespace std::experimental::filesystem;
 
 	const char* s_TestFiles[] ={
+		"Resources\\gltf\\ReciprocatingSaw\\ReciprocatingSaw.gltf",
+		"Resources\\gltf\\BoxAnimated\\BoxAnimated.gltf",
 		"Resources\\gltf\\03_all_animations\\03_all_animations.gltf",
 		"Resources\\gltf\\03_skinned_cylinder\\03_skinned_cylinder.gltf",
 		"Resources\\gltf\\WaterBottle\\WaterBottle.gltf",
 		"Resources\\gltf\\Primitives\\Primitives.gltf"
 	};
-	const size_t s_TestFileIdx = 0;
+	const size_t s_TestFileIdx = 1;
 
 	TEST_CLASS(GLTFMeshUtilsTest)
 	{
@@ -39,7 +41,7 @@ namespace Microsoft::glTF::Toolkit::Test
 		{
 			TestUtils::LoadAndExecuteGLTFTest(GLTFRelPath, [&](const GLTFDocument& Doc, const std::string& Path)
 			{
-				std::regex DataUriRegex = std::regex(R"(^data:application/.+;base\d{1,2},)");
+				std::regex DataUriRegex = std::regex(R"(^data:(?:application|image)/.+;base\d{1,2},)");
 
 				std::string OutputName = TestUtils::GetFilenameExt(Path.c_str());
 				std::string BasePath = TestUtils::GetBasePath(Path.c_str());
@@ -51,18 +53,26 @@ namespace Microsoft::glTF::Toolkit::Test
 				create_directories(OutputDirectory);
 				for (const auto& p : OutputDoc.buffers.Elements())
 				{
-					std::string FilePath = BasePath + p.uri;
+					if (std::regex_search(p.uri, DataUriRegex))
+					{
+						continue;
+					}
 
-					if (!std::regex_match(p.uri, DataUriRegex) && exists(FilePath))
+					std::string FilePath = BasePath + p.uri;
+					if (exists(FilePath))
 					{
 						copy_file(FilePath, OutputDirectory + p.uri, copy_options::overwrite_existing);
 					}
 				}
 				for (const auto& p : OutputDoc.images.Elements())
 				{
-					std::string FilePath = BasePath + p.uri;
+					if (std::regex_search(p.uri, DataUriRegex))
+					{
+						continue;
+					}
 
-					if (!std::regex_match(p.uri, DataUriRegex) && exists(FilePath))
+					std::string FilePath = BasePath + p.uri;
+					if (exists(FilePath))
 					{
 						copy_file(FilePath, OutputDirectory + p.uri, copy_options::overwrite_existing);
 					}
