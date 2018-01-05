@@ -49,9 +49,6 @@
     <None Include="Resources\gltf\WaterBottle_ORM\WaterBottle_WindowsMR.gltf">
       <Filter>Resources\WaterBottle_ORM</Filter>
     </None>
-    <None Include="Resources\gltf\TextureTest\TextureTest.gltf">
-      <Filter>Resources\TextureTest</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\gltf\WaterBottle\WaterBottle_baseColor.png">
@@ -110,9 +107,6 @@
     </Image>
     <Image Include="Resources\gltf\WaterBottle_ORM\WaterBottle_specularGlossiness.png">
       <Filter>Resources\WaterBottle_ORM</Filter>
-    </Image>
-    <Image Include="Resources\gltf\TextureTest\0.png">
-      <Filter>Resources\TextureTest</Filter>
     </Image>
   </ItemGroup>
   <ItemGroup>
