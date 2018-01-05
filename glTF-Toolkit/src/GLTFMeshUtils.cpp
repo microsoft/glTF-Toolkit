@@ -19,91 +19,91 @@ using namespace std::experimental::filesystem;
 
 namespace
 {
-	class BasicStreamWriter : public IStreamWriter
-	{
-	public:
-		BasicStreamWriter(const std::string& OutputDirectory)
-			: m_OutputDir(OutputDirectory)
-		{ }
+    class BasicStreamWriter : public IStreamWriter
+    {
+    public:
+        BasicStreamWriter(const std::string& OutputDirectory)
+            : m_OutputDir(OutputDirectory)
+        { }
 
-		std::shared_ptr<std::ostream> GetOutputStream(const std::string& Filename) const override
-		{
-			return std::make_shared<std::ofstream>(m_OutputDir + Filename, std::ios::binary);
-		}
+        std::shared_ptr<std::ostream> GetOutputStream(const std::string& Filename) const override
+        {
+            return std::make_shared<std::ofstream>(m_OutputDir + Filename, std::ios::binary);
+        }
 
-	private:
-		std::string m_OutputDir;
-	};
+    private:
+        std::string m_OutputDir;
+    };
 }
 
 //-----------------------------------------
 // Main Entrypoint
 
-GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& Filename, const GLTFDocument& Doc, const IStreamReader& StreamReader, const MeshOptions& Options, const std::string& OutputDirectory)
+GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& filename, const GLTFDocument& doc, const IStreamReader& reader, const MeshOptions& options, const std::string& outputDirectory)
 {
-	// Make sure there's meshes to optimize before performing a bunch of work. 
-	if (Doc.meshes.Size() == 0 || Doc.buffers.Size() == 0)
-	{
-		return Doc;
-	}
+    // Make sure there's meshes to optimize before performing a bunch of work. 
+    if (doc.meshes.Size() == 0 || doc.buffers.Size() == 0)
+    {
+        return doc;
+    }
 
-	// Make sure at least one mesh can be operated on.
-	if (!std::any_of(Doc.meshes.Elements().begin(), Doc.meshes.Elements().end(), [](const auto& x) { return MeshInfo::IsSupported(x); }))
-	{
-		return Doc;
-	}
+    // Make sure at least one mesh can be operated on.
+    if (!std::any_of(doc.meshes.Elements().begin(), doc.meshes.Elements().end(), [](const auto& x) { return MeshInfo::IsSupported(x); }))
+    {
+        return doc;
+    }
 
-	// Generate a buffer name, based on the old buffer .bin filename, in the output directory.
-	std::string BufferName = Filename;
-	size_t Pos = BufferName.find_last_of('.');
-	if (Pos == std::string::npos)
-	{
-		return Doc;
-	}
-	BufferName.resize(Pos);
+    // Generate a buffer name, based on the old buffer .bin filename, in the output directory.
+    std::string bufferName = filename;
+    size_t Pos = bufferName.find_last_of('.');
+    if (Pos == std::string::npos)
+    {
+        return doc;
+    }
+    bufferName.resize(Pos);
 
-	// Create output directory for file output.
-	create_directories(OutputDirectory);
+    // Create output directory for file output.
+    create_directories(outputDirectory);
 
-	// Spin up a document copy to modify.
-	GLTFDocument OutputDoc(Doc);
+    // Spin up a document copy to modify.
+    GLTFDocument outputDoc(doc);
 
-	auto StreamWriter = std::make_unique<BasicStreamWriter>(OutputDirectory);
-	auto ResourceWriter = std::make_unique<GLTFResourceWriter2>(std::move(StreamWriter), BufferName);
+    auto streamWriter = std::make_unique<BasicStreamWriter>(outputDirectory);
+    auto resourceWriter = std::make_unique<GLTFResourceWriter2>(std::move(streamWriter), bufferName);
 
-	auto GenBufferId = [&](const BufferBuilder& b) { return std::to_string(OutputDoc.buffers.Size() + b.GetBufferCount()); };
-	auto GenBufferViewId = [&](const BufferBuilder& b) { return std::to_string(OutputDoc.bufferViews.Size() + b.GetBufferViewCount()); };
-	auto GenAccessorId = [&](const BufferBuilder& b) { return std::to_string(OutputDoc.accessors.Size() + b.GetAccessorCount()); };
+    auto genBufferId = [&](const BufferBuilder& b) { return std::to_string(outputDoc.buffers.Size() + b.GetBufferCount()); };
+    auto genBufferViewId = [&](const BufferBuilder& b) { return std::to_string(outputDoc.bufferViews.Size() + b.GetBufferViewCount()); };
+    auto genAccessorId = [&](const BufferBuilder& b) { return std::to_string(outputDoc.accessors.Size() + b.GetAccessorCount()); };
 
-	auto Builder = BufferBuilder(std::move(ResourceWriter), GenBufferId, GenBufferViewId, GenAccessorId);
-	Builder.AddBuffer();
+    auto builder = BufferBuilder(std::move(resourceWriter), genBufferId, genBufferViewId, genAccessorId);
+    builder.AddBuffer();
 
-	MeshInfo MeshData;
-	for (size_t i = 0; i < OutputDoc.meshes.Size(); ++i)
-	{
-		Mesh m = OutputDoc.meshes[i];
+    MeshInfo meshData;
+    for (size_t i = 0; i < outputDoc.meshes.Size(); ++i)
+    {
+        Mesh m = outputDoc.meshes[i];
 
-		if (!MeshData.Initialize(StreamReader, OutputDoc, m))
-		{
-			continue;
-		}
+        if (!meshData.Initialize(reader, outputDoc, m))
+        {
+            continue;
+        }
 
-		if (Options.Optimize)
-		{
-			MeshData.Optimize();
-		}
+        if (options.Optimize)
+        {
+            meshData.Optimize();
+        }
 
-		if (Options.GenerateTangentSpace)
-		{
-			MeshData.GenerateAttributes();
-		}
+        if (options.GenerateTangentSpace)
+        {
+            meshData.GenerateAttributes();
+        }
 
-		MeshData.Export(Options, Builder, m);
-		OutputDoc.meshes.Replace(m);
-	}
-	
-	MeshInfo::CopyAndCleanup(StreamReader, Builder, Doc, OutputDoc);
-	Builder.Output(OutputDoc);
+        meshData.Export(options, builder, m);
+        outputDoc.meshes.Replace(m);
+    }
+    
+    MeshInfo::CopyAndCleanup(reader, builder, doc, outputDoc);
+    builder.Output(outputDoc);
 
-	return OutputDoc;
+    return outputDoc;
 }

@@ -50,12 +50,12 @@ namespace Microsoft::glTF
 
 			static MeshOptions Defaults(void)
 			{
-				MeshOptions Options;
-				Options.Optimize = true;
-				Options.GenerateTangentSpace = true;
-				Options.PrimitiveFormat = PrimitiveFormat::Separate;
-				Options.AttributeFormat = AttributeFormat::Interleave;
-				return Options;
+				MeshOptions options;
+				options.Optimize = true;
+				options.GenerateTangentSpace = false;
+				options.PrimitiveFormat = PrimitiveFormat::Separate;
+				options.AttributeFormat = AttributeFormat::Interleave;
+				return options;
 			}
 		};
 
@@ -66,7 +66,7 @@ namespace Microsoft::glTF
 		class GLTFMeshUtils
 		{
 		public:
-			static GLTFDocument ProcessMeshes(const std::string& GLTFPath, const GLTFDocument& Doc, const IStreamReader& StreamReader, const MeshOptions& Options, const std::string& OutputDirectory);
+			static GLTFDocument ProcessMeshes(const std::string& gLTFPath, const GLTFDocument& doc, const IStreamReader& reader, const MeshOptions& options, const std::string& outputDirectory);
 		};
 	}
 }

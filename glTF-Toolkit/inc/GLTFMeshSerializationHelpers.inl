@@ -3,283 +3,282 @@
 
 namespace Microsoft::glTF::Toolkit
 {
-	template <typename T>
-	void MeshInfo::ExportSharedView(BufferBuilder& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const
-	{
-		if (!m_Attributes.Has(Attr))
-		{
-			return;
-		}
+    template <typename T>
+    void MeshInfo::ExportSharedView(BufferBuilder& builder, const PrimitiveInfo& info, Attribute attr, std::vector<T>(MeshInfo::*attributePtr), Mesh& outMesh) const
+    {
+        if (!m_Attributes.Has(attr))
+        {
+            return;
+        }
 
-		const auto& Data = this->*AttributePtr;
-		const auto Stride = Info[Attr].GetElementSize();
+        const auto& data = this->*attributePtr;
+        const auto stride = info[attr].GetElementSize();
 
-		m_Scratch.resize(Data.size() * Stride);
-		Write(Info[Attr], m_Scratch.data(), Data.data(), Data.size());
+        m_Scratch.resize(data.size() * stride);
+        Write(info[attr], m_Scratch.data(), data.data(), data.size());
 
-		Builder.AddBufferView(Info[Attr].Target);
+        builder.AddBufferView(info[attr].Target);
 
-		std::vector<AccessorDesc> Descs;
-		Descs.resize(m_Primitives.size());
+        std::vector<AccessorDesc> descs;
+        descs.resize(m_Primitives.size());
 
-		for (size_t i = 0; i < m_Primitives.size(); ++i)
-		{
-			const auto& p = m_Primitives[i];
+        for (size_t i = 0; i < m_Primitives.size(); ++i)
+        {
+            const auto& p = m_Primitives[i];
 
-			auto& Desc = Descs[i];
-			Desc.count = p.GetCount(Attr);
-			Desc.byteOffset = Stride * p.Offset;
-			Desc.componentType = Info[Attr].Type;
-			Desc.accessorType = Info[Attr].Dimension;
+            auto& Desc = descs[i];
+            Desc.count = p.GetCount(attr);
+            Desc.byteOffset = stride * p.Offset;
+            Desc.componentType = info[attr].Type;
+            Desc.accessorType = info[attr].Dimension;
+            FindMinMax(info[attr], m_Scratch.data(), stride, stride * p.Offset, p.GetCount(attr), Desc.minValues, Desc.maxValues);
+        }
 
-			FindMinMax(Info[Attr], m_Scratch.data(), Stride, Stride * p.Offset, p.GetCount(Attr), Desc.minValues, Desc.maxValues);
-		}
+        std::vector<std::string> ids;
+        ids.resize(m_Primitives.size());
 
-		std::vector<std::string> Ids;
-		Ids.resize(m_Primitives.size());
+        builder.AddAccessors(m_Scratch.data(), 0, descs.data(), descs.size(), ids.data());
 
-		Builder.AddAccessors(m_Scratch.data(), 0, Descs.data(), Descs.size(), Ids.data());
+        for (size_t i = 0; i < m_Primitives.size(); ++i)
+        {
+            outMesh.primitives[i].*AccessorIds[attr] = ids[i];
+        }
+    }
 
-		for (size_t i = 0; i < m_Primitives.size(); ++i)
-		{
-			OutMesh.primitives[i].*AccessorIds[Attr] = Ids[i];
-		}
-	}
+    template <typename T>
+    std::string MeshInfo::ExportAccessor(BufferBuilder& builder, const PrimitiveInfo& p, Attribute attr, std::vector<T>(MeshInfo::*attributePtr)) const
+    {
+        if (!m_Attributes.Has(attr))
+        {
+            return std::string();
+        }
 
-	template <typename T>
-	std::string MeshInfo::ExportAccessor(BufferBuilder& Builder, const PrimitiveInfo& p, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const
-	{
-		if (!m_Attributes.Has(Attr))
-		{
-			return std::string();
-		}
+        const auto& Data = this->*attributePtr;
+        const auto& a = p[attr];
 
-		const auto& Data = this->*AttributePtr;
-		const auto& a = p[Attr];
+        const size_t dimension = Accessor::GetTypeCount(a.Dimension);
+        const size_t componentSize = Accessor::GetComponentTypeSize(a.Type);
+        const size_t byteStride = dimension * componentSize;
 
-		const size_t Dimension = Accessor::GetTypeCount(a.Dimension);
-		const size_t ComponentSize = Accessor::GetComponentTypeSize(a.Type);
-		const size_t ByteStride = Dimension * ComponentSize;
+        m_Scratch.resize(Data.size() * byteStride);
 
-		m_Scratch.resize(Data.size() * ByteStride);
+        Write(a, m_Scratch.data(), byteStride, 0, Data.data(), Data.size());
+        FindMinMax(a, m_Scratch.data(), byteStride, 0, Data.size(), m_Min, m_Max);
 
-		Write(a, m_Scratch.data(), ByteStride, 0, Data.data(), Data.size());
-		FindMinMax(a, m_Scratch.data(), ByteStride, 0, Data.size(), m_Min, m_Max);
-
-		Builder.AddBufferView(a.Target);
-		Builder.AddAccessor(m_Scratch.data(), { a.Dimension, a.Type, p.GetCount(Attr), 0, false, m_Min, m_Max });
-		return Builder.GetCurrentAccessor().id;
-	}
-
-
-	template <typename From, typename To, size_t Dimension>
-	void Read(To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count)
-	{
-		const uint8_t* Ptr = Src + Offset;
-		for (size_t i = 0; i < Count; ++i, Ptr += Stride)
-		{
-			XMSerializer<To>::Read<From, Dimension>(*(Dest + i), (From*)Ptr);
-		}
-	}
-
-	template <typename From, typename To>
-	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count)
-	{
-		switch (Accessor.Dimension)
-		{
-		case TYPE_SCALAR:	Read<From, To, 1>(Dest, Src, Stride, Offset, Count); break;
-		case TYPE_VEC2:		Read<From, To, 2>(Dest, Src, Stride, Offset, Count); break;
-		case TYPE_VEC3:		Read<From, To, 3>(Dest, Src, Stride, Offset, Count); break;
-		case TYPE_VEC4:		Read<From, To, 4>(Dest, Src, Stride, Offset, Count); break;
-		}
-	}
-
-	template <typename To>
-	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count)
-	{
-		if (Offset == -1)
-		{
-			return;
-		}
-
-		switch (Accessor.Type)
-		{
-		case COMPONENT_UNSIGNED_BYTE:	Read<uint8_t, To>(Accessor, Dest, Src, Stride, Offset, Count); break;
-		case COMPONENT_UNSIGNED_SHORT:	Read<uint16_t, To>(Accessor, Dest, Src, Stride, Offset, Count); break;
-		case COMPONENT_UNSIGNED_INT:	Read<uint32_t, To>(Accessor, Dest, Src, Stride, Offset, Count); break;
-		case COMPONENT_FLOAT:			Read<float, To>(Accessor, Dest, Src, Stride, Offset, Count); break;
-		}
-	}
-
-	template <typename From, typename To>
-	void Read(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Accessor& Accessor, std::vector<To>& Output)
-	{
-		GLTFResourceReader r = GLTFResourceReader(StreamReader);
-		auto Buffer = r.ReadBinaryData<From>(Doc, Accessor);
-
-		size_t CompSize = Accessor::GetComponentTypeSize(Accessor.componentType);
-		size_t CompCount = Accessor::GetTypeCount(Accessor.type);
-
-		size_t Count = Buffer.size() / CompCount;
-		size_t OldSize = Output.size();
-		Output.resize(OldSize + Count);
-
-		switch (Accessor.type)
-		{
-		case TYPE_SCALAR:	Read<From, To, 1>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Count); break;
-		case TYPE_VEC2:		Read<From, To, 2>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Count); break;
-		case TYPE_VEC3:		Read<From, To, 3>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Count); break;
-		case TYPE_VEC4:		Read<From, To, 4>(Output.data() + OldSize, (uint8_t*)Buffer.data(), CompSize * CompCount, 0, Count); break;
-		}
-	}
-
-	template <typename To>
-	void Read(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Accessor& Accessor, std::vector<To>& Output)
-	{
-		switch (Accessor.componentType)
-		{
-		case COMPONENT_UNSIGNED_BYTE:	Read<uint8_t, To>(StreamReader, Doc, Accessor, Output); break;
-		case COMPONENT_UNSIGNED_SHORT:	Read<uint16_t, To>(StreamReader, Doc, Accessor, Output); break;
-		case COMPONENT_UNSIGNED_INT:	Read<uint32_t, To>(StreamReader, Doc, Accessor, Output); break;
-		case COMPONENT_FLOAT:			Read<float, To>(StreamReader, Doc, Accessor, Output); break;
-		}
-	}
-
-	template <typename To>
-	bool ReadAccessor(const IStreamReader& StreamReader, const GLTFDocument& Doc, const std::string& AccessorId, std::vector<To>& Output, AccessorInfo& OutInfo)
-	{
-		if (AccessorId.empty())
-		{
-			return false;
-		}
-
-		auto& Accessor = Doc.accessors[AccessorId];
-		auto& BufferView = Doc.bufferViews[Accessor.bufferViewId];
-
-		// Cache off the accessor metadata and read in the data into output buffer.
-		OutInfo.Type		= Accessor.componentType;
-		OutInfo.Dimension	= Accessor.type;
-		OutInfo.Target		= BufferView.target;
-
-		Read(StreamReader, Doc, Accessor, Output);
-
-		return true;
-	}
+        builder.AddBufferView(a.Target);
+        builder.AddAccessor(m_Scratch.data(), { a.Dimension, a.Type, p.GetCount(attr), 0, false, m_Min, m_Max });
+        return builder.GetCurrentAccessor().id;
+    }
 
 
-	template <typename To, typename From, size_t Dimension>
-	void Write(uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count)
-	{
-		uint8_t* Ptr = Dest + Offset;
-		for (size_t i = 0; i < Count; ++i, Ptr += Stride)
-		{
-			XMSerializer<From>::Write<To, Dimension>((To*)Ptr, Src[i]);
-		}
-	}
+    template <typename From, typename To, size_t Dimension>
+    void Read(To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count)
+    {
+        const uint8_t* ptr = src + offset;
+        for (size_t i = 0; i < count; ++i, ptr += stride)
+        {
+            XMSerializer<To>::Read<From, Dimension>(*(dest + i), (From*)ptr);
+        }
+    }
 
-	template <typename To, typename From>
-	void Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count)
-	{
-		switch (Info.Dimension)
-		{
-		case TYPE_SCALAR:	Write<To, From, 1>(Dest, Stride, Offset, Src, Count); break;
-		case TYPE_VEC2:		Write<To, From, 2>(Dest, Stride, Offset, Src, Count); break;
-		case TYPE_VEC3:		Write<To, From, 3>(Dest, Stride, Offset, Src, Count); break;
-		case TYPE_VEC4:		Write<To, From, 4>(Dest, Stride, Offset, Src, Count); break;
-		}
-	}
+    template <typename From, typename To>
+    void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count)
+    {
+        switch (accessor.Dimension)
+        {
+        case TYPE_SCALAR:	Read<From, To, 1>(dest, src, stride, offset, count); break;
+        case TYPE_VEC2:		Read<From, To, 2>(dest, src, stride, offset, count); break;
+        case TYPE_VEC3:		Read<From, To, 3>(dest, src, stride, offset, count); break;
+        case TYPE_VEC4:		Read<From, To, 4>(dest, src, stride, offset, count); break;
+        }
+    }
 
-	template <typename From>
-	size_t Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count)
-	{
-		switch (Info.Type)
-		{
-		case COMPONENT_UNSIGNED_BYTE:	Write<uint8_t, From>(Info, Dest, Stride, Offset, Src, Count); break;
-		case COMPONENT_UNSIGNED_SHORT:	Write<uint16_t, From>(Info, Dest, Stride, Offset, Src, Count); break;
-		case COMPONENT_UNSIGNED_INT:	Write<uint16_t, From>(Info, Dest, Stride, Offset, Src, Count); break;
-		case COMPONENT_FLOAT:			Write<float, From>(Info, Dest, Stride, Offset, Src, Count); break;
-		}
+    template <typename To>
+    void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count)
+    {
+        if (offset == -1)
+        {
+            return;
+        }
 
-		return Stride * Count;
-	}
+        switch (accessor.Type)
+        {
+        case COMPONENT_UNSIGNED_BYTE:	Read<uint8_t, To>(accessor, dest, src, stride, offset, count); break;
+        case COMPONENT_UNSIGNED_SHORT:	Read<uint16_t, To>(accessor, dest, src, stride, offset, count); break;
+        case COMPONENT_UNSIGNED_INT:	Read<uint32_t, To>(accessor, dest, src, stride, offset, count); break;
+        case COMPONENT_FLOAT:			Read<float, To>(accessor, dest, src, stride, offset, count); break;
+        }
+    }
 
-	template <typename From>
-	size_t Write(const AccessorInfo& Info, uint8_t* Dest, const From* Src, size_t Count)
-	{
-		if (Count == 0)
-		{
-			return 0;
-		}
+    template <typename From, typename To>
+    void Read(const IStreamReader& reader, const GLTFDocument& doc, const Accessor& accessor, std::vector<To>& output)
+    {
+        GLTFResourceReader r = GLTFResourceReader(reader);
+        auto buffer = r.ReadBinaryData<From>(doc, accessor);
 
-		const size_t Stride = Accessor::GetComponentTypeSize(Info.Type) * Accessor::GetTypeCount(Info.Dimension);
-		return Write(Info, Dest, Stride, 0, Src, Count);
-	}
+        size_t compSize = Accessor::GetComponentTypeSize(accessor.componentType);
+        size_t compCount = Accessor::GetTypeCount(accessor.type);
 
+        size_t count = buffer.size() / compCount;
+        size_t oldSize = output.size();
+        output.resize(oldSize + count);
 
-	template <typename T, size_t Dimension>
-	void FindMinMax(const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
-	{
-		// Size to the correct dimension of the current accessor.
-		Min.resize(Dimension);
-		Max.resize(Dimension);
+        switch (accessor.type)
+        {
+        case TYPE_SCALAR:	Read<From, To, 1>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
+        case TYPE_VEC2:		Read<From, To, 2>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
+        case TYPE_VEC3:		Read<From, To, 3>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
+        case TYPE_VEC4:		Read<From, To, 4>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
+        }
+    }
 
-		// Fill with default extreme values.
-		std::fill(Min.begin(), Min.end(), FLT_MAX);
-		std::fill(Max.begin(), Max.end(), -FLT_MAX);
+    template <typename To>
+    void Read(const IStreamReader& reader, const GLTFDocument& doc, const Accessor& accessor, std::vector<To>& output)
+    {
+        switch (accessor.componentType)
+        {
+        case COMPONENT_UNSIGNED_BYTE:	Read<uint8_t, To>(reader, doc, accessor, output); break;
+        case COMPONENT_UNSIGNED_SHORT:	Read<uint16_t, To>(reader, doc, accessor, output); break;
+        case COMPONENT_UNSIGNED_INT:	Read<uint32_t, To>(reader, doc, accessor, output); break;
+        case COMPONENT_FLOAT:			Read<float, To>(reader, doc, accessor, output); break;
+        }
+    }
 
-		// Iterate over offset strided data, finding min and maxs.
-		const uint8_t* Ptr = Src + Offset;
-		for (size_t i = 0; i < Count; ++i)
-		{
-			for (size_t j = 0; j < Dimension; ++j)
-			{
-				T* pComp = (T*)(Ptr + i * Stride) + j;
+    template <typename To>
+    bool ReadAccessor(const IStreamReader& reader, const GLTFDocument& doc, const std::string& accessorId, std::vector<To>& output, AccessorInfo& outInfo)
+    {
+        if (accessorId.empty())
+        {
+            return false;
+        }
 
-				Min[j] = std::min(Min[j], (float)*pComp);
-				Max[j] = std::max(Max[j], (float)*pComp);
-			}
-		}
-	}
+        auto& accessor = doc.accessors[accessorId];
+        auto& bufferView = doc.bufferViews[accessor.bufferViewId];
 
-	template <typename T>
-	void FindMinMax(const AccessorInfo& Info, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
-	{
-		switch (Info.Dimension)
-		{
-		case TYPE_SCALAR:	FindMinMax<T, 1>(Src, Stride, Offset, Count, Min, Max); break;
-		case TYPE_VEC2:		FindMinMax<T, 2>(Src, Stride, Offset, Count, Min, Max); break;
-		case TYPE_VEC3:		FindMinMax<T, 3>(Src, Stride, Offset, Count, Min, Max); break;
-		case TYPE_VEC4:		FindMinMax<T, 4>(Src, Stride, Offset, Count, Min, Max); break;
-		}
-	}
+        // Cache off the accessor metadata and read in the data into output buffer.
+        outInfo.Type		= accessor.componentType;
+        outInfo.Dimension	= accessor.type;
+        outInfo.Target		= bufferView.target;
 
-	template <typename T>
-	void FindMinMax(const AccessorInfo& Info, const T* Src, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
-	{
-		FindMinMax<T>(Info, (uint8_t*)Src, sizeof(T), 0, Count, Min, Max);
-	}
+        Read(reader, doc, accessor, output);
 
-	template <typename T>
-	void FindMinMax(const AccessorInfo& Info, const std::vector<T>& Src, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max)
-	{
-		FindMinMax<T>(Info, (uint8_t*)Src, sizeof(T), sizeof(T) * Offset, Count, Min, Max);
-	}
+        return true;
+    }
 
 
-	template <typename T, typename RemapFunc>
-	void LocalizeAttribute(const PrimitiveInfo& Prim, const RemapFunc& Remap, const std::vector<uint32_t>& Indices, const std::vector<T>& Global, std::vector<T>& Local)
-	{
-		if (Global.size() == 0)
-		{
-			return;
-		}
+    template <typename To, typename From, size_t Dimension>
+    void Write(uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count)
+    {
+        uint8_t* ptr = dest + offset;
+        for (size_t i = 0; i < count; ++i, ptr += stride)
+        {
+            XMSerializer<From>::Write<To, Dimension>((To*)ptr, src[i]);
+        }
+    }
 
-		Local.resize(Prim.VertexCount);
-		for (size_t i = 0; i < Prim.IndexCount; ++i)
-		{
-			uint32_t Index = Indices[Prim.Offset + i];
-			uint32_t NewIndex = Remap(Index);
-			Local[NewIndex] = Global[Index];
-		}
-	}
+    template <typename To, typename From>
+    void Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count)
+    {
+        switch (info.Dimension)
+        {
+        case TYPE_SCALAR:	Write<To, From, 1>(dest, stride, offset, src, count); break;
+        case TYPE_VEC2:		Write<To, From, 2>(dest, stride, offset, src, count); break;
+        case TYPE_VEC3:		Write<To, From, 3>(dest, stride, offset, src, count); break;
+        case TYPE_VEC4:		Write<To, From, 4>(dest, stride, offset, src, count); break;
+        }
+    }
+
+    template <typename From>
+    size_t Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count)
+    {
+        switch (info.Type)
+        {
+        case COMPONENT_UNSIGNED_BYTE:	Write<uint8_t, From>(info, dest, stride, offset, src, count); break;
+        case COMPONENT_UNSIGNED_SHORT:	Write<uint16_t, From>(info, dest, stride, offset, src, count); break;
+        case COMPONENT_UNSIGNED_INT:	Write<uint16_t, From>(info, dest, stride, offset, src, count); break;
+        case COMPONENT_FLOAT:			Write<float, From>(info, dest, stride, offset, src, count); break;
+        }
+
+        return stride * count;
+    }
+
+    template <typename From>
+    size_t Write(const AccessorInfo& info, uint8_t* dest, const From* src, size_t count)
+    {
+        if (count == 0)
+        {
+            return 0;
+        }
+
+        const size_t stride = Accessor::GetComponentTypeSize(info.Type) * Accessor::GetTypeCount(info.Dimension);
+        return Write(info, dest, stride, 0, src, count);
+    }
+
+
+    template <typename T, size_t Dimension>
+    void FindMinMax(const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max)
+    {
+        // Size to the correct dimension of the current accessor.
+        min.resize(Dimension);
+        max.resize(Dimension);
+
+        // Fill with default extreme values.
+        std::fill(min.begin(), min.end(), FLT_MAX);
+        std::fill(max.begin(), max.end(), -FLT_MAX);
+
+        // Iterate over offset strided data, finding min and maxs.
+        const uint8_t* Ptr = src + offset;
+        for (size_t i = 0; i < count; ++i)
+        {
+            for (size_t j = 0; j < Dimension; ++j)
+            {
+                T* pComp = (T*)(Ptr + i * stride) + j;
+
+                min[j] = std::min(min[j], (float)*pComp);
+                max[j] = std::max(max[j], (float)*pComp);
+            }
+        }
+    }
+
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max)
+    {
+        switch (info.Dimension)
+        {
+        case TYPE_SCALAR:	FindMinMax<T, 1>(src, stride, offset, count, min, max); break;
+        case TYPE_VEC2:		FindMinMax<T, 2>(src, stride, offset, count, min, max); break;
+        case TYPE_VEC3:		FindMinMax<T, 3>(src, stride, offset, count, min, max); break;
+        case TYPE_VEC4:		FindMinMax<T, 4>(src, stride, offset, count, min, max); break;
+        }
+    }
+
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const T* src, size_t count, std::vector<float>& min, std::vector<float>& max)
+    {
+        FindMinMax<T>(info, (uint8_t*)src, sizeof(T), 0, count, min, max);
+    }
+
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const std::vector<T>& src, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max)
+    {
+        FindMinMax<T>(info, (uint8_t*)src, sizeof(T), sizeof(T) * offset, count, min, max);
+    }
+
+
+    template <typename T, typename RemapFunc>
+    void LocalizeAttribute(const PrimitiveInfo& prim, const RemapFunc& remap, const std::vector<uint32_t>& indices, const std::vector<T>& global, std::vector<T>& local)
+    {
+        if (global.size() == 0)
+        {
+            return;
+        }
+
+        local.resize(prim.VertexCount);
+        for (size_t i = 0; i < prim.IndexCount; ++i)
+        {
+            uint32_t index = indices[prim.Offset + i];
+            uint32_t newIndex = remap(index);
+            local[newIndex] = global[index];
+        }
+    }
 }

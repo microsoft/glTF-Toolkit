@@ -23,141 +23,141 @@ using namespace Microsoft::glTF::Toolkit;
 
 namespace Microsoft::glTF::Toolkit::Test
 {
-	using namespace std::experimental::filesystem;
+    using namespace std::experimental::filesystem;
 
-	const char* s_TestFiles[] ={
-		"Resources\\gltf\\2CylinderEngine\\2CylinderEngine.gltf",
-		"Resources\\gltf\\BoxAnimated\\BoxAnimated.gltf",
-		"Resources\\gltf\\03_all_animations\\03_all_animations.gltf",
-		"Resources\\gltf\\03_skinned_cylinder\\03_skinned_cylinder.gltf",
-		"Resources\\gltf\\GearboxAssy\\GearboxAssy.gltf",
-		"Resources\\gltf\\Primitives\\Primitives.gltf"
-	};
-	const size_t s_TestFileIdx = 5;
+    const char* s_TestFiles[] ={
+        "Resources\\gltf\\2CylinderEngine\\2CylinderEngine.gltf",
+        "Resources\\gltf\\BoxAnimated\\BoxAnimated.gltf",
+        "Resources\\gltf\\03_all_animations\\03_all_animations.gltf",
+        "Resources\\gltf\\03_skinned_cylinder\\03_skinned_cylinder.gltf",
+        "Resources\\gltf\\GearboxAssy\\GearboxAssy.gltf",
+        "Resources\\gltf\\Primitives\\Primitives.gltf"
+    };
+    const size_t s_TestFileIdx = 5;
 
-	TEST_CLASS(GLTFMeshUtilsTest)
-	{
-		void ExecuteTest(const char* GLTFRelPath, const MeshOptions& Options)
-		{
-			TestUtils::LoadAndExecuteGLTFTest(GLTFRelPath, [&](const GLTFDocument& Doc, const std::string& Path)
-			{
-				std::regex DataUriRegex = std::regex(R"(^data:(?:application|image)/.+;base\d{1,2},)");
+    TEST_CLASS(GLTFMeshUtilsTest)
+    {
+        void ExecuteTest(const char* GLTFRelPath, const MeshOptions options)
+        {
+            TestUtils::LoadAndExecuteGLTFTest(GLTFRelPath, [&](const GLTFDocument& doc, const std::string& path)
+            {
+                std::regex dataUriRegex = std::regex(R"(^data:(?:application|image)/.+;base\d{1,2},)");
 
-				std::string OutputName = TestUtils::GetFilenameExt(Path.c_str());
-				std::string BasePath = TestUtils::GetBasePath(Path.c_str());
-				std::string OutputDirectory = BasePath + "..\\" + TestUtils::GetFilename(OutputName) + "_OpMesh\\";
+                std::string outputName = TestUtils::GetFilenameExt(path.c_str());
+                std::string basePath = TestUtils::GetBasePath(path.c_str());
+                std::string outputDirectory = basePath + "..\\" + TestUtils::GetFilename(outputName) + "_OpMesh\\";
 
-				auto OutputDoc = GLTFMeshUtils::ProcessMeshes(OutputName, Doc, TestStreamReader(Path), Options, OutputDirectory);
-				
-				// Create output directory and copy files referenced by the output document.
-				create_directories(OutputDirectory);
-				for (const auto& p : OutputDoc.buffers.Elements())
-				{
-					if (std::regex_search(p.uri, DataUriRegex))
-					{
-						continue;
-					}
+                auto outputDoc = GLTFMeshUtils::ProcessMeshes(outputName, doc, TestStreamReader(path), options, outputDirectory);
+                
+                // Create output directory and copy files referenced by the output document.
+                create_directories(outputDirectory);
+                for (const auto& p : outputDoc.buffers.Elements())
+                {
+                    if (std::regex_search(p.uri, dataUriRegex))
+                    {
+                        continue;
+                    }
 
-					std::string FilePath = BasePath + p.uri;
-					if (exists(FilePath))
-					{
-						copy_file(FilePath, OutputDirectory + p.uri, copy_options::skip_existing);
-					}
-				}
-				for (const auto& p : OutputDoc.images.Elements())
-				{
-					if (std::regex_search(p.uri, DataUriRegex))
-					{
-						continue;
-					}
+                    std::string filePath = basePath + p.uri;
+                    if (exists(filePath))
+                    {
+                        copy_file(filePath, outputDirectory + p.uri, copy_options::skip_existing);
+                    }
+                }
+                for (const auto& p : outputDoc.images.Elements())
+                {
+                    if (std::regex_search(p.uri, dataUriRegex))
+                    {
+                        continue;
+                    }
 
-					std::string FilePath = BasePath + p.uri;
-					if (exists(FilePath))
-					{
-						copy_file(FilePath, OutputDirectory + p.uri, copy_options::skip_existing);
-					}
-				}
+                    std::string filePath = basePath + p.uri;
+                    if (exists(filePath))
+                    {
+                        copy_file(filePath, outputDirectory + p.uri, copy_options::skip_existing);
+                    }
+                }
 
-				std::string Json = Serialize(OutputDoc, SerializeFlags::Pretty);
-				TestStreamWriter(OutputDirectory).GetOutputStream(OutputName)->write(Json.c_str(), Json.size());
-			});
-		}
+                std::string Json = Serialize(outputDoc, SerializeFlags::Pretty);
+                TestStreamWriter(outputDirectory).GetOutputStream(outputName)->write(Json.c_str(), Json.size());
+            });
+        }
 
-		TEST_METHOD(GLTFMeshUtils_Default)
-		{
-			MeshOptions Options;
-			Options.Optimize = true;
-			Options.GenerateTangentSpace = true;
-			Options.AttributeFormat = AttributeFormat::Separate;
-			Options.PrimitiveFormat = PrimitiveFormat::Separate;
+        TEST_METHOD(GLTFMeshUtils_Default)
+        {
+            MeshOptions options;
+            options.Optimize = true;
+            options.GenerateTangentSpace = true;
+            options.AttributeFormat = AttributeFormat::Separate;
+            options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-			ExecuteTest(s_TestFiles[s_TestFileIdx], Options);
-		}
+            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+        }
 
-		TEST_METHOD(GLTFMeshUtils_Optimize)
-		{
-			MeshOptions Options;
-			Options.Optimize = true;
-			Options.GenerateTangentSpace = false;
-			Options.AttributeFormat = AttributeFormat::Separate;
-			Options.PrimitiveFormat = PrimitiveFormat::Separate;
+        TEST_METHOD(GLTFMeshUtils_Optimize)
+        {
+            MeshOptions options;
+            options.Optimize = true;
+            options.GenerateTangentSpace = false;
+            options.AttributeFormat = AttributeFormat::Separate;
+            options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-			ExecuteTest(s_TestFiles[s_TestFileIdx], Options);
-		}
+            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+        }
 
-		TEST_METHOD(GLTFMeshUtils_Tangents)
-		{
-			MeshOptions Options;
-			Options.Optimize = false;
-			Options.GenerateTangentSpace = true;
-			Options.AttributeFormat = AttributeFormat::Separate;
-			Options.PrimitiveFormat = PrimitiveFormat::Separate;
+        TEST_METHOD(GLTFMeshUtils_Tangents)
+        {
+            MeshOptions options;
+            options.Optimize = false;
+            options.GenerateTangentSpace = true;
+            options.AttributeFormat = AttributeFormat::Separate;
+            options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-			ExecuteTest(s_TestFiles[s_TestFileIdx], Options);
-		}
+            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+        }
 
-		TEST_METHOD(GLTFMeshUtils_CI)
-		{
-			MeshOptions Options;
-			Options.Optimize = false;
-			Options.GenerateTangentSpace = false;
-			Options.AttributeFormat = AttributeFormat::Interleave;
-			Options.PrimitiveFormat = PrimitiveFormat::Combine;
+        TEST_METHOD(GLTFMeshUtils_CI)
+        {
+            MeshOptions options;
+            options.Optimize = false;
+            options.GenerateTangentSpace = false;
+            options.AttributeFormat = AttributeFormat::Interleave;
+            options.PrimitiveFormat = PrimitiveFormat::Combine;
 
-			ExecuteTest(s_TestFiles[s_TestFileIdx], Options);
-		}
+            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+        }
 
-		TEST_METHOD(GLTFMeshUtils_CS)
-		{
-			MeshOptions Options;
-			Options.Optimize = false;
-			Options.GenerateTangentSpace = false;
-			Options.AttributeFormat = AttributeFormat::Separate;
-			Options.PrimitiveFormat = PrimitiveFormat::Combine;
+        TEST_METHOD(GLTFMeshUtils_CS)
+        {
+            MeshOptions options;
+            options.Optimize = false;
+            options.GenerateTangentSpace = false;
+            options.AttributeFormat = AttributeFormat::Separate;
+            options.PrimitiveFormat = PrimitiveFormat::Combine;
 
-			ExecuteTest(s_TestFiles[s_TestFileIdx], Options);
-		}
+            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+        }
 
-		TEST_METHOD(GLTFMeshUtils_SI)
-		{
-			MeshOptions Options;
-			Options.Optimize = false;
-			Options.GenerateTangentSpace = false;
-			Options.AttributeFormat = AttributeFormat::Interleave;
-			Options.PrimitiveFormat = PrimitiveFormat::Separate;
+        TEST_METHOD(GLTFMeshUtils_SI)
+        {
+            MeshOptions options;
+            options.Optimize = false;
+            options.GenerateTangentSpace = false;
+            options.AttributeFormat = AttributeFormat::Interleave;
+            options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-			ExecuteTest(s_TestFiles[s_TestFileIdx], Options);
-		}
+            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+        }
 
-		TEST_METHOD(GLTFMeshUtils_SS)
-		{
-			MeshOptions Options;
-			Options.Optimize = false;
-			Options.GenerateTangentSpace = false;
-			Options.AttributeFormat = AttributeFormat::Separate;
-			Options.PrimitiveFormat = PrimitiveFormat::Separate;
+        TEST_METHOD(GLTFMeshUtils_SS)
+        {
+            MeshOptions options;
+            options.Optimize = false;
+            options.GenerateTangentSpace = false;
+            options.AttributeFormat = AttributeFormat::Separate;
+            options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-			ExecuteTest(s_TestFiles[s_TestFileIdx], Options);
-		}
-	};
+            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+        }
+    };
 }

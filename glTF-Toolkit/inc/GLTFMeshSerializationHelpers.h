@@ -11,265 +11,263 @@
 #include <DirectXMath.h>
 
 #include "BufferBuilder.h"
+
 using namespace Microsoft::glTF::exp;
 
 namespace Microsoft::glTF::Toolkit
 {
-	enum class AttributeFormat : uint8_t;
-	enum class PrimitiveFormat : uint8_t;
-	struct MeshOptions;
+    enum class AttributeFormat : uint8_t;
+    enum class PrimitiveFormat : uint8_t;
+    struct MeshOptions;
 
 
-	//------------------------------------------
-	// Attribute
+    //------------------------------------------
+    // Attribute
 
-	enum Attribute
-	{
-		Indices = 0,
-		Positions = 1,
-		Normals = 2,
-		Tangents = 3,
-		UV0 = 4,
-		UV1 = 5,
-		Color0 = 6,
-		Joints0 = 7,
-		Weights0 = 8,
-		Count
-	};
+    enum Attribute
+    {
+        Indices = 0,
+        Positions = 1,
+        Normals = 2,
+        Tangents = 3,
+        UV0 = 4,
+        UV1 = 5,
+        Color0 = 6,
+        Joints0 = 7,
+        Weights0 = 8,
+        Count
+    };
 
 
-	//------------------------------------------
-	// AttributeList
+    //------------------------------------------
+    // AttributeList
 
-	struct AttributeList
-	{
-		uint32_t Mask;
+    struct AttributeList
+    {
+        uint32_t Mask;
 
-		inline void Set(Attribute Attr, bool Cond) { Cond ? Add(Attr) : Remove(Attr); }
-		inline void Add(Attribute Attr) { Mask |= 1 << Attr; }
-		inline void Remove(Attribute Attr) { Mask &= ~(1 << Attr); }
-		inline bool Has(Attribute Attr) const { return (Mask & (1 << Attr)) != 0; }
+        inline void Set(Attribute attr, bool cond) { cond ? Add(attr) : Remove(attr); }
+        inline void Add(Attribute attr) { Mask |= 1 << attr; }
+        inline void Remove(Attribute attr) { Mask &= ~(1 << attr); }
+        inline bool Has(Attribute attr) const { return (Mask & (1 << attr)) != 0; }
 
-		static AttributeList FromPrimitive(const MeshPrimitive& p);
-		
-		inline bool operator==(const AttributeList& rhs) const { return Mask == rhs.Mask; }
-		inline bool operator!=(const AttributeList& rhs) const { return Mask != rhs.Mask; }
-	};
+        static AttributeList FromPrimitive(const MeshPrimitive& p);
+        
+        inline bool operator==(const AttributeList& rhs) const { return Mask == rhs.Mask; }
+        inline bool operator!=(const AttributeList& rhs) const { return Mask != rhs.Mask; }
+    };
 
 
-	//------------------------------------------
-	// AccessorInfo
+    //------------------------------------------
+    // AccessorInfo
 
-	struct AccessorInfo
-	{
-		ComponentType		Type;
-		AccessorType		Dimension;
-		BufferViewTarget	Target;
+    struct AccessorInfo
+    {
+        ComponentType		Type;
+        AccessorType		Dimension;
+        BufferViewTarget	Target;
 
-		bool IsValid(void) const;
-		size_t GetElementSize(void) const;
+        bool IsValid(void) const;
+        size_t GetElementSize(void) const;
 
-		static AccessorInfo Invalid(void);
-		static AccessorInfo Create(ComponentType CType, AccessorType AType, BufferViewTarget Target);
-		static AccessorInfo Max(const AccessorInfo& a0, const AccessorInfo& a1);
+        static AccessorInfo Invalid(void);
+        static AccessorInfo Create(ComponentType cType, AccessorType aType, BufferViewTarget target);
+        static AccessorInfo Max(const AccessorInfo& a0, const AccessorInfo& a1);
 
-		friend std::ostream& operator<<(std::ostream&, const AccessorInfo&);
-	};
+        friend std::ostream& operator<<(std::ostream&, const AccessorInfo&);
+    };
 
-	std::ostream& operator<<(std::ostream& s, const AccessorInfo& a);
+    std::ostream& operator<<(std::ostream& s, const AccessorInfo& a);
 
 
-	//------------------------------------------
-	// PrimitiveInfo
+    //------------------------------------------
+    // PrimitiveInfo
 
-	struct PrimitiveInfo
-	{
-		size_t Offset; // Could be index or vertex offset.
+    struct PrimitiveInfo
+    {
+        size_t Offset; // Could be index or vertex offset.
 
-		size_t IndexCount;
-		size_t VertexCount;
-		AccessorInfo Metadata[Count];
+        size_t IndexCount;
+        size_t VertexCount;
+        AccessorInfo Metadata[Count];
 
-		size_t GetCount(void) const { return IndexCount > 0 ? IndexCount : VertexCount; };
-		size_t GetCount(Attribute Attr) const { return Attr == Indices ? IndexCount : VertexCount; };
-		size_t FaceCount(void) const { return GetCount() / 3; }
-		size_t GetIndexSize(void) const { return Accessor::GetComponentTypeSize(Metadata[Indices].Type); }
-		size_t GetVertexSize(void) const;
+        size_t GetCount(void) const { return IndexCount > 0 ? IndexCount : VertexCount; };
+        size_t GetCount(Attribute attr) const { return attr == Indices ? IndexCount : VertexCount; };
+        size_t FaceCount(void) const { return GetCount() / 3; }
+        size_t GetIndexSize(void) const { return Accessor::GetComponentTypeSize(Metadata[Indices].Type); }
+        size_t GetVertexSize(void) const;
 
-		void GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count], size_t* pAlignment = nullptr) const;
+        void GetVertexInfo(size_t& stride, size_t(&offsets)[Count], size_t* pOutAlignment = nullptr) const;
 
-		void CopyMeta(const PrimitiveInfo& Info);
+        void CopyMeta(const PrimitiveInfo& info);
 
-		AccessorInfo& operator[] (size_t Index) { return Metadata[Index]; }
-		const AccessorInfo& operator[] (size_t Index) const { return Metadata[Index]; }
-		
-		static ComponentType GetIndexType(size_t VertexCount) { return VertexCount < USHORT_MAX ? (VertexCount < BYTE_MAX ? COMPONENT_UNSIGNED_BYTE : COMPONENT_UNSIGNED_SHORT) : COMPONENT_UNSIGNED_INT; }
+        AccessorInfo& operator[] (size_t index) { return Metadata[index]; }
+        const AccessorInfo& operator[] (size_t index) const { return Metadata[index]; }
+        
+        static ComponentType GetIndexType(size_t vertexCount) { return vertexCount < USHORT_MAX ? (vertexCount < BYTE_MAX ? COMPONENT_UNSIGNED_BYTE : COMPONENT_UNSIGNED_SHORT) : COMPONENT_UNSIGNED_INT; }
 
-		static PrimitiveInfo Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, const std::pair<ComponentType, AccessorType>(&Types)[Count], size_t Offset = 0);
-		static PrimitiveInfo CreateMin(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset = 0);
-		static PrimitiveInfo CreateMax(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset = 0);
-		static PrimitiveInfo Max(const PrimitiveInfo& p0, const PrimitiveInfo& p1);
+        static PrimitiveInfo Create(size_t indexCount, size_t vertexCount, AttributeList attributes, const std::pair<ComponentType, AccessorType>(&types)[Count], size_t offset = 0);
+        static PrimitiveInfo CreateMin(size_t indexCount, size_t vertexCount, AttributeList attributes, size_t offset = 0);
+        static PrimitiveInfo CreateMax(size_t indexCount, size_t vertexCount, AttributeList attributes, size_t offset = 0);
+        static PrimitiveInfo Max(const PrimitiveInfo& p0, const PrimitiveInfo& p1);
 
-		friend std::ostream& operator<<(std::ostream&, const PrimitiveInfo&);
-	};
+        friend std::ostream& operator<<(std::ostream&, const PrimitiveInfo&);
+    };
 
-	std::ostream& operator<<(std::ostream& s, const PrimitiveInfo& p);
+    std::ostream& operator<<(std::ostream& s, const PrimitiveInfo& p);
 
-	//------------------------------------------
-	// MeshInfo
+    //------------------------------------------
+    // MeshInfo
 
-	class MeshInfo
-	{
-	public:
-		MeshInfo(void);
-		MeshInfo(const MeshInfo& Parent, size_t PrimIndex);
+    class MeshInfo
+    {
+    public:
+        MeshInfo(void);
+        MeshInfo(const MeshInfo& parent, size_t primIndex);
 
-		// Populates the mesh with data from the specified glTF document & mesh.
-		bool Initialize(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
+        // Populates the mesh with data from the specified glTF document & mesh.
+        bool Initialize(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh);
 
-		// Clears the existing mesh data.
-		void Reset(void);
+        // Clears the existing mesh data.
+        void Reset(void);
 
-		// Leverages DirectXMesh facilities to optimize the mesh data.
-		void Optimize(void);
+        // Leverages DirectXMesh facilities to optimize the mesh data.
+        void Optimize(void);
 
-		// Generates normal and optionally tangent data.
-		void GenerateAttributes(void);
+        // Generates normal and optionally tangent data.
+        void GenerateAttributes(void);
 
-		// Exports the mesh to a BufferBuilder and Mesh in a format specified in the options.
-		void Export(const MeshOptions& Options, BufferBuilder& Builder, Mesh& OutMesh) const;
+        // Exports the mesh to a BufferBuilder and Mesh in a format specified in the options.
+        void Export(const MeshOptions& options, BufferBuilder& builder, Mesh& outMesh) const;
 
-		void Print(size_t idx) const;
+        // Determines whether a specific mesh exists in a supported format.
+        static bool IsSupported(const Mesh& m);
 
-		// Determines whether a specific mesh exists in a supported format.
-		static bool IsSupported(const Mesh& m);
+        // Cleans up orphaned & unnecessary accessors, buffer views, and buffers caused by the mesh cleaning/formatting procedure.
+        static void CopyAndCleanup(const IStreamReader& reader, BufferBuilder& builder, const GLTFDocument& oldDoc, GLTFDocument& newDoc);
 
-		// Cleans up orphaned & unnecessary accessors, buffer views, and buffers caused by the mesh cleaning/formatting procedure.
-		static void CopyAndCleanup(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
-		static void Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
+    private:
+        inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
+        PrimitiveInfo DetermineMeshFormat(void) const;
 
-	private:
-		inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
-		PrimitiveInfo DetermineMeshFormat(void) const;
+        void InitSeparateAccessors(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh);
+        void InitSharedAccessors(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh);
 
-		void InitSeparateAccessors(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
-		void InitSharedAccessors(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh);
+        void WriteVertices(const PrimitiveInfo& info, std::vector<uint8_t>& output) const;
+        void ReadVertices(const PrimitiveInfo& info, const std::vector<uint8_t>& input);
 
-		void WriteVertices(const PrimitiveInfo& Info, std::vector<uint8_t>& Output) const;
-		void ReadVertices(const PrimitiveInfo& Info, const std::vector<uint8_t>& Input);
+        // Exports the mesh data to a BufferBuilder and Mesh in a specific format.
+        void ExportCSI(BufferBuilder& builder, Mesh& outMesh) const;	// Combine primitives, separate attributes, indexed
+        void ExportCS(BufferBuilder& builder, Mesh& outMesh) const;		// Combine primitives, separate attributes, non-indexed
+        void ExportCI(BufferBuilder& builder, Mesh& outMesh) const;		// Combine primitives, interleave attributes
+        void ExportSS(BufferBuilder& builder, Mesh& outMesh) const;		// Separate primitives, separate attributes
+        void ExportSI(BufferBuilder& builder, Mesh& outMesh) const;		// Separate primitives, interleave attributes
 
-		// Exports the mesh data to a BufferBuilder and Mesh in a specific format.
-		void ExportCSI(BufferBuilder& Builder, Mesh& OutMesh) const;	// Combine primitives, separate attributes, indexed
-		void ExportCS(BufferBuilder& Builder, Mesh& OutMesh) const;		// Combine primitives, separate attributes, non-indexed
-		void ExportCI(BufferBuilder& Builder, Mesh& OutMesh) const;		// Combine primitives, interleave attributes
-		void ExportSS(BufferBuilder& Builder, Mesh& OutMesh) const;		// Separate primitives, separate attributes
-		void ExportSI(BufferBuilder& Builder, Mesh& OutMesh) const;		// Separate primitives, interleave attributes
+        // Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
+        template <typename T>
+        void ExportSharedView(BufferBuilder& builder, const PrimitiveInfo& info, Attribute attr, std::vector<T>(MeshInfo::*attributePtr), Mesh& outMesh) const;
 
-		// Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
-		template <typename T>
-		void ExportSharedView(BufferBuilder& Builder, const PrimitiveInfo& Info, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr), Mesh& OutMesh) const;
+        // Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
+        template <typename T>
+        std::string ExportAccessor(BufferBuilder& builder, const PrimitiveInfo& prim, Attribute attr, std::vector<T>(MeshInfo::*attributePtr)) const;
 
-		// Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
-		template <typename T>
-		std::string ExportAccessor(BufferBuilder& Builder, const PrimitiveInfo& Prim, Attribute Attr, std::vector<T>(MeshInfo::*AttributePtr)) const;
+        // Writes mesh vertex data in an interleaved fashion, and exports one buffer view and shared accessors to a BufferBuilder.
+        void ExportInterleaved(BufferBuilder& builder, const PrimitiveInfo& info, std::string (&outIds)[Count]) const;
 
-		// Writes mesh vertex data in an interleaved fashion, and exports one buffer view and shared accessors to a BufferBuilder.
-		void ExportInterleaved(BufferBuilder& Builder, const PrimitiveInfo& Info, std::string (&OutIds)[Count]) const;
+        // Maps indices from global vertex list to local (per-primitive) index list.
+        static void RemapIndices(std::unordered_map<uint32_t, uint32_t>& map, std::vector<uint32_t>& newIndices, const uint32_t* indices, size_t count);
 
-		// Maps indices from global vertex list to local (per-primitive) index list.
-		static void RemapIndices(std::unordered_map<uint32_t, uint32_t>& Map, std::vector<uint32_t>& NewIndices, const uint32_t* Indices, size_t Count);
+        // Determines if all primitives within a glTF mesh shares accessors (aka interleaved vertex data.)
+        static bool UsesSharedAccessors(const Mesh& m);
 
-		// Determines if all primitives within a glTF mesh shares accessors (aka interleaved vertex data.)
-		static bool UsesSharedAccessors(const Mesh& m);
+        // Determines whether primitives within a glTF mesh are combined into a global buffer, or separated into their own local buffers.
+        static PrimitiveFormat DetermineFormat(const GLTFDocument& doc, const Mesh& m);
 
-		// Determines whether primitives within a glTF mesh are combined into a global buffer, or separated into their own local buffers.
-		static PrimitiveFormat DetermineFormat(const GLTFDocument& Doc, const Mesh& m);
+    private:
+        std::string m_Name;
+        std::vector<PrimitiveInfo> m_Primitives;
 
-	private:
-		std::string m_Name;
-		std::vector<PrimitiveInfo> m_Primitives;
+        std::vector<uint32_t>			m_Indices;
+        std::vector<DirectX::XMFLOAT3>	m_Positions;
+        std::vector<DirectX::XMFLOAT3>	m_Normals;
+        std::vector<DirectX::XMFLOAT4>	m_Tangents;
+        std::vector<DirectX::XMFLOAT2>	m_UV0;
+        std::vector<DirectX::XMFLOAT2>	m_UV1;
+        std::vector<DirectX::XMFLOAT4>	m_Color0;
+        std::vector<DirectX::XMUINT4>	m_Joints0;
+        std::vector<DirectX::XMFLOAT4>	m_Weights0;
 
-		std::vector<uint32_t>			m_Indices;
-		std::vector<DirectX::XMFLOAT3>	m_Positions;
-		std::vector<DirectX::XMFLOAT3>	m_Normals;
-		std::vector<DirectX::XMFLOAT4>	m_Tangents;
-		std::vector<DirectX::XMFLOAT2>	m_UV0;
-		std::vector<DirectX::XMFLOAT2>	m_UV1;
-		std::vector<DirectX::XMFLOAT4>	m_Color0;
-		std::vector<DirectX::XMUINT4>	m_Joints0;
-		std::vector<DirectX::XMFLOAT4>	m_Weights0;
+        AttributeList	m_Attributes;
+        PrimitiveFormat m_PrimFormat;
 
-		AttributeList	m_Attributes;
-		PrimitiveFormat m_PrimFormat;
+        mutable std::vector<uint8_t> m_Scratch; // Temp staging buffer used when organizing data for writes to buffer files.
+        mutable std::vector<float> m_Min; // Temp min buffer used when calculing min components of accessor data.
+        mutable std::vector<float> m_Max; // Temp max buffer used when calculing max components of accessor data.
 
-		mutable std::vector<uint8_t> m_Scratch; // Temp staging buffer used when organizing data for writes to buffer files.
-		mutable std::vector<float> m_Min; // Temp min buffer used when calculing min components of accessor data.
-		mutable std::vector<float> m_Max; // Temp max buffer used when calculing max components of accessor data.
+        friend std::ostream& operator<<(std::ostream&, const MeshInfo&);
+    };
 
-		friend std::ostream& operator<<(std::ostream&, const MeshInfo&);
-	};
+    std::ostream& operator<<(std::ostream& s, const MeshInfo& m);
 
-	std::ostream& operator<<(std::ostream& s, const MeshInfo& m);
 
+    //------------------------------------------
+    // Serialization Helpers - these generally just perform switch cases down to the templated C++ types to allow for generic serialization.
 
-	//------------------------------------------
-	// Serialization Helpers - these generally just perform switch cases down to the templated C++ types to allow for generic serialization.
+    // ---- Reading ----
 
-	// ---- Reading ----
+    template <typename From, typename To, size_t Dimension>
+    void Read(To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
 
-	template <typename From, typename To, size_t Dimension>
-	void Read(To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count);
+    template <typename From, typename To>
+    void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
 
-	template <typename From, typename To>
-	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count);
+    template <typename To>
+    void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
 
-	template <typename To>
-	void Read(const AccessorInfo& Accessor, To* Dest, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count);
+    template <typename From, typename To>
+    void Read(const IStreamReader& reader, const GLTFDocument& Doc, const Accessor& accessor, std::vector<To>& output);
 
-	template <typename From, typename To>
-	void Read(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Accessor& Accessor, std::vector<To>& Output);
+    template <typename To>
+    void Read(const IStreamReader& reader, const GLTFDocument& Doc, const Accessor& accessor, std::vector<To>& output);
 
-	template <typename To>
-	void Read(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Accessor& Accessor, std::vector<To>& Output);
+    template <typename To>
+    bool ReadAccessor(const IStreamReader& reader, const GLTFDocument& doc, const std::string& accessorId, std::vector<To>& output, AccessorInfo& outInfo);
 
-	template <typename To>
-	bool ReadAccessor(const IStreamReader& StreamReader, const GLTFDocument& Doc, const std::string& AccessorId, std::vector<To>& Output, AccessorInfo& OutInfo);
 
+    // ---- Writing ----
 
-	// ---- Writing ----
+    template <typename To, typename From, size_t Dimension>
+    void Write(uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
 
-	template <typename To, typename From, size_t Dimension>
-	void Write(uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count);
+    template <typename To, typename From>
+    void Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
 
-	template <typename To, typename From>
-	void Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count);
+    template <typename From>
+    size_t Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
 
-	template <typename From>
-	size_t Write(const AccessorInfo& Info, uint8_t* Dest, size_t Stride, size_t Offset, const From* Src, size_t Count);
+    template <typename From>
+    size_t Write(const AccessorInfo& info, uint8_t* dest, const From* src, size_t count);
 
-	template <typename From>
-	size_t Write(const AccessorInfo& Info, uint8_t* Dest, const From* Src, size_t Count);
 
+    // ---- Finding Min & Max ----
 
-	// ---- Finding Min & Max ----
+    template <typename T, size_t Dimension>
+    void FindMinMax(const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
 
-	template <typename T, size_t Dimension>
-	void FindMinMax(const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
+    
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const T* src, size_t count, std::vector<float>& min, std::vector<float>& max);
+    
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const std::vector<T>& src, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
 
-	template <typename T>
-	void FindMinMax(const AccessorInfo& Info, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
-	
-	template <typename T>
-	void FindMinMax(const AccessorInfo& Info, const T* Src, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
-	
-	template <typename T>
-	void FindMinMax(const AccessorInfo& Info, const std::vector<T>& Src, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
+    void FindMinMax(const AccessorInfo& info, const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
 
-	void FindMinMax(const AccessorInfo& Info, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max);
 
-
-	template <typename T, typename RemapFunc>
-	void LocalizeAttribute(const PrimitiveInfo& Prim, const RemapFunc& Remap, const std::vector<uint32_t>& Indices, const std::vector<T>& Global, std::vector<T>& Local);
+    template <typename T, typename RemapFunc>
+    void LocalizeAttribute(const PrimitiveInfo& prim, const RemapFunc& remap, const std::vector<uint32_t>& indices, const std::vector<T>& global, std::vector<T>& local);
 }
 
 #include "GLTFMeshSerializationHelpers.inl"

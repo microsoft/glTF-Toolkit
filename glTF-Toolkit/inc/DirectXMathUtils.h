@@ -15,12 +15,12 @@
 #define XM_OPDEFINE2(op, op_name, dim, type_upper, type_cap, type, add_type)\
 XMTYPE(type_upper, dim) operator##op(const XMTYPE(type_upper, dim)& v, add_type f)\
 {\
-	XMTYPE(type_upper, dim) x = XMTYPE(type_upper, dim)(PARAM_EXPAND_##dim(type));\
-	DirectX::XMVECTOR y = DirectX::XMVector##op_name(XMLOAD(type_cap, dim)(&v), XMLOAD(type_cap, dim)(&x));\
+    XMTYPE(type_upper, dim) x = XMTYPE(type_upper, dim)(PARAM_EXPAND_##dim(type));\
+    DirectX::XMVECTOR y = DirectX::XMVector##op_name(XMLOAD(type_cap, dim)(&v), XMLOAD(type_cap, dim)(&x));\
 \
-	XMTYPE(type_upper, dim) r;\
-	XMSTORE(type_cap,dim)(&r, y);\
-	return r;\
+    XMTYPE(type_upper, dim) r;\
+    XMSTORE(type_cap,dim)(&r, y);\
+    return r;\
 }\
 XMTYPE(type_upper, dim) operator##op(add_type f, const XMTYPE(type_upper, dim)& v) { return operator##op(v, f); }
 
@@ -41,78 +41,78 @@ XMUINT_OPDEFINE(4)
 
 namespace Microsoft::glTF::Toolkit
 { 
-	template <bool _IsVector, typename T>
-	struct XMComponentType
-	{
-		using Type = T;
-	};
+    template <bool _IsVector, typename T>
+    struct XMComponentType
+    {
+        using Type = T;
+    };
 
 
-	template <typename T>
-	struct XMComponentType<true, T>
-	{
-	private:
-		template <typename M> static M MemberType(M T::*);
+    template <typename T>
+    struct XMComponentType<true, T>
+    {
+    private:
+        template <typename M> static M MemberType(M T::*);
 
-	public:
-		using Type = decltype(MemberType(&T::x));
-	};
+    public:
+        using Type = decltype(MemberType(&T::x));
+    };
 
 
-	template <typename T>
-	struct XMSerializer
-	{
-		using TComp = typename XMComponentType<!std::is_fundamental_v<T>, T>::Type;
-		static const size_t Dimension = sizeof(T) / sizeof(TComp);
+    template <typename T>
+    struct XMSerializer
+    {
+        using TComp = typename XMComponentType<!std::is_fundamental_v<T>, T>::Type;
+        static const size_t Dimension = sizeof(T) / sizeof(TComp);
 
-		template <typename U>
-		using Normalized = std::conditional<!std::is_integral_v<TComp> && std::is_integral_v<U>, std::true_type, std::false_type>;
+        template <typename U>
+        using Normalized = std::conditional<!std::is_integral_v<TComp> && std::is_integral_v<U>, std::true_type, std::false_type>;
 
-		template <typename U, class = std::enable_if_t<Normalized<U>::value>>
-		static void Normalize(T& v) { v = v * (1.0f / std::numeric_limits<U>::max()); }
-		template <typename U>
-		static void Normalize(T& v) { (v); }
+        template <typename U, class = std::enable_if_t<Normalized<U>::value>>
+        static void Normalize(T& v) { v = v * (1.0f / std::numeric_limits<U>::max()); }
+        template <typename U>
+        static void Normalize(T& v) { (v); }
 
-		template <typename U, class = std::enable_if_t<Normalized<U>::value>>
-		static void Denormalize(T& v) { v = v * std::numeric_limits<U>::max(); }
-		template <typename U>
-		static void Denormalize(T& v) { (v); }
+        template <typename U, class = std::enable_if_t<Normalized<U>::value>>
+        static void Denormalize(T& v) { v = v * std::numeric_limits<U>::max(); }
+        template <typename U>
+        static void Denormalize(T& v) { (v); }
 
-		static TComp& Get(T& v, size_t Index) { return *((TComp*)&v + Index); }
-		static const TComp& Get(const T& v, size_t Index) { return *((TComp*)&v + Index); }
+        static TComp& Get(T& v, size_t Index) { return *((TComp*)&v + Index); }
+        static const TComp& Get(const T& v, size_t Index) { return *((TComp*)&v + Index); }
 
-		template <typename From, size_t _Count>
-		static void Read(T& v, const From* Ptr)
-		{
-			for (size_t i = 0; i < std::min(Dimension, _Count); ++i)
-			{
-				Get(v, i) = TComp(*(Ptr + i));
-			}
+        template <typename From, size_t _Count>
+        static void Read(T& v, const From* src)
+        {
+            for (size_t i = 0; i < std::min(Dimension, _Count); ++i)
+            {
+                Get(v, i) = TComp(*(src + i));
+            }
 
-			Normalize<From>(v);
-		}
+            Normalize<From>(v);
+        }
 
-		template <typename To, size_t _Count>
-		static void Write(To* Ptr, T v)
-		{
-			Denormalize<To>(v);
+        template <typename To, size_t _Count>
+        static void Write(To* dest, T v)
+        {
+            Denormalize<To>(v);
 
-			for (size_t i = 0; i < std::min(Dimension, _Count); ++i)
-			{
-				*(Ptr + i) = (To)Get(v, i);
-			}
-		}
+            for (size_t i = 0; i < std::min(Dimension, _Count); ++i)
+            {
+                *(dest + i) = (To)Get(v, i);
+            }
+        }
 
-		static void Out(std::ostream& s, const T& v)
-		{
-			if constexpr(Dimension > 1) s << '(';
-			for (size_t i = 0; i < Dimension; ++i)
-			{
-				if constexpr(Dimension > 1) if (i > 0) s << ", ";
-				s << Get(v, i);
-			}
-			if constexpr(Dimension > 1) s << ')';
-			s << '\n';
-		}
-	};
+        static void Out(std::ostream& s, const T& v)
+        {
+            if constexpr(Dimension > 1) s << '(';
+            for (size_t i = 0; i < Dimension; ++i)
+            {
+                if constexpr(Dimension > 1) if (i > 0) s << ", ";
+                s << Get(v, i);
+            }
+            if constexpr(Dimension > 1) s << ')';
+            s << '\n';
+        }
+    };
 }
