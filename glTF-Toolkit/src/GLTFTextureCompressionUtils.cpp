@@ -44,13 +44,32 @@ GLTFDocument GLTFTextureCompressionUtils::CompressTextureAsDDS(const IStreamRead
 
     auto image = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, texture.id));
 
-    // Resize
+    // Resize up to a multiple of 4
     auto metadata = image->GetMetadata();
-    if (maxTextureSize < metadata.width || maxTextureSize < metadata.height)
+    auto resizedWidth = metadata.width;
+    auto resizedHeight = metadata.height;
+
+    if (maxTextureSize < resizedWidth || maxTextureSize < resizedHeight)
     {
+        // Scale
         auto scaleFactor = static_cast<double>(maxTextureSize) / std::max(metadata.width, metadata.height);
-        auto resizedWidth = static_cast<size_t>(std::llround(metadata.width * scaleFactor));
-        auto resizedHeight = static_cast<size_t>(std::llround(metadata.height * scaleFactor));
+        resizedWidth = static_cast<size_t>(std::llround(metadata.width * scaleFactor));
+        resizedHeight = static_cast<size_t>(std::llround(metadata.height * scaleFactor));
+    }
+
+    if (resizedWidth % 4 != 0 || resizedHeight % 4 != 0)
+    {
+        static const std::function<size_t(size_t)> roundUpToMultipleOf4 = [](size_t input)
+        {
+            return input % 4 == 0 ? input : (input + 4) - (input % 4);
+        };
+
+        resizedWidth = roundUpToMultipleOf4(resizedWidth);
+        resizedHeight = roundUpToMultipleOf4(resizedHeight);
+    }
+
+    if (resizedWidth != metadata.width || resizedHeight != metadata.height)
+    {
         auto resized = std::make_unique<DirectX::ScratchImage>();
         if (FAILED(DirectX::Resize(image->GetImages(), image->GetImageCount(), image->GetMetadata(), resizedWidth, resizedHeight, DirectX::TEX_FILTER_DEFAULT, *resized)))
         {

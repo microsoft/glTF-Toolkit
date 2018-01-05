@@ -287,7 +287,7 @@ GLTFDocument GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std
     return gltfDoc;
 }
 
-void GLBToGLTF::UnpackGLB(std::string glbPath, std::string outDirectory, std::string gltfName)
+void GLBToGLTF::UnpackGLB(const std::string& glbPath, const std::string& outDirectory, const std::string& gltfName)
 {
     // read glb file into json
     auto glbStream = std::make_shared<std::ifstream>(glbPath, std::ios::binary);

@@ -9,10 +9,7 @@
 #include <GLTFSDK/GLTFConstants.h>
 #include <GLTFSDK/GLTFResourceReader.h>
 #include <GLTFSDK/IStreamReader.h>
-
-#include <rapidjson/document.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
+#include <GLTFSDK/RapidJsonUtils.h>
 
 #include "GLTFTextureLoadingUtils.h"
 #include "GLTFTexturePackingUtils.h"

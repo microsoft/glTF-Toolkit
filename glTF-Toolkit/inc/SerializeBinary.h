@@ -4,10 +4,10 @@
 #include <GLTFSDK/GLTFDocument.h>
 #include <GLTFSDK/IStreamReader.h>
 #include <GLTFSDK/IStreamFactory.h>
+#include <GLTFSDK/RapidJsonUtils.h>
 #include <functional>
 #include <memory>
 #include <vector>
-#include <rapidjson/document.h>
 
 #include "AccessorUtils.h"
 
