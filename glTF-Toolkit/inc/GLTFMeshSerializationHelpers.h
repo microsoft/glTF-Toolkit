@@ -72,7 +72,11 @@ namespace Microsoft::glTF::Toolkit
 		static AccessorInfo Invalid(void);
 		static AccessorInfo Create(ComponentType CType, AccessorType AType, BufferViewTarget Target);
 		static AccessorInfo Max(const AccessorInfo& a0, const AccessorInfo& a1);
+
+		friend std::ostream& operator<<(std::ostream&, const AccessorInfo&);
 	};
+
+	std::ostream& operator<<(std::ostream& s, const AccessorInfo& a);
 
 
 	//------------------------------------------
@@ -94,17 +98,22 @@ namespace Microsoft::glTF::Toolkit
 
 		void GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count], size_t* pAlignment = nullptr) const;
 
+		void CopyMeta(const PrimitiveInfo& Info);
+
 		AccessorInfo& operator[] (size_t Index) { return Metadata[Index]; }
 		const AccessorInfo& operator[] (size_t Index) const { return Metadata[Index]; }
+		
+		static ComponentType GetIndexType(size_t VertexCount) { return VertexCount < USHORT_MAX ? (VertexCount < BYTE_MAX ? COMPONENT_UNSIGNED_BYTE : COMPONENT_UNSIGNED_SHORT) : COMPONENT_UNSIGNED_INT; }
 
-		static ComponentType GetIndexType(size_t IndexCount) { return IndexCount < USHORT_MAX ? (IndexCount < BYTE_MAX ? COMPONENT_UNSIGNED_BYTE : COMPONENT_UNSIGNED_SHORT) : COMPONENT_UNSIGNED_INT; }
-
-		static PrimitiveInfo Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, std::pair<ComponentType, AccessorType>(&Types)[Count], size_t Offset = 0);
+		static PrimitiveInfo Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, const std::pair<ComponentType, AccessorType>(&Types)[Count], size_t Offset = 0);
 		static PrimitiveInfo CreateMin(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset = 0);
 		static PrimitiveInfo CreateMax(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset = 0);
 		static PrimitiveInfo Max(const PrimitiveInfo& p0, const PrimitiveInfo& p1);
+
+		friend std::ostream& operator<<(std::ostream&, const PrimitiveInfo&);
 	};
 
+	std::ostream& operator<<(std::ostream& s, const PrimitiveInfo& p);
 
 	//------------------------------------------
 	// MeshInfo
@@ -130,11 +139,14 @@ namespace Microsoft::glTF::Toolkit
 		// Exports the mesh to a BufferBuilder and Mesh in a format specified in the options.
 		void Export(const MeshOptions& Options, BufferBuilder& Builder, Mesh& OutMesh) const;
 
+		void Print(size_t idx) const;
+
 		// Determines whether a specific mesh exists in a supported format.
 		static bool IsSupported(const Mesh& m);
 
 		// Cleans up orphaned & unnecessary accessors, buffer views, and buffers caused by the mesh cleaning/formatting procedure.
 		static void CopyAndCleanup(const IStreamReader& StreamReader, BufferBuilder& Builder, const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
+		static void Cleanup(const GLTFDocument& OldDoc, GLTFDocument& NewDoc);
 
 	private:
 		inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
@@ -193,7 +205,11 @@ namespace Microsoft::glTF::Toolkit
 		mutable std::vector<uint8_t> m_Scratch; // Temp staging buffer used when organizing data for writes to buffer files.
 		mutable std::vector<float> m_Min; // Temp min buffer used when calculing min components of accessor data.
 		mutable std::vector<float> m_Max; // Temp max buffer used when calculing max components of accessor data.
+
+		friend std::ostream& operator<<(std::ostream&, const MeshInfo&);
 	};
+
+	std::ostream& operator<<(std::ostream& s, const MeshInfo& m);
 
 
 	//------------------------------------------

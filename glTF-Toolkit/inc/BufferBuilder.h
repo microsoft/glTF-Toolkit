@@ -11,104 +11,109 @@
 
 #include <functional>
 
-namespace Microsoft 
+namespace Microsoft::glTF
 {
-	namespace glTF 
+	class GLTFDocument;
+
+	namespace exp
 	{
-		class GLTFDocument;
-
-		namespace exp
+		struct AccessorDesc
 		{
-			struct AccessorDesc
+			AccessorDesc() = default;
+
+			AccessorDesc(AccessorType accessorType, ComponentType componentType, size_t count = 0, size_t byteOffset = 0, bool normalized = false,
+				std::vector<float> minValues ={}, std::vector<float> maxValues ={})
+				: accessorType(accessorType), componentType(componentType), normalized(normalized),
+				count(count), byteOffset(byteOffset), minValues(std::move(minValues)), maxValues(std::move(maxValues))
+			{ }
+
+			AccessorType accessorType;
+			ComponentType componentType;
+			bool normalized;
+			size_t count;
+			size_t byteOffset;
+			std::vector<float> minValues;
+			std::vector<float> maxValues;
+		};
+
+		class BufferBuilder final
+		{
+			typedef std::function<std::string(const BufferBuilder&)> FnGenId;
+
+		public:
+			BufferBuilder(std::unique_ptr<ResourceWriter2>&& resourceWriter,
+				FnGenId fnGenBufferId = DefaultFnGenBufferId,
+				FnGenId fnGenBufferViewId = DefaultFnGenBufferViewId,
+				FnGenId fnGenAccessorId = DefaultFnGenAccessorId);
+
+			const Buffer&     AddBuffer(const char* bufferId = nullptr);
+			const BufferView& AddBufferView(BufferViewTarget target);
+			const BufferView& AddBufferView(const void* data, size_t byteLength, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER);
+
+			template<typename T>
+			const BufferView& AddBufferView(const std::vector<T>& data, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER)
 			{
-				size_t count;
-				size_t byteOffset;
-				ComponentType componentType;
-				AccessorType accessorType;
-				std::vector<float> min;
-				std::vector<float> max;
-			};
+				return AddBufferView(data.data(), data.size() * sizeof(T), byteStride, target);
+			}
 
+			void AddAccessors(const void* data, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* pOutIds);
 
-			class BufferBuilder final
+			const Accessor& AddAccessor(const void* data, AccessorDesc accessorDesc);
+
+			template<typename T>
+			const Accessor& AddAccessor(const std::vector<T>& data, AccessorDesc accessorDesc)
 			{
-				typedef std::function<std::string(const BufferBuilder&)> FnGenId;
+				const auto accessorTypeSize = Accessor::GetTypeCount(accessorDesc.accessorType);
 
-			public:
-				BufferBuilder(std::unique_ptr<ResourceWriter2>&& resourceWriter,
-					FnGenId fnGenBufferId = DefaultFnGenBufferId,
-					FnGenId fnGenBufferViewId = DefaultFnGenBufferViewId,
-					FnGenId fnGenAccessorId = DefaultFnGenAccessorId);
-
-				const Buffer&     AddBuffer(const char* bufferId = nullptr);
-				const BufferView& AddBufferView(BufferViewTarget target);
-				const BufferView& AddBufferView(const void* data, size_t byteLength, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER, size_t byteAlignment = 4);
-
-				template<typename T>
-				const BufferView& AddBufferView(const std::vector<T>& data, size_t byteStride = 0, BufferViewTarget target = BufferViewTarget::UNKNOWN_BUFFER, size_t byteAlignment = 4)
+				if (data.size() % accessorTypeSize)
 				{
-					return AddBufferView(data.data(), data.size() * sizeof(T), byteStride, target, byteAlignment);
+					throw InvalidGLTFException("vector size is not a multiple of accessor type size");
 				}
 
-				void AddAccessors(const void* data, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* outIds = nullptr);
+				accessorDesc.count = data.size() / accessorTypeSize;
+				return AddAccessor(data.data(), std::move(accessorDesc));
+			}
 
-				const Accessor& AddAccessor(const void* data, size_t count, ComponentType componentType, AccessorType accessorType,
-					std::vector<float> minValues ={}, std::vector<float> maxValues ={});
+			void Output(GLTFDocument& gltfDocument);
 
-				template<typename T>
-				const Accessor& AddAccessor(const std::vector<T>& data, ComponentType componentType, AccessorType accessorType,
-					std::vector<float> minValues ={}, std::vector<float> maxValues ={})
-				{
-					const auto accessorTypeSize = Accessor::GetTypeCount(accessorType);
+			const Buffer&     GetCurrentBuffer() const;
+			const BufferView& GetCurrentBufferView() const;
+			const Accessor&   GetCurrentAccessor() const;
 
-					if (data.size() % accessorTypeSize)
-					{
-						throw InvalidGLTFException("vector size is not a multiple of accessor type size");
-					}
+			size_t GetBufferCount() const;
+			size_t GetBufferViewCount() const;
+			size_t GetAccessorCount() const;
 
-					return AddAccessor(data.data(), data.size() / accessorTypeSize, componentType, accessorType, std::move(minValues), std::move(maxValues));
-				}
+			ResourceWriter2& GetResourceWriter();
+			const ResourceWriter2& GetResourceWriter() const;
 
-				void Output(GLTFDocument& gltfDocument);
+		private:
+			Accessor& AddAccessor(const AccessorDesc& desc);
 
-				const Buffer&     GetCurrentBuffer() const;
-				const BufferView& GetCurrentBufferView() const;
-				const Accessor&   GetCurrentAccessor() const;
+			static std::string DefaultFnGenBufferId(const BufferBuilder& builder)
+			{
+				return std::to_string(builder.GetBufferCount());
+			}
 
-				size_t GetBufferCount() const;
-				size_t GetBufferViewCount() const;
-				size_t GetAccessorCount() const;
+			static std::string DefaultFnGenBufferViewId(const BufferBuilder& builder)
+			{
+				return std::to_string(builder.GetBufferViewCount());
+			}
 
-				ResourceWriter2& GetResourceWriter();
-				const ResourceWriter2& GetResourceWriter() const;
+			static std::string DefaultFnGenAccessorId(const BufferBuilder& builder)
+			{
+				return std::to_string(builder.GetAccessorCount());
+			}
 
-			private:
-				const Accessor& AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, std::vector<float> minValues, std::vector<float> maxValues);
-				static std::string DefaultFnGenBufferId(const BufferBuilder& builder)
-				{
-					return std::to_string(builder.GetBufferCount());
-				}
+			std::unique_ptr<ResourceWriter2> m_resourceWriter;
 
-				static std::string DefaultFnGenBufferViewId(const BufferBuilder& builder)
-				{
-					return std::to_string(builder.GetBufferViewCount());
-				}
+			std::vector<Buffer>     m_buffers;
+			std::vector<BufferView> m_bufferViews;
+			std::vector<Accessor>   m_accessors;
 
-				static std::string DefaultFnGenAccessorId(const BufferBuilder& builder)
-				{
-					return std::to_string(builder.GetAccessorCount());
-				}
-
-				std::unique_ptr<ResourceWriter2> m_resourceWriter;
-
-				std::vector<Buffer>     m_buffers;
-				std::vector<BufferView> m_bufferViews;
-				std::vector<Accessor>   m_accessors;
-
-				FnGenId m_fnGenBufferId;
-				FnGenId m_fnGenBufferViewId;
-				FnGenId m_fnGenAccessorId;
-			};
-		}
+			FnGenId m_fnGenBufferId;
+			FnGenId m_fnGenBufferViewId;
+			FnGenId m_fnGenAccessorId;
+		};
 	}
 }

@@ -8,7 +8,6 @@
 #include "pch.h"
 #include "BufferBuilder.h"
 
-
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::exp;
 
@@ -86,14 +85,14 @@ const BufferView& BufferBuilder::AddBufferView(BufferViewTarget target)
 	return m_bufferViews.back();
 }
 
-const BufferView& BufferBuilder::AddBufferView(const void* data, size_t byteLength, size_t byteStride, BufferViewTarget target, size_t byteAlignment)
+const BufferView& BufferBuilder::AddBufferView(const void* data, size_t byteLength, size_t byteStride, BufferViewTarget target)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView bufferView;
 
 	bufferView.id = m_fnGenBufferViewId(*this);
 	bufferView.bufferId = buffer.id;
-	bufferView.byteOffset = buffer.byteLength + ::GetPadding(buffer.byteLength, byteAlignment);
+	bufferView.byteOffset = buffer.byteLength;
 	bufferView.byteLength = byteLength;
 	bufferView.byteStride = byteStride;
 	bufferView.target = target;
@@ -109,9 +108,12 @@ const BufferView& BufferBuilder::AddBufferView(const void* data, size_t byteLeng
 	return m_bufferViews.back();
 }
 
-void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* outIds)
+void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* pOutIds)
 {
-	// Calculate the max alignment and extents of the accessors.
+	Buffer& buffer = m_buffers.back();
+	BufferView& bufferView = m_bufferViews.back();
+
+	// Calculate the max alignment and max extent of the accessors.
 	size_t alignment = 1, extent = 0;
 	for (size_t i = 0; i < descCount; ++i)
 	{
@@ -126,7 +128,6 @@ void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const Acce
 	}
 
 	// ResourceWriter2 only supports writing full buffer views.
-	BufferView& bufferView = m_bufferViews.back();
 	if (bufferView.byteLength != 0U)
 	{
 		throw InvalidGLTFException("current buffer view already has written data - this interface doesn't support appending to an existing buffer view");
@@ -136,7 +137,6 @@ void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const Acce
 	bufferView.byteLength = extent;
 	bufferView.byteOffset += ::GetPadding(bufferView.byteOffset, alignment);
 
-	Buffer& buffer = m_buffers.back();
 	buffer.byteLength = bufferView.byteOffset + bufferView.byteLength;
 
 	for (size_t i = 0; i < descCount; ++i)
@@ -147,11 +147,11 @@ void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const Acce
 			continue;
 		}
 
-		AddAccessor(desc.count, desc.byteOffset, desc.componentType, desc.accessorType, std::move(desc.min), std::move(desc.max));
+		AddAccessor(pDescs[i]);
 
-		if (outIds != nullptr)
+		if (pOutIds != nullptr)
 		{
-			outIds[i] = GetCurrentAccessor().id;
+			pOutIds[i] = GetCurrentAccessor().id;
 		}
 	}
 
@@ -161,8 +161,7 @@ void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const Acce
 	}
 }
 
-const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, ComponentType componentType, AccessorType accessorType,
-	std::vector<float> minValues, std::vector<float> maxValues)
+const Accessor& BufferBuilder::AddAccessor(const void* data, AccessorDesc desc)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
@@ -170,10 +169,11 @@ const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, Compo
 	// If the bufferView has not yet been written to then ensure it is correctly aligned for this accessor's component type
 	if (bufferView.byteLength == 0U)
 	{
-		bufferView.byteOffset += ::GetPadding(bufferView.byteOffset, componentType);
+		bufferView.byteOffset += ::GetPadding(bufferView.byteOffset, desc.componentType);
 	}
 
-	const Accessor& accessor = AddAccessor(count, bufferView.byteLength, componentType, accessorType, std::move(minValues), std::move(maxValues));
+	desc.byteOffset = bufferView.byteLength;
+	Accessor& accessor = AddAccessor(desc);
 
 	bufferView.byteLength += accessor.GetByteLength();
 	buffer.byteLength = bufferView.byteOffset + bufferView.byteLength;
@@ -208,53 +208,6 @@ void BufferBuilder::Output(GLTFDocument& gltfDocument)
 	}
 
 	m_accessors.clear();
-}
-
-const Accessor& BufferBuilder::AddAccessor(size_t count, size_t byteOffset, ComponentType componentType, AccessorType accessorType, std::vector<float> minValues, std::vector<float> maxValues)
-{
-	Buffer& buffer = m_buffers.back();
-	BufferView& bufferView = m_bufferViews.back();
-
-	const auto accessorTypeSize = Accessor::GetTypeCount(accessorType);
-	size_t componentTypeSize = Accessor::GetComponentTypeSize(componentType);
-
-	if (buffer.id != bufferView.bufferId)
-	{
-		throw InvalidGLTFException("bufferView.bufferId does not match buffer.id");
-	}
-
-	// Only check for a valid number of min and max values if they exist
-	if ((!minValues.empty() || !maxValues.empty()) &&
-		((minValues.size() != accessorTypeSize) || (maxValues.size() != accessorTypeSize)))
-	{
-		throw InvalidGLTFException("the number of min and max values must be equal to the number of elements to be stored in the accessor");
-	}
-
-	if (byteOffset % componentTypeSize != 0)
-	{
-		throw InvalidGLTFException("accessor offset within buffer view must be a multiple of the component size");
-	}
-
-	if ((byteOffset + bufferView.byteOffset) % componentTypeSize != 0)
-	{
-		throw InvalidGLTFException("accessor offset within buffer must be a multiple of the component size");
-	}
-
-	Accessor accessor;
-
-	// TODO: make accessor min & max members be vectors of doubles
-	accessor.min = std::move(minValues);
-	accessor.max = std::move(maxValues);
-
-	accessor.id = m_fnGenAccessorId(*this);
-	accessor.bufferViewId = bufferView.id;
-	accessor.count = count;
-	accessor.byteOffset = byteOffset;
-	accessor.type = accessorType;
-	accessor.componentType = componentType;
-
-	m_accessors.push_back(std::move(accessor));
-	return m_accessors.back();
 }
 
 const Buffer& BufferBuilder::GetCurrentBuffer() const
@@ -295,4 +248,67 @@ ResourceWriter2& BufferBuilder::GetResourceWriter()
 const ResourceWriter2& BufferBuilder::GetResourceWriter() const
 {
 	return *m_resourceWriter;
+}
+
+Accessor& BufferBuilder::AddAccessor(const AccessorDesc& desc)
+{
+	Buffer& buffer = m_buffers.back();
+	BufferView& bufferView = m_bufferViews.back();
+
+	if (desc.count == 0)
+	{
+		throw GLTFException("Invalid accessor count: 0");
+	}
+
+	if (desc.accessorType == TYPE_UNKNOWN)
+	{
+		throw GLTFException("Invalid accessorType: TYPE_UNKNOWN");
+	}
+
+	if (desc.componentType == COMPONENT_UNKNOWN)
+	{
+		throw GLTFException("Invalid componentType: COMPONENT_UNKNOWN");
+	}
+
+	const auto accessorTypeSize = Accessor::GetTypeCount(desc.accessorType);
+	size_t componentTypeSize = Accessor::GetComponentTypeSize(desc.componentType);
+
+	if (buffer.id != bufferView.bufferId)
+	{
+		throw InvalidGLTFException("bufferView.bufferId does not match buffer.id");
+	}
+
+	// Only check for a valid number of min and max values if they exist
+	if ((!desc.minValues.empty() || !desc.maxValues.empty()) &&
+		((desc.minValues.size() != accessorTypeSize) || (desc.maxValues.size() != accessorTypeSize)))
+	{
+		throw InvalidGLTFException("the number of min and max values must be equal to the number of elements to be stored in the accessor");
+	}
+
+	if (desc.byteOffset % componentTypeSize != 0)
+	{
+		throw InvalidGLTFException("accessor offset within buffer view must be a multiple of the component size");
+	}
+
+	if ((desc.byteOffset + bufferView.byteOffset) % componentTypeSize != 0)
+	{
+		throw InvalidGLTFException("accessor offset within buffer must be a multiple of the component size");
+	}
+
+	Accessor accessor;
+
+	// TODO: make accessor min & max members be vectors of doubles
+	accessor.min = desc.minValues;
+	accessor.max = desc.maxValues;
+
+	accessor.id = m_fnGenAccessorId(*this);
+	accessor.bufferViewId = bufferView.id;
+	accessor.count = desc.count;
+	accessor.byteOffset = desc.byteOffset;
+	accessor.type = desc.accessorType;
+	accessor.componentType = desc.componentType;
+	//accessor.normalized = desc.normalized;
+
+	m_accessors.push_back(std::move(accessor));
+	return m_accessors.back();
 }

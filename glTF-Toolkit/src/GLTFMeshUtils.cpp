@@ -101,7 +101,7 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& Filename, const GLT
 		MeshData.Export(Options, Builder, m);
 		OutputDoc.meshes.Replace(m);
 	}
-
+	
 	MeshInfo::CopyAndCleanup(StreamReader, Builder, Doc, OutputDoc);
 	Builder.Output(OutputDoc);
 

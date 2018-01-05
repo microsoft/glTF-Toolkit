@@ -32,7 +32,7 @@ namespace Microsoft::glTF::Toolkit
 			Desc.componentType = Info[Attr].Type;
 			Desc.accessorType = Info[Attr].Dimension;
 
-			FindMinMax(Info[Attr], m_Scratch.data(), Stride, Stride * p.Offset, p.GetCount(Attr), Desc.min, Desc.max);
+			FindMinMax(Info[Attr], m_Scratch.data(), Stride, Stride * p.Offset, p.GetCount(Attr), Desc.minValues, Desc.maxValues);
 		}
 
 		std::vector<std::string> Ids;
@@ -67,7 +67,7 @@ namespace Microsoft::glTF::Toolkit
 		FindMinMax(a, m_Scratch.data(), ByteStride, 0, Data.size(), m_Min, m_Max);
 
 		Builder.AddBufferView(a.Target);
-		Builder.AddAccessor(m_Scratch.data(), p.GetCount(Attr), a.Type, a.Dimension, m_Min, m_Max);
+		Builder.AddAccessor(m_Scratch.data(), { a.Dimension, a.Type, p.GetCount(Attr), 0, false, m_Min, m_Max });
 		return Builder.GetCurrentAccessor().id;
 	}
 
@@ -148,29 +148,13 @@ namespace Microsoft::glTF::Toolkit
 	template <typename To>
 	bool ReadAccessor(const IStreamReader& StreamReader, const GLTFDocument& Doc, const std::string& AccessorId, std::vector<To>& Output, AccessorInfo& OutInfo)
 	{
-		// Parse the string ids.
 		if (AccessorId.empty())
 		{
 			return false;
 		}
 
-		int AccessorIndex = std::stoi(AccessorId);
-		if (AccessorIndex < 0 || (size_t)AccessorIndex >= Doc.accessors.Size())
-		{
-			return false;
-		}
-		auto& Accessor = Doc.accessors.Get(AccessorIndex);
-
-		if (Accessor.bufferViewId.empty())
-		{
-			return false;
-		}
-		int BufferViewIndex = std::stoi(Accessor.bufferViewId);
-		if (BufferViewIndex < 0 || (size_t)BufferViewIndex >= Doc.bufferViews.Size())
-		{
-			return false;
-		}
-		auto& BufferView = Doc.bufferViews.Get(BufferViewIndex);
+		auto& Accessor = Doc.accessors[AccessorId];
+		auto& BufferView = Doc.bufferViews[Accessor.bufferViewId];
 
 		// Cache off the accessor metadata and read in the data into output buffer.
 		OutInfo.Type		= Accessor.componentType;

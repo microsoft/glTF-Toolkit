@@ -30,7 +30,7 @@ namespace Microsoft::glTF::Toolkit::Test
 		"Resources\\gltf\\BoxAnimated\\BoxAnimated.gltf",
 		"Resources\\gltf\\03_all_animations\\03_all_animations.gltf",
 		"Resources\\gltf\\03_skinned_cylinder\\03_skinned_cylinder.gltf",
-		"Resources\\gltf\\WaterBottle\\WaterBottle.gltf",
+		"Resources\\gltf\\GearboxAssy\\GearboxAssy.gltf",
 		"Resources\\gltf\\Primitives\\Primitives.gltf"
 	};
 	const size_t s_TestFileIdx = 5;
@@ -61,7 +61,7 @@ namespace Microsoft::glTF::Toolkit::Test
 					std::string FilePath = BasePath + p.uri;
 					if (exists(FilePath))
 					{
-						copy_file(FilePath, OutputDirectory + p.uri, copy_options::overwrite_existing);
+						copy_file(FilePath, OutputDirectory + p.uri, copy_options::skip_existing);
 					}
 				}
 				for (const auto& p : OutputDoc.images.Elements())
@@ -74,7 +74,7 @@ namespace Microsoft::glTF::Toolkit::Test
 					std::string FilePath = BasePath + p.uri;
 					if (exists(FilePath))
 					{
-						copy_file(FilePath, OutputDirectory + p.uri, copy_options::overwrite_existing);
+						copy_file(FilePath, OutputDirectory + p.uri, copy_options::skip_existing);
 					}
 				}
 

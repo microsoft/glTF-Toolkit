@@ -24,6 +24,24 @@ using namespace Microsoft::glTF::Toolkit;
 
 namespace 
 {
+	std::vector<std::ofstream> g_Files;
+	std::ofstream& GetStream(size_t i)
+	{
+		g_Files.resize(i + 1);
+		if (!g_Files[i].is_open())
+		{
+			g_Files[i].open("C:\\Users\\mahurlim\\Desktop\\OutFile" + std::to_string(i) + ".txt");
+		}
+		return g_Files[i];
+	}
+
+	template <typename T>
+	void PrintVec(std::ostream& s, const std::vector<T>& v)
+	{
+		std::for_each(v.begin(), v.end(), [&](auto& i) { XMSerializer<T>::Out(s, i); });
+	}
+
+
 	template <typename T, size_t N>
 	constexpr auto ArrayCount(T(&)[N]) { return N; }
 
@@ -87,6 +105,38 @@ AccessorInfo AccessorInfo::Max(const AccessorInfo& a0, const AccessorInfo& a1)
 	return MaxInfo;
 }
 
+std::ostream& Microsoft::glTF::Toolkit::operator<<(std::ostream& s, const AccessorInfo& a)
+{
+	static const std::unordered_map<ComponentType, const char*> CMap ={
+		{ COMPONENT_UNKNOWN, "Unknown" },
+		{ COMPONENT_BYTE, "Byte" },
+		{ COMPONENT_UNSIGNED_BYTE, "UByte" },
+		{ COMPONENT_SHORT, "Short" },
+		{ COMPONENT_UNSIGNED_SHORT, "UShort" },
+		{ COMPONENT_UNSIGNED_INT, "UInt" },
+		{ COMPONENT_FLOAT, "Float" },
+	};
+	static const std::unordered_map<AccessorType, const char*> AMap ={
+		{ TYPE_UNKNOWN, "Unknown" },
+		{ TYPE_SCALAR, "Scalar" },
+		{ TYPE_VEC2, "Vec2" },
+		{ TYPE_VEC3, "Vec3" },
+		{ TYPE_VEC4, "Vec4" },
+		{ TYPE_MAT2, "Mat2" },
+		{ TYPE_MAT3, "Mat3" },
+		{ TYPE_MAT4, "Mat4" },
+	};
+	static const std::unordered_map<BufferViewTarget, const char*> BMap ={
+		{ UNKNOWN_BUFFER, "Unknown" },
+		{ ELEMENT_ARRAY_BUFFER, "Index" },
+		{ ARRAY_BUFFER, "Vertex" },
+	};
+
+	s << "Type: " << CMap.at(a.Type) << ", Count: " << AMap.at(a.Dimension) << ", Target: " << BMap.at(a.Target);
+	return s;
+}
+
+
 size_t PrimitiveInfo::GetVertexSize(void) const
 {
 	size_t Stride = 0;
@@ -128,7 +178,13 @@ void PrimitiveInfo::GetVertexInfo(size_t& Stride, size_t(&Offsets)[Count], size_
 	}
 }
 
-PrimitiveInfo PrimitiveInfo::Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, std::pair<ComponentType, AccessorType>(&Types)[Count], size_t Offset)
+void PrimitiveInfo::CopyMeta(const PrimitiveInfo& Info)
+{
+	std::copy(Info.Metadata, Info.Metadata + Count, Metadata);
+	Metadata[Indices].Type = GetIndexType(VertexCount);
+}
+
+PrimitiveInfo PrimitiveInfo::Create(size_t IndexCount, size_t VertexCount, AttributeList Attributes, const std::pair<ComponentType, AccessorType>(&Types)[Count], size_t Offset)
 {
 	PrimitiveInfo Info ={ 0 };
 	Info.Offset			= Offset;
@@ -147,8 +203,8 @@ PrimitiveInfo PrimitiveInfo::Create(size_t IndexCount, size_t VertexCount, Attri
 // Creates a descriptor containing the most compressed form of mesh given a vertex and index count.
 PrimitiveInfo PrimitiveInfo::CreateMin(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset)
 {
-	std::pair<ComponentType, AccessorType> Types[] ={
-		{ GetIndexType(IndexCount),	TYPE_SCALAR },	// Indices
+	static const std::pair<ComponentType, AccessorType> Types[] ={
+		{ GetIndexType(VertexCount),TYPE_SCALAR },	// Indices
 		{ COMPONENT_FLOAT,			TYPE_VEC3 },	// Position
 		{ COMPONENT_FLOAT,			TYPE_VEC3 },	// Normals
 		{ COMPONENT_FLOAT,			TYPE_VEC4 },	// Tangents
@@ -165,7 +221,7 @@ PrimitiveInfo PrimitiveInfo::CreateMin(size_t IndexCount, size_t VertexCount, At
 // Creates a descriptor containing the maximimum precision index and vertex type.
 PrimitiveInfo PrimitiveInfo::CreateMax(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset)
 {
-	std::pair<ComponentType, AccessorType> Types[] ={
+	static const std::pair<ComponentType, AccessorType> Types[] ={
 		{ COMPONENT_UNSIGNED_INT,	TYPE_SCALAR },	// Indices
 		{ COMPONENT_FLOAT,			TYPE_VEC3 },	// Position
 		{ COMPONENT_FLOAT,			TYPE_VEC3 },	// Normals
@@ -190,6 +246,33 @@ PrimitiveInfo PrimitiveInfo::Max(const PrimitiveInfo& p0, const PrimitiveInfo& p
 	FOREACH_ATTRIBUTE([&](auto i) { MaxInfo[i] = AccessorInfo::Max(p0[i], p1[i]); });
 
 	return MaxInfo;
+}
+
+std::ostream& Microsoft::glTF::Toolkit::operator<<(std::ostream& s, const PrimitiveInfo& p)
+{
+	const char* Names[Count] ={
+		"Indices",
+		"Positions",
+		"Normals",
+		"Tangents",
+		"UV0",
+		"UV1",
+		"Color0",
+		"Joints0",
+		"Weights0"
+	};
+
+	s << "Offset: " << p.Offset << std::endl;
+	s << "IndexCount: " << p.IndexCount << std::endl;
+	s << "VertexCount: " << p.VertexCount << std::endl;
+
+	for (size_t i = 0; i < Count; ++i)
+	{
+		s << Names[i] << ": (" << p.Metadata[i] << ")" << std::endl;
+	}
+
+	s << std::endl;
+	return s;
 }
 
 
@@ -257,26 +340,6 @@ MeshInfo::MeshInfo(const MeshInfo& Parent, size_t PrimIndex)
 	}
 }
 
-std::ofstream g_Files;
-size_t g_Index = 0;
-
-std::ofstream& GetStream(void)
-{
-	if (!g_Files.is_open())
-	{
-		g_Files.open("C:\\Users\\Matt\\Desktop\\OutFile" + std::to_string(g_Index) + ".txt");
-	}
-	return g_Files;
-}
-
-template <typename T>
-void Write2(const std::vector<T>& vec)
-{
-	auto& s = GetStream();
-	std::for_each(vec.begin(), vec.end(), [&](auto& i) { XMSerializer<T>::Out(s, i); });
-}
-
-
 bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument& Doc, const Mesh& Mesh)
 {
 	// Ensure mesh has the correct properties for us to process.
@@ -310,6 +373,7 @@ bool MeshInfo::Initialize(const IStreamReader& StreamReader, const GLTFDocument&
 	m_Attributes = AttributeList::FromPrimitive(Mesh.primitives[0]);
 	m_PrimFormat = DetermineFormat(Doc, Mesh);
 
+	Print(0);
 	return true;
 }
 
@@ -390,10 +454,10 @@ void MeshInfo::InitSharedAccessors(const IStreamReader& StreamReader, const GLTF
 				UniqueVertices.clear();
 				UniqueVertices.insert(m_Indices.begin() + IndexStart, m_Indices.end());
 
-				PrimInfo = PrimInfo0;
 				PrimInfo.Offset = IndexStart;
 				PrimInfo.IndexCount = m_Indices.size() - IndexStart;
 				PrimInfo.VertexCount = UniqueVertices.size(); 
+				PrimInfo.CopyMeta(PrimInfo0);
 			}
 		}
 	}
@@ -523,16 +587,7 @@ void MeshInfo::GenerateAttributes(void)
 
 void MeshInfo::Export(const MeshOptions& Options, BufferBuilder& Builder, Mesh& OutMesh) const
 {
-	Write2(m_Indices);
-	Write2(m_Positions);
-	Write2(m_Normals);
-	Write2(m_Tangents);
-	Write2(m_UV0);
-	Write2(m_UV1);
-	Write2(m_Color0);
-	Write2(m_Joints0);
-	Write2(m_Weights0);
-
+	Print(1);
 	auto PrimFormat = Options.PrimitiveFormat == PrimitiveFormat::Preserved ? m_PrimFormat : Options.PrimitiveFormat;
 
 	if (PrimFormat == PrimitiveFormat::Combine)
@@ -853,7 +908,7 @@ void MeshInfo::ExportInterleaved(BufferBuilder& Builder, const PrimitiveInfo& In
 
 	Builder.AddBufferView(ARRAY_BUFFER);
 
-	AccessorDesc Descs[Count] ={ 0 };
+	AccessorDesc Descs[Count] ={ };
 	for (size_t i = Positions; i < Count; ++i)
 	{
 		if (m_Attributes.Has((Attribute)i))
@@ -863,7 +918,7 @@ void MeshInfo::ExportInterleaved(BufferBuilder& Builder, const PrimitiveInfo& In
 			Descs[i].accessorType = Info[i].Dimension;
 			Descs[i].componentType = Info[i].Type;
 
-			FindMinMax(Info[i], m_Scratch.data(), Stride, Offsets[i], Info.VertexCount, Descs[i].min, Descs[i].max);
+			FindMinMax(Info[i], m_Scratch.data(), Stride, Offsets[i], Info.VertexCount, Descs[i].minValues, Descs[i].maxValues);
 		}
 	}
 
@@ -941,6 +996,32 @@ bool MeshInfo::UsesSharedAccessors(const Mesh& m)
 	}
 
 	return true;
+}
+
+void MeshInfo::Print(size_t idx) const
+{
+	GetStream(idx) << *this;
+}
+
+std::ostream& Microsoft::glTF::Toolkit::operator<<(std::ostream& s, const MeshInfo& m)
+{
+	for (size_t i = 0; i < m.m_Primitives.size(); ++i)
+	{
+		s << "Primitive: " << i << std::endl;
+		s << m.m_Primitives[i];
+	}
+
+	PrintVec(s, m.m_Indices);
+	PrintVec(s, m.m_Positions);
+	PrintVec(s, m.m_Normals);
+	PrintVec(s, m.m_Tangents);
+	PrintVec(s, m.m_UV0);
+	PrintVec(s, m.m_UV1);
+	PrintVec(s, m.m_Color0);
+	PrintVec(s, m.m_Joints0);
+	PrintVec(s, m.m_Weights0);
+
+	return s;
 }
 
 void Microsoft::glTF::Toolkit::FindMinMax(const AccessorInfo& Info, const uint8_t* Src, size_t Stride, size_t Offset, size_t Count, std::vector<float>& Min, std::vector<float>& Max)

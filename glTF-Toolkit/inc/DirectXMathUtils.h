@@ -2,6 +2,7 @@
 
 #include <DirectXMath.h>
 
+// Preprocessor helpers to define XM type additive & multiplicative operations.
 #define PARAM_EXPAND_1(type) type(f)
 #define PARAM_EXPAND_2(type) PARAM_EXPAND_1(type) ## , type(f)
 #define PARAM_EXPAND_3(type) PARAM_EXPAND_2(type) ## , type(f)
@@ -46,6 +47,7 @@ namespace Microsoft::glTF::Toolkit
 		using Type = T;
 	};
 
+
 	template <typename T>
 	struct XMComponentType<true, T>
 	{
@@ -55,6 +57,7 @@ namespace Microsoft::glTF::Toolkit
 	public:
 		using Type = decltype(MemberType(&T::x));
 	};
+
 
 	template <typename T>
 	struct XMSerializer
@@ -112,5 +115,4 @@ namespace Microsoft::glTF::Toolkit
 			s << '\n';
 		}
 	};
-
 }
