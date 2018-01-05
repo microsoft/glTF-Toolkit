@@ -238,6 +238,7 @@
     <Import Project="..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets" Condition="Exists('..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets')" />
     <Import Project="..\packages\directxmesh_desktop_2015.2017.12.13.1\build\native\directxmesh_desktop_2015.targets" Condition="Exists('..\packages\directxmesh_desktop_2015.2017.12.13.1\build\native\directxmesh_desktop_2015.targets')" />
     <Import Project="..\packages\directxtex_desktop_2015.2017.12.13.1\build\native\directxtex_desktop_2015.targets" Condition="Exists('..\packages\directxtex_desktop_2015.2017.12.13.1\build\native\directxtex_desktop_2015.targets')" />
+    <Import Project="..\packages\Microsoft.glTF.CPP.1.3.26.0\build\native\Microsoft.glTF.CPP.targets" Condition="Exists('..\packages\Microsoft.glTF.CPP.1.3.26.0\build\native\Microsoft.glTF.CPP.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -246,5 +247,6 @@
     <Error Condition="!Exists('..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets'))" />
     <Error Condition="!Exists('..\packages\directxmesh_desktop_2015.2017.12.13.1\build\native\directxmesh_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxmesh_desktop_2015.2017.12.13.1\build\native\directxmesh_desktop_2015.targets'))" />
     <Error Condition="!Exists('..\packages\directxtex_desktop_2015.2017.12.13.1\build\native\directxtex_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_desktop_2015.2017.12.13.1\build\native\directxtex_desktop_2015.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.glTF.CPP.1.3.26.0\build\native\Microsoft.glTF.CPP.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.glTF.CPP.1.3.26.0\build\native\Microsoft.glTF.CPP.targets'))" />
   </Target>
 </Project>

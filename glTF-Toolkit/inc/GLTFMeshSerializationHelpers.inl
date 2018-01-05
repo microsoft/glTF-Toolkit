@@ -41,7 +41,7 @@ namespace Microsoft::glTF::Toolkit
 
         for (size_t i = 0; i < m_Primitives.size(); ++i)
         {
-            outMesh.primitives[i].*AccessorIds[attr] = ids[i];
+            outMesh.primitives[i].*s_AccessorIds[attr] = ids[i];
         }
     }
 
