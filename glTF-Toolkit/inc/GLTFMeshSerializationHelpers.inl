@@ -16,32 +16,21 @@ namespace Microsoft::glTF::Toolkit
 
         m_Scratch.resize(data.size() * stride);
         Write(info[attr], m_Scratch.data(), data.data(), data.size());
-
-        builder.AddBufferView(info[attr].Target);
-
-        std::vector<AccessorDesc> descs;
-        descs.resize(m_Primitives.size());
-
+        
         for (size_t i = 0; i < m_Primitives.size(); ++i)
         {
             const auto& p = m_Primitives[i];
 
-            auto& Desc = descs[i];
-            Desc.count = p.GetCount(attr);
-            Desc.byteOffset = stride * p.Offset;
-            Desc.componentType = info[attr].Type;
-            Desc.accessorType = info[attr].Dimension;
-            FindMinMax(info[attr], m_Scratch.data(), stride, stride * p.Offset, p.GetCount(attr), Desc.minValues, Desc.maxValues);
-        }
+            AccessorDesc desc;
+            desc.byteOffset = stride * p.Offset;
+            desc.componentType = info[attr].Type;
+            desc.accessorType = info[attr].Dimension;
+            FindMinMax(info[attr], m_Scratch.data(), stride, stride * p.Offset, p.GetCount(attr), desc.minValues, desc.maxValues);
 
-        std::vector<std::string> ids;
-        ids.resize(m_Primitives.size());
+            builder.AddBufferView(info[attr].Target);
+            builder.AddAccessor(m_Scratch.data() + stride * p.Offset, p.GetCount(attr), desc);
 
-        builder.AddAccessors(m_Scratch.data(), 0, descs.data(), descs.size(), ids.data());
-
-        for (size_t i = 0; i < m_Primitives.size(); ++i)
-        {
-            outMesh.primitives[i].*s_AccessorIds[attr] = ids[i];
+            outMesh.primitives[i].*s_AccessorIds[attr] = builder.GetCurrentAccessor().id;
         }
     }
 
@@ -53,20 +42,20 @@ namespace Microsoft::glTF::Toolkit
             return std::string();
         }
 
-        const auto& Data = this->*attributePtr;
+        const auto& data = this->*attributePtr;
         const auto& a = p[attr];
 
         const size_t dimension = Accessor::GetTypeCount(a.Dimension);
         const size_t componentSize = Accessor::GetComponentTypeSize(a.Type);
         const size_t byteStride = dimension * componentSize;
 
-        m_Scratch.resize(Data.size() * byteStride);
+        m_Scratch.resize(data.size() * byteStride);
 
-        Write(a, m_Scratch.data(), byteStride, 0, Data.data(), Data.size());
-        FindMinMax(a, m_Scratch.data(), byteStride, 0, Data.size(), m_Min, m_Max);
+        Write(a, m_Scratch.data(), byteStride, 0, data.data(), data.size());
+        FindMinMax(a, m_Scratch.data(), byteStride, 0, data.size(), m_Min, m_Max);
 
         builder.AddBufferView(a.Target);
-        builder.AddAccessor(m_Scratch.data(), { a.Dimension, a.Type, p.GetCount(attr), 0, false, m_Min, m_Max });
+        builder.AddAccessor(m_Scratch.data(), p.GetCount(attr), { a.Dimension, a.Type, m_Min, m_Max, 0, false });
         return builder.GetCurrentAccessor().id;
     }
 
@@ -86,10 +75,10 @@ namespace Microsoft::glTF::Toolkit
     {
         switch (accessor.Dimension)
         {
-        case TYPE_SCALAR:	Read<From, To, 1>(dest, src, stride, offset, count); break;
-        case TYPE_VEC2:		Read<From, To, 2>(dest, src, stride, offset, count); break;
-        case TYPE_VEC3:		Read<From, To, 3>(dest, src, stride, offset, count); break;
-        case TYPE_VEC4:		Read<From, To, 4>(dest, src, stride, offset, count); break;
+        case TYPE_SCALAR: Read<From, To, 1>(dest, src, stride, offset, count); break;
+        case TYPE_VEC2:   Read<From, To, 2>(dest, src, stride, offset, count); break;
+        case TYPE_VEC3:   Read<From, To, 3>(dest, src, stride, offset, count); break;
+        case TYPE_VEC4:   Read<From, To, 4>(dest, src, stride, offset, count); break;
         }
     }
 
@@ -103,10 +92,10 @@ namespace Microsoft::glTF::Toolkit
 
         switch (accessor.Type)
         {
-        case COMPONENT_UNSIGNED_BYTE:	Read<uint8_t, To>(accessor, dest, src, stride, offset, count); break;
-        case COMPONENT_UNSIGNED_SHORT:	Read<uint16_t, To>(accessor, dest, src, stride, offset, count); break;
-        case COMPONENT_UNSIGNED_INT:	Read<uint32_t, To>(accessor, dest, src, stride, offset, count); break;
-        case COMPONENT_FLOAT:			Read<float, To>(accessor, dest, src, stride, offset, count); break;
+        case COMPONENT_UNSIGNED_BYTE:  Read<uint8_t, To>(accessor, dest, src, stride, offset, count); break;
+        case COMPONENT_UNSIGNED_SHORT: Read<uint16_t, To>(accessor, dest, src, stride, offset, count); break;
+        case COMPONENT_UNSIGNED_INT:   Read<uint32_t, To>(accessor, dest, src, stride, offset, count); break;
+        case COMPONENT_FLOAT:          Read<float, To>(accessor, dest, src, stride, offset, count); break;
         }
     }
 
@@ -125,10 +114,10 @@ namespace Microsoft::glTF::Toolkit
 
         switch (accessor.type)
         {
-        case TYPE_SCALAR:	Read<From, To, 1>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
-        case TYPE_VEC2:		Read<From, To, 2>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
-        case TYPE_VEC3:		Read<From, To, 3>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
-        case TYPE_VEC4:		Read<From, To, 4>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
+        case TYPE_SCALAR: Read<From, To, 1>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
+        case TYPE_VEC2:   Read<From, To, 2>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
+        case TYPE_VEC3:   Read<From, To, 3>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
+        case TYPE_VEC4:   Read<From, To, 4>(output.data() + oldSize, (uint8_t*)buffer.data(), compSize * compCount, 0, count); break;
         }
     }
 
@@ -137,10 +126,10 @@ namespace Microsoft::glTF::Toolkit
     {
         switch (accessor.componentType)
         {
-        case COMPONENT_UNSIGNED_BYTE:	Read<uint8_t, To>(reader, doc, accessor, output); break;
-        case COMPONENT_UNSIGNED_SHORT:	Read<uint16_t, To>(reader, doc, accessor, output); break;
-        case COMPONENT_UNSIGNED_INT:	Read<uint32_t, To>(reader, doc, accessor, output); break;
-        case COMPONENT_FLOAT:			Read<float, To>(reader, doc, accessor, output); break;
+        case COMPONENT_UNSIGNED_BYTE:  Read<uint8_t, To>(reader, doc, accessor, output); break;
+        case COMPONENT_UNSIGNED_SHORT: Read<uint16_t, To>(reader, doc, accessor, output); break;
+        case COMPONENT_UNSIGNED_INT:   Read<uint32_t, To>(reader, doc, accessor, output); break;
+        case COMPONENT_FLOAT:          Read<float, To>(reader, doc, accessor, output); break;
         }
     }
 
@@ -156,9 +145,9 @@ namespace Microsoft::glTF::Toolkit
         auto& bufferView = doc.bufferViews[accessor.bufferViewId];
 
         // Cache off the accessor metadata and read in the data into output buffer.
-        outInfo.Type		= accessor.componentType;
-        outInfo.Dimension	= accessor.type;
-        outInfo.Target		= bufferView.target;
+        outInfo.Type      = accessor.componentType;
+        outInfo.Dimension = accessor.type;
+        outInfo.Target    = bufferView.target;
 
         Read(reader, doc, accessor, output);
 
@@ -181,10 +170,10 @@ namespace Microsoft::glTF::Toolkit
     {
         switch (info.Dimension)
         {
-        case TYPE_SCALAR:	Write<To, From, 1>(dest, stride, offset, src, count); break;
-        case TYPE_VEC2:		Write<To, From, 2>(dest, stride, offset, src, count); break;
-        case TYPE_VEC3:		Write<To, From, 3>(dest, stride, offset, src, count); break;
-        case TYPE_VEC4:		Write<To, From, 4>(dest, stride, offset, src, count); break;
+        case TYPE_SCALAR: Write<To, From, 1>(dest, stride, offset, src, count); break;
+        case TYPE_VEC2:   Write<To, From, 2>(dest, stride, offset, src, count); break;
+        case TYPE_VEC3:   Write<To, From, 3>(dest, stride, offset, src, count); break;
+        case TYPE_VEC4:   Write<To, From, 4>(dest, stride, offset, src, count); break;
         }
     }
 
@@ -193,10 +182,10 @@ namespace Microsoft::glTF::Toolkit
     {
         switch (info.Type)
         {
-        case COMPONENT_UNSIGNED_BYTE:	Write<uint8_t, From>(info, dest, stride, offset, src, count); break;
-        case COMPONENT_UNSIGNED_SHORT:	Write<uint16_t, From>(info, dest, stride, offset, src, count); break;
-        case COMPONENT_UNSIGNED_INT:	Write<uint16_t, From>(info, dest, stride, offset, src, count); break;
-        case COMPONENT_FLOAT:			Write<float, From>(info, dest, stride, offset, src, count); break;
+        case COMPONENT_UNSIGNED_BYTE:  Write<uint8_t, From>(info, dest, stride, offset, src, count); break;
+        case COMPONENT_UNSIGNED_SHORT: Write<uint16_t, From>(info, dest, stride, offset, src, count); break;
+        case COMPONENT_UNSIGNED_INT:   Write<uint16_t, From>(info, dest, stride, offset, src, count); break;
+        case COMPONENT_FLOAT:          Write<float, From>(info, dest, stride, offset, src, count); break;
         }
 
         return stride * count;
@@ -245,10 +234,10 @@ namespace Microsoft::glTF::Toolkit
     {
         switch (info.Dimension)
         {
-        case TYPE_SCALAR:	FindMinMax<T, 1>(src, stride, offset, count, min, max); break;
-        case TYPE_VEC2:		FindMinMax<T, 2>(src, stride, offset, count, min, max); break;
-        case TYPE_VEC3:		FindMinMax<T, 3>(src, stride, offset, count, min, max); break;
-        case TYPE_VEC4:		FindMinMax<T, 4>(src, stride, offset, count, min, max); break;
+        case TYPE_SCALAR: FindMinMax<T, 1>(src, stride, offset, count, min, max); break;
+        case TYPE_VEC2:   FindMinMax<T, 2>(src, stride, offset, count, min, max); break;
+        case TYPE_VEC3:   FindMinMax<T, 3>(src, stride, offset, count, min, max); break;
+        case TYPE_VEC4:   FindMinMax<T, 4>(src, stride, offset, count, min, max); break;
         }
     }
 
@@ -268,7 +257,7 @@ namespace Microsoft::glTF::Toolkit
     template <typename T, typename RemapFunc>
     void LocalizeAttribute(const PrimitiveInfo& prim, const RemapFunc& remap, const std::vector<uint32_t>& indices, const std::vector<T>& global, std::vector<T>& local)
     {
-        if (global.size() == 0)
+        if (global.empty())
         {
             return;
         }

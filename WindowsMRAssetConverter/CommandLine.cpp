@@ -37,7 +37,7 @@ void CommandLine::PrintHelp()
         << std::endl
         << L"A command line tool to convert core GLTF 2.0 assets for use in "
         << L"the Windows Mixed Reality home, with the proper texture packing, "
-		<< L"compression, mesh optimization, and merged LODs." << std::endl << std::endl
+        << L"compression, mesh optimization, and merged LODs." << std::endl << std::endl
         << L"Usage: WindowsMRAssetConverter <path to GLTF/GLB>" << std::endl
         << std::endl
         << L"Optional arguments:" << std::endl
@@ -46,7 +46,7 @@ void CommandLine::PrintHelp()
         << indent << "[" << std::wstring(PARAM_LOD) << " <path to each lower LOD asset in descending order of quality>]" << std::endl
         << indent << "[" << std::wstring(PARAM_SCREENCOVERAGE) << " <LOD screen coverage values>]" << std::endl
         << indent << "[" << std::wstring(PARAM_MAXTEXTURESIZE) << " <Max texture size in pixels, defaults to 512>]" << std::endl
-		<< indent << "[" << std::wstring(PARAM_GENTANGENTS) << " <Generate tangent space - requires UV coordinates>]" << std::endl
+        << indent << "[" << std::wstring(PARAM_GENTANGENTS) << " <Generate tangent space - requires UV coordinates>]" << std::endl
         << std::endl
         << "Example:" << std::endl
         << indent << "WindowsMRAssetConverter FileToConvert.gltf "
@@ -66,7 +66,7 @@ void CommandLine::ParseCommandLineArguments(
     int argc, wchar_t *argv[],
     std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
     std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-	bool& generateTangents)
+    bool& generateTangents)
 {
     CommandLineParsingState state = CommandLineParsingState::Initial;
 
@@ -80,7 +80,7 @@ void CommandLine::ParseCommandLineArguments(
     lodFilePaths.clear();
     screenCoveragePercentages.clear();
     maxTextureSize = MAXTEXTURESIZE_DEFAULT;
-	generateTangents = false;
+    generateTangents = false;
 
     state = CommandLineParsingState::InputRead;
 
@@ -115,10 +115,10 @@ void CommandLine::ParseCommandLineArguments(
             maxTextureSize = MAXTEXTURESIZE_DEFAULT;
             state = CommandLineParsingState::ReadMaxTextureSize;
         }
-		else if (param == PARAM_MAXTEXTURESIZE)
-		{
-			generateTangents = true;
-		}
+        else if (param == PARAM_GENTANGENTS)
+        {
+            generateTangents = true;
+        }
         else
         {
             switch (state)

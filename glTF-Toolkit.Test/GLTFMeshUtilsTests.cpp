@@ -33,7 +33,7 @@ namespace Microsoft::glTF::Toolkit::Test
         "Resources\\gltf\\GearboxAssy\\GearboxAssy.gltf",
         "Resources\\gltf\\Primitives\\Primitives.gltf"
     };
-    const size_t s_TestFileIdx = 3;
+    const size_t s_TestFileIdx = 5;
 
     TEST_CLASS(GLTFMeshUtilsTest)
     {

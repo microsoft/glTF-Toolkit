@@ -21,16 +21,21 @@ namespace Microsoft::glTF
 		{
 			AccessorDesc() = default;
 
-			AccessorDesc(AccessorType accessorType, ComponentType componentType, size_t count = 0, size_t byteOffset = 0, bool normalized = false,
-				std::vector<float> minValues ={}, std::vector<float> maxValues ={})
-				: accessorType(accessorType), componentType(componentType), normalized(normalized),
-				count(count), byteOffset(byteOffset), minValues(std::move(minValues)), maxValues(std::move(maxValues))
+			AccessorDesc(AccessorType accessorType, ComponentType componentType, bool normalized)
+				: AccessorDesc(accessorType, componentType, {}, {}, 0, normalized)
 			{ }
+
+			AccessorDesc(AccessorType accessorType, ComponentType componentType, std::vector<float> minValues ={}, std::vector<float> maxValues ={},
+				size_t byteOffset = 0, bool normalized = false)
+				: accessorType(accessorType), componentType(componentType), normalized(normalized),
+				byteOffset(byteOffset), minValues(std::move(minValues)), maxValues(std::move(maxValues))
+			{ }
+
+			bool IsValid() const { return accessorType != TYPE_UNKNOWN && componentType != COMPONENT_UNKNOWN; }
 
 			AccessorType accessorType;
 			ComponentType componentType;
 			bool normalized;
-			size_t count;
 			size_t byteOffset;
 			std::vector<float> minValues;
 			std::vector<float> maxValues;
@@ -56,9 +61,9 @@ namespace Microsoft::glTF
 				return AddBufferView(data.data(), data.size() * sizeof(T), byteStride, target);
 			}
 
-			void AddAccessors(const void* data, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* pOutIds);
+			void AddAccessors(const void* data, size_t count, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* pOutIds = nullptr);
 
-			const Accessor& AddAccessor(const void* data, AccessorDesc accessorDesc);
+			const Accessor& AddAccessor(const void* data, size_t count, AccessorDesc accessorDesc);
 
 			template<typename T>
 			const Accessor& AddAccessor(const std::vector<T>& data, AccessorDesc accessorDesc)
@@ -70,8 +75,7 @@ namespace Microsoft::glTF
 					throw InvalidGLTFException("vector size is not a multiple of accessor type size");
 				}
 
-				accessorDesc.count = data.size() / accessorTypeSize;
-				return AddAccessor(data.data(), std::move(accessorDesc));
+				return AddAccessor(data.data(), data.size() / accessorTypeSize, std::move(accessorDesc));
 			}
 
 			void Output(GLTFDocument& gltfDocument);
@@ -88,7 +92,7 @@ namespace Microsoft::glTF
 			const ResourceWriter2& GetResourceWriter() const;
 
 		private:
-			Accessor& AddAccessor(const AccessorDesc& desc);
+			Accessor& AddAccessor(size_t count, AccessorDesc desc);
 
 			static std::string DefaultFnGenBufferId(const BufferBuilder& builder)
 			{

@@ -11,6 +11,7 @@
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::exp;
 
+
 namespace
 {
 	size_t GetPadding(size_t offset, size_t alignment)
@@ -29,22 +30,6 @@ namespace
 	size_t GetAlignment(const AccessorDesc& desc)
 	{
 		return Accessor::GetComponentTypeSize(desc.componentType);
-	}
-
-	size_t GetExtent(size_t byteStride, const AccessorDesc& desc)
-	{
-		if (byteStride == 0)
-		{
-			// Non-strided elements, aka contiguous chunks of data.
-			// (offset to first element) + (size of element * count)
-			return desc.byteOffset + desc.count * Accessor::GetComponentTypeSize(desc.componentType) * Accessor::GetTypeCount(desc.accessorType);
-		}
-		else
-		{
-			// Strided elements.
-			// (offset to first element) + (stride * count) + (size of element)
-			return desc.byteOffset + desc.count * byteStride + Accessor::GetComponentTypeSize(desc.componentType) * Accessor::GetTypeCount(desc.accessorType);
-		}
 	}
 }
 
@@ -108,29 +93,62 @@ const BufferView& BufferBuilder::AddBufferView(const void* data, size_t byteLeng
 	return m_bufferViews.back();
 }
 
-void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* pOutIds)
+void BufferBuilder::AddAccessors(const void* data, size_t count, size_t byteStride, const AccessorDesc* pDescs, size_t descCount, std::string* pOutIds)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
 
-	// Calculate the max alignment and max extent of the accessors.
-	size_t alignment = 1, extent = 0;
-	for (size_t i = 0; i < descCount; ++i)
+	if (count == 0 || pDescs == nullptr || descCount == 0)
 	{
-		const AccessorDesc& desc = pDescs[i];
-		if (desc.count == 0 || desc.accessorType == TYPE_UNKNOWN || desc.componentType == COMPONENT_UNKNOWN)
-		{
-			continue;
-		}
-
-		alignment = std::max(alignment, GetAlignment(desc));
-		extent = std::max(extent, GetExtent(byteStride, desc));
+		throw InvalidGLTFException("invalid parameters specified");
 	}
 
-	// ResourceWriter2 only supports writing full buffer views.
+	for (size_t i = 0; i < descCount; ++i)
+	{
+		if (!pDescs[i].IsValid())
+		{
+			throw InvalidGLTFException("invalid AccessorDesc specified in pDescs");
+		}
+	}
+
 	if (bufferView.byteLength != 0U)
 	{
 		throw InvalidGLTFException("current buffer view already has written data - this interface doesn't support appending to an existing buffer view");
+	}
+
+	size_t extent;
+	if (byteStride == 0)
+	{
+		if (descCount > 1)
+		{
+			throw InvalidGLTFException("glTF 2.0 specification denotes that byte stride must be >= 4 when a buffer view is accessed by more than one accessor");
+		}
+
+		extent = count * Accessor::GetComponentTypeSize(pDescs[0].componentType) * Accessor::GetTypeCount(pDescs[0].accessorType);
+	}
+	else
+	{
+		extent = count * byteStride;
+
+		// Ensure all accessors fit within the buffer view's extent.
+		const size_t lastElement = (count - 1) * bufferView.byteStride;
+		for (size_t i = 0; i < descCount; ++i)
+		{
+			const size_t accessorSize = Accessor::GetTypeCount(pDescs[i].accessorType) * Accessor::GetComponentTypeSize(pDescs[i].componentType);
+			const size_t accessorEnd = lastElement + pDescs[i].byteOffset + accessorSize;
+
+			if (extent < accessorEnd)
+			{
+				throw InvalidGLTFException("specified accessor does not fit within the currently defined buffer view");
+			}
+		}
+	}
+
+	// Calculate the max alignment.
+	size_t alignment = 1;
+	for (size_t i = 0; i < descCount; ++i)
+	{
+		alignment = std::max(alignment, GetAlignment(pDescs[i]));
 	}
 
 	bufferView.byteStride = byteStride;
@@ -141,13 +159,7 @@ void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const Acce
 
 	for (size_t i = 0; i < descCount; ++i)
 	{
-		const AccessorDesc& desc = pDescs[i];
-		if (desc.count == 0 || desc.accessorType == TYPE_UNKNOWN || desc.componentType == COMPONENT_UNKNOWN)
-		{
-			continue;
-		}
-
-		AddAccessor(pDescs[i]);
+		AddAccessor(count, pDescs[i]);
 
 		if (pOutIds != nullptr)
 		{
@@ -161,7 +173,7 @@ void BufferBuilder::AddAccessors(const void* data, size_t byteStride, const Acce
 	}
 }
 
-const Accessor& BufferBuilder::AddAccessor(const void* data, AccessorDesc desc)
+const Accessor& BufferBuilder::AddAccessor(const void* data, size_t count, AccessorDesc desc)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
@@ -173,7 +185,7 @@ const Accessor& BufferBuilder::AddAccessor(const void* data, AccessorDesc desc)
 	}
 
 	desc.byteOffset = bufferView.byteLength;
-	Accessor& accessor = AddAccessor(desc);
+	Accessor& accessor = AddAccessor(count, std::move(desc));
 
 	bufferView.byteLength += accessor.GetByteLength();
 	buffer.byteLength = bufferView.byteOffset + bufferView.byteLength;
@@ -250,12 +262,17 @@ const ResourceWriter2& BufferBuilder::GetResourceWriter() const
 	return *m_resourceWriter;
 }
 
-Accessor& BufferBuilder::AddAccessor(const AccessorDesc& desc)
+Accessor& BufferBuilder::AddAccessor(size_t count, AccessorDesc desc)
 {
 	Buffer& buffer = m_buffers.back();
 	BufferView& bufferView = m_bufferViews.back();
 
-	if (desc.count == 0)
+	if (buffer.id != bufferView.bufferId)
+	{
+		throw InvalidGLTFException("bufferView.bufferId does not match buffer.id");
+	}
+
+	if (count == 0)
 	{
 		throw GLTFException("Invalid accessor count: 0");
 	}
@@ -273,11 +290,6 @@ Accessor& BufferBuilder::AddAccessor(const AccessorDesc& desc)
 	const auto accessorTypeSize = Accessor::GetTypeCount(desc.accessorType);
 	size_t componentTypeSize = Accessor::GetComponentTypeSize(desc.componentType);
 
-	if (buffer.id != bufferView.bufferId)
-	{
-		throw InvalidGLTFException("bufferView.bufferId does not match buffer.id");
-	}
-
 	// Only check for a valid number of min and max values if they exist
 	if ((!desc.minValues.empty() || !desc.maxValues.empty()) &&
 		((desc.minValues.size() != accessorTypeSize) || (desc.maxValues.size() != accessorTypeSize)))
@@ -287,7 +299,7 @@ Accessor& BufferBuilder::AddAccessor(const AccessorDesc& desc)
 
 	if (desc.byteOffset % componentTypeSize != 0)
 	{
-		throw InvalidGLTFException("accessor offset within buffer view must be a multiple of the component size");
+		throw InvalidGLTFException("asccessor offset within buffer view must be a multiple of the component size");
 	}
 
 	if ((desc.byteOffset + bufferView.byteOffset) % componentTypeSize != 0)
@@ -303,11 +315,10 @@ Accessor& BufferBuilder::AddAccessor(const AccessorDesc& desc)
 
 	accessor.id = m_fnGenAccessorId(*this);
 	accessor.bufferViewId = bufferView.id;
-	accessor.count = desc.count;
+	accessor.count = count;
 	accessor.byteOffset = desc.byteOffset;
 	accessor.type = desc.accessorType;
 	accessor.componentType = desc.componentType;
-	//accessor.normalized = desc.normalized;
 
 	m_accessors.push_back(std::move(accessor));
 	return m_accessors.back();
