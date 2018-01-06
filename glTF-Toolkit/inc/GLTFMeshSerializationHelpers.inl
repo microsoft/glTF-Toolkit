@@ -6,7 +6,7 @@ namespace Microsoft::glTF::Toolkit
     template <typename T>
     void MeshInfo::ExportSharedView(BufferBuilder& builder, const PrimitiveInfo& info, Attribute attr, std::vector<T>(MeshInfo::*attributePtr), Mesh& outMesh) const
     {
-        if (!m_Attributes.Has(attr))
+        if (!m_attributes.Has(attr))
         {
             return;
         }
@@ -14,21 +14,21 @@ namespace Microsoft::glTF::Toolkit
         const auto& data = this->*attributePtr;
         const auto stride = info[attr].GetElementSize();
 
-        m_Scratch.resize(data.size() * stride);
-        Write(info[attr], m_Scratch.data(), data.data(), data.size());
+        m_scratch.resize(data.size() * stride);
+        Write(info[attr], m_scratch.data(), data.data(), data.size());
         
-        for (size_t i = 0; i < m_Primitives.size(); ++i)
+        for (size_t i = 0; i < m_primitives.size(); ++i)
         {
-            const auto& p = m_Primitives[i];
+            const auto& p = m_primitives[i];
 
             AccessorDesc desc;
-            desc.byteOffset = stride * p.Offset;
-            desc.componentType = info[attr].Type;
-            desc.accessorType = info[attr].Dimension;
-            FindMinMax(info[attr], m_Scratch.data(), stride, stride * p.Offset, p.GetCount(attr), desc.minValues, desc.maxValues);
+            desc.byteOffset = stride * p.offset;
+            desc.componentType = info[attr].type;
+            desc.accessorType = info[attr].dimension;
+            FindMinMax(info[attr], m_scratch.data(), stride, stride * p.offset, p.GetCount(attr), desc.minValues, desc.maxValues);
 
-            builder.AddBufferView(info[attr].Target);
-            builder.AddAccessor(m_Scratch.data() + stride * p.Offset, p.GetCount(attr), desc);
+            builder.AddBufferView(info[attr].target);
+            builder.AddAccessor(m_scratch.data() + stride * p.offset, p.GetCount(attr), desc);
 
             outMesh.primitives[i].*s_AccessorIds[attr] = builder.GetCurrentAccessor().id;
         }
@@ -37,7 +37,7 @@ namespace Microsoft::glTF::Toolkit
     template <typename T>
     std::string MeshInfo::ExportAccessor(BufferBuilder& builder, const PrimitiveInfo& p, Attribute attr, std::vector<T>(MeshInfo::*attributePtr)) const
     {
-        if (!m_Attributes.Has(attr))
+        if (!m_attributes.Has(attr))
         {
             return std::string();
         }
@@ -45,17 +45,17 @@ namespace Microsoft::glTF::Toolkit
         const auto& data = this->*attributePtr;
         const auto& a = p[attr];
 
-        const size_t dimension = Accessor::GetTypeCount(a.Dimension);
-        const size_t componentSize = Accessor::GetComponentTypeSize(a.Type);
+        const size_t dimension = Accessor::GetTypeCount(a.dimension);
+        const size_t componentSize = Accessor::GetComponentTypeSize(a.type);
         const size_t byteStride = dimension * componentSize;
 
-        m_Scratch.resize(data.size() * byteStride);
+        m_scratch.resize(data.size() * byteStride);
 
-        Write(a, m_Scratch.data(), byteStride, 0, data.data(), data.size());
-        FindMinMax(a, m_Scratch.data(), byteStride, 0, data.size(), m_Min, m_Max);
+        Write(a, m_scratch.data(), byteStride, 0, data.data(), data.size());
+        FindMinMax(a, m_scratch.data(), byteStride, 0, data.size(), m_min, m_max);
 
-        builder.AddBufferView(a.Target);
-        builder.AddAccessor(m_Scratch.data(), p.GetCount(attr), { a.Dimension, a.Type, m_Min, m_Max, 0, false });
+        builder.AddBufferView(a.target);
+        builder.AddAccessor(m_scratch.data(), p.GetCount(attr), { a.dimension, a.type, m_min, m_max, 0, false });
         return builder.GetCurrentAccessor().id;
     }
 
@@ -73,7 +73,7 @@ namespace Microsoft::glTF::Toolkit
     template <typename From, typename To>
     void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count)
     {
-        switch (accessor.Dimension)
+        switch (accessor.dimension)
         {
         case TYPE_SCALAR: Read<From, To, 1>(dest, src, stride, offset, count); break;
         case TYPE_VEC2:   Read<From, To, 2>(dest, src, stride, offset, count); break;
@@ -90,7 +90,7 @@ namespace Microsoft::glTF::Toolkit
             return;
         }
 
-        switch (accessor.Type)
+        switch (accessor.type)
         {
         case COMPONENT_UNSIGNED_BYTE:  Read<uint8_t, To>(accessor, dest, src, stride, offset, count); break;
         case COMPONENT_UNSIGNED_SHORT: Read<uint16_t, To>(accessor, dest, src, stride, offset, count); break;
@@ -145,9 +145,9 @@ namespace Microsoft::glTF::Toolkit
         auto& bufferView = doc.bufferViews[accessor.bufferViewId];
 
         // Cache off the accessor metadata and read in the data into output buffer.
-        outInfo.Type      = accessor.componentType;
-        outInfo.Dimension = accessor.type;
-        outInfo.Target    = bufferView.target;
+        outInfo.type      = accessor.componentType;
+        outInfo.dimension = accessor.type;
+        outInfo.target    = bufferView.target;
 
         Read(reader, doc, accessor, output);
 
@@ -168,7 +168,7 @@ namespace Microsoft::glTF::Toolkit
     template <typename To, typename From>
     void Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count)
     {
-        switch (info.Dimension)
+        switch (info.dimension)
         {
         case TYPE_SCALAR: Write<To, From, 1>(dest, stride, offset, src, count); break;
         case TYPE_VEC2:   Write<To, From, 2>(dest, stride, offset, src, count); break;
@@ -180,7 +180,7 @@ namespace Microsoft::glTF::Toolkit
     template <typename From>
     size_t Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count)
     {
-        switch (info.Type)
+        switch (info.type)
         {
         case COMPONENT_UNSIGNED_BYTE:  Write<uint8_t, From>(info, dest, stride, offset, src, count); break;
         case COMPONENT_UNSIGNED_SHORT: Write<uint16_t, From>(info, dest, stride, offset, src, count); break;
@@ -199,7 +199,7 @@ namespace Microsoft::glTF::Toolkit
             return 0;
         }
 
-        const size_t stride = Accessor::GetComponentTypeSize(info.Type) * Accessor::GetTypeCount(info.Dimension);
+        const size_t stride = Accessor::GetComponentTypeSize(info.type) * Accessor::GetTypeCount(info.dimension);
         return Write(info, dest, stride, 0, src, count);
     }
 
@@ -232,7 +232,7 @@ namespace Microsoft::glTF::Toolkit
     template <typename T>
     void FindMinMax(const AccessorInfo& info, const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max)
     {
-        switch (info.Dimension)
+        switch (info.dimension)
         {
         case TYPE_SCALAR: FindMinMax<T, 1>(src, stride, offset, count, min, max); break;
         case TYPE_VEC2:   FindMinMax<T, 2>(src, stride, offset, count, min, max); break;
@@ -262,10 +262,10 @@ namespace Microsoft::glTF::Toolkit
             return;
         }
 
-        local.resize(prim.VertexCount);
-        for (size_t i = 0; i < prim.IndexCount; ++i)
+        local.resize(prim.vertexCount);
+        for (size_t i = 0; i < prim.indexCount; ++i)
         {
-            uint32_t index = indices[prim.Offset + i];
+            uint32_t index = indices[prim.offset + i];
             uint32_t newIndex = remap(index);
             local[newIndex] = global[index];
         }

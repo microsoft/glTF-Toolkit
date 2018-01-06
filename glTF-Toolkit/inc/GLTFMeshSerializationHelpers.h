@@ -44,17 +44,17 @@ namespace Microsoft::glTF::Toolkit
 
     struct AttributeList
     {
-        uint32_t Mask;
+        uint32_t mask;
 
         inline void Set(Attribute attr, bool cond) { cond ? Add(attr) : Remove(attr); }
-        inline void Add(Attribute attr) { Mask |= 1 << attr; }
-        inline void Remove(Attribute attr) { Mask &= ~(1 << attr); }
-        inline bool Has(Attribute attr) const { return (Mask & (1 << attr)) != 0; }
+        inline void Add(Attribute attr) { mask |= 1 << attr; }
+        inline void Remove(Attribute attr) { mask &= ~(1 << attr); }
+        inline bool Has(Attribute attr) const { return (mask & (1 << attr)) != 0; }
 
         static AttributeList FromPrimitive(const MeshPrimitive& p);
         
-        inline bool operator==(const AttributeList& rhs) const { return Mask == rhs.Mask; }
-        inline bool operator!=(const AttributeList& rhs) const { return Mask != rhs.Mask; }
+        inline bool operator==(const AttributeList& rhs) const { return mask == rhs.mask; }
+        inline bool operator!=(const AttributeList& rhs) const { return mask != rhs.mask; }
     };
 
 
@@ -63,9 +63,9 @@ namespace Microsoft::glTF::Toolkit
 
     struct AccessorInfo
     {
-        ComponentType		Type;
-        AccessorType		Dimension;
-        BufferViewTarget	Target;
+        ComponentType    type;
+        AccessorType     dimension;
+        BufferViewTarget target;
 
         bool IsValid(void) const;
         size_t GetElementSize(void) const;
@@ -85,24 +85,24 @@ namespace Microsoft::glTF::Toolkit
 
     struct PrimitiveInfo
     {
-        size_t Offset; // Could be index or vertex offset.
+        size_t offset; // Could be index or vertex offset.
 
-        size_t IndexCount;
-        size_t VertexCount;
-        AccessorInfo Metadata[Count];
+        size_t indexCount;
+        size_t vertexCount;
+        AccessorInfo metadata[Count];
 
-        size_t GetCount(void) const { return IndexCount > 0 ? IndexCount : VertexCount; };
-        size_t GetCount(Attribute attr) const { return attr == Indices ? IndexCount : VertexCount; };
+        size_t GetCount(void) const { return indexCount > 0 ? indexCount : vertexCount; };
+        size_t GetCount(Attribute attr) const { return attr == Indices ? indexCount : vertexCount; };
         size_t FaceCount(void) const { return GetCount() / 3; }
-        size_t GetIndexSize(void) const { return Accessor::GetComponentTypeSize(Metadata[Indices].Type); }
+        size_t GetIndexSize(void) const { return Accessor::GetComponentTypeSize(metadata[Indices].type); }
         size_t GetVertexSize(void) const;
 
         void GetVertexInfo(size_t& stride, size_t(&offsets)[Count], size_t* pOutAlignment = nullptr) const;
 
         void CopyMeta(const PrimitiveInfo& info);
 
-        AccessorInfo& operator[] (size_t index) { return Metadata[index]; }
-        const AccessorInfo& operator[] (size_t index) const { return Metadata[index]; }
+        AccessorInfo& operator[] (size_t index) { return metadata[index]; }
+        const AccessorInfo& operator[] (size_t index) const { return metadata[index]; }
         
         static ComponentType GetIndexType(size_t vertexCount) { return vertexCount < USHORT_MAX ? (vertexCount < BYTE_MAX ? COMPONENT_UNSIGNED_BYTE : COMPONENT_UNSIGNED_SHORT) : COMPONENT_UNSIGNED_INT; }
 
@@ -147,7 +147,7 @@ namespace Microsoft::glTF::Toolkit
         static void CopyAndCleanup(const IStreamReader& reader, BufferBuilder& builder, const GLTFDocument& oldDoc, GLTFDocument& newDoc);
 
     private:
-        inline size_t GetFaceCount(void) const { return (m_Indices.size() > 0 ? m_Indices.size() : m_Positions.size()) / 3; }
+        inline size_t GetFaceCount(void) const { return (m_indices.size() > 0 ? m_indices.size() : m_positions.size()) / 3; }
         PrimitiveInfo DetermineMeshFormat(void) const;
 
         void InitSeparateAccessors(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh);
@@ -184,25 +184,25 @@ namespace Microsoft::glTF::Toolkit
         static PrimitiveFormat DetermineFormat(const GLTFDocument& doc, const Mesh& m);
 
     private:
-        std::string m_Name;
-        std::vector<PrimitiveInfo> m_Primitives;
+        std::string m_name;
+        std::vector<PrimitiveInfo> m_primitives;
 
-        std::vector<uint32_t>			m_Indices;
-        std::vector<DirectX::XMFLOAT3>	m_Positions;
-        std::vector<DirectX::XMFLOAT3>	m_Normals;
-        std::vector<DirectX::XMFLOAT4>	m_Tangents;
-        std::vector<DirectX::XMFLOAT2>	m_UV0;
-        std::vector<DirectX::XMFLOAT2>	m_UV1;
-        std::vector<DirectX::XMFLOAT4>	m_Color0;
-        std::vector<DirectX::XMUINT4>	m_Joints0;
-        std::vector<DirectX::XMFLOAT4>	m_Weights0;
+        std::vector<uint32_t>			m_indices;
+        std::vector<DirectX::XMFLOAT3>	m_positions;
+        std::vector<DirectX::XMFLOAT3>	m_normals;
+        std::vector<DirectX::XMFLOAT4>	m_tangents;
+        std::vector<DirectX::XMFLOAT2>	m_uv0;
+        std::vector<DirectX::XMFLOAT2>	m_uv1;
+        std::vector<DirectX::XMFLOAT4>	m_color0;
+        std::vector<DirectX::XMUINT4>	m_joints0;
+        std::vector<DirectX::XMFLOAT4>	m_weights0;
 
-        AttributeList	m_Attributes;
-        PrimitiveFormat m_PrimFormat;
+        AttributeList	m_attributes;
+        PrimitiveFormat m_primFormat;
 
-        mutable std::vector<uint8_t> m_Scratch; // Temp staging buffer used when organizing data for writes to buffer files.
-        mutable std::vector<float> m_Min; // Temp min buffer used when calculing min components of accessor data.
-        mutable std::vector<float> m_Max; // Temp max buffer used when calculing max components of accessor data.
+        mutable std::vector<uint8_t> m_scratch; // Temp staging buffer used when organizing data for writes to buffer files.
+        mutable std::vector<float> m_min; // Temp min buffer used when calculing min components of accessor data.
+        mutable std::vector<float> m_max; // Temp max buffer used when calculing max components of accessor data.
 
         friend std::ostream& operator<<(std::ostream&, const MeshInfo&);
     };
