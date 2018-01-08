@@ -46,7 +46,7 @@ void CommandLine::PrintHelp()
         << indent << "[" << std::wstring(PARAM_LOD) << " <path to each lower LOD asset in descending order of quality>]" << std::endl
         << indent << "[" << std::wstring(PARAM_SCREENCOVERAGE) << " <LOD screen coverage values>]" << std::endl
         << indent << "[" << std::wstring(PARAM_MAXTEXTURESIZE) << " <Max texture size in pixels, defaults to 512>]" << std::endl
-        << indent << "[" << std::wstring(PARAM_GENTANGENTS) << " <Generate tangent space - requires UV coordinates>]" << std::endl
+        << indent << "[" << std::wstring(PARAM_GENTANGENTS) << "]" << std::endl
         << std::endl
         << "Example:" << std::endl
         << indent << "WindowsMRAssetConverter FileToConvert.gltf "
