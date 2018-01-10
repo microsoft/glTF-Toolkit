@@ -5,6 +5,7 @@
 
 namespace FileSystem
 {
+    std::wstring GetRelativePathWithTrailingSeparator(std::wstring from, std::wstring to);
     std::wstring GetBasePath(const std::wstring& path);
     std::wstring GetFullPath(const std::wstring& path);
     std::wstring CreateSubFolder(const std::wstring& parentPath, const std::wstring& subFolderName);

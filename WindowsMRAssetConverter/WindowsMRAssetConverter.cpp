@@ -154,7 +154,9 @@ int wmain(int argc, wchar_t *argv[])
             std::wcout << L"Merging LODs..." << std::endl;
 
             std::vector<GLTFDocument> lodDocuments;
+            std::vector<std::wstring> lodDocumentRelativePaths;
             lodDocuments.push_back(document);
+            lodDocumentRelativePaths.push_back(L"");
 
             for (size_t i = 0; i < lodFilePaths.size(); i++)
             {
@@ -163,12 +165,11 @@ int wmain(int argc, wchar_t *argv[])
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
                 lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize));
+            
+                lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }
 
-            // TODO: LOD assets can be in different places in disk, so the merged document will not have 
-            // the right relative paths to resources. We must either compute the correct relative paths or embed
-            // all resources as base64 in the source document, otherwise the export to GLB will fail.
-            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages);
+            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, lodDocumentRelativePaths, screenCoveragePercentages);
         }
 
         // 4. Make sure there's a default scene

@@ -4,6 +4,19 @@
 #include "stdafx.h"
 #include "FileSystem.h"
 
+std::wstring FileSystem::GetRelativePathWithTrailingSeparator(std::wstring from, std::wstring to)
+{
+    wchar_t outPath[MAX_PATH] = L"";
+    if (PathRelativePathTo(outPath, from.c_str(), FILE_ATTRIBUTE_DIRECTORY, to.c_str(), FILE_ATTRIBUTE_DIRECTORY))
+    {
+        std::wstring result(outPath);
+        result.append(L"\\");
+        return result;
+    }
+
+    return L"";
+}
+
 std::wstring FileSystem::GetBasePath(const std::wstring& path)
 {
     std::wstring pathCopy(path);

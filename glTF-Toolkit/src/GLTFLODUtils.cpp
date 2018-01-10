@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <iostream>
 #include <set>
+#include <codecvt>
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
@@ -108,7 +109,7 @@ namespace
         return stringBuffer.GetString();
     }
 
-    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod)
+    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath)
     {
         Microsoft::glTF::GLTFDocument gltfLod(primary);
 
@@ -160,6 +161,8 @@ namespace
             for (auto buffer : lodBuffers)
             {
                 AddIndexOffset(buffer.id, buffersOffset);
+                std::string relativePathUtf8 = std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(relativePath);
+                buffer.uri = relativePathUtf8 + buffer.uri;
                 gltfLod.buffers.Append(std::move(buffer));
             }
 
@@ -207,6 +210,14 @@ namespace
             {
                 AddIndexOffset(image.id, imageOffset);
                 AddIndexOffset(image.bufferViewId, bufferViewsOffset);
+
+                std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
+                std::wstring uri = conv.from_bytes(image.uri);
+                if (PathIsRelative(uri.c_str())) {
+                    // to be able to reference images with the same name, prefix with relative path
+                    std::string relativePathUtf8 = conv.to_bytes(relativePath);
+                    image.uri = relativePathUtf8 + image.uri;
+                }
                 gltfLod.images.Append(std::move(image));
             }
 
@@ -363,7 +374,7 @@ LODMap GLTFLODUtils::ParseDocumentNodeLODs(const GLTFDocument& doc)
     return lodMap;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths)
 {
     if (docs.empty())
     {
@@ -375,7 +386,7 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
 
     for (size_t i = 1; i < docs.size(); i++)
     {
-        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i]);
+        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], relativePaths[i]);
     }
 
     for (auto lod : lods)
@@ -398,9 +409,9 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
     return gltfPrimary;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths, const std::vector<double>& screenCoveragePercentages)
 {
-    GLTFDocument merged = MergeDocumentsAsLODs(docs);
+    GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths);
 
     if (screenCoveragePercentages.size() == 0)
     {

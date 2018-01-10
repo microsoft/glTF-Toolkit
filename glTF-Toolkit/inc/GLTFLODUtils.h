@@ -30,7 +30,7 @@ namespace Microsoft::glTF::Toolkit
         /// </summary>
         /// <returns>The primary GLTF Document with the inserted LOD node.</returns>
         /// <param name="docs">A vector of glTF documents to merge as LODs. The first element of the vector is assumed to be the primary LOD.</param>
-        static GLTFDocument MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs);
+        static GLTFDocument MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths);
 
         /// <summary>
         /// Inserts each LOD GLTFDocument as a node LOD (at the root level) of the specified primary GLTF asset.
@@ -40,7 +40,7 @@ namespace Microsoft::glTF::Toolkit
         /// <param name="docs">A vector of glTF documents to merge as LODs. The first element of the vector is assumed to be the primary LOD.</param>
         /// <param name="screenCoveragePercentages">A vector with the screen coverage percentages corresponding to each LOD. If the size of this 
         /// vector is larger than the size of <see name="docs" />, lower coverage values will cause the asset to be invisible.</param>
-        static GLTFDocument MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages);
+        static GLTFDocument MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths, const std::vector<double>& screenCoveragePercentages);
 
         /// <summary>
         /// Determines the highest number of Node LODs for a given glTF asset.
