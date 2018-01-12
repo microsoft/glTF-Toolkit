@@ -7,12 +7,9 @@
 #include <GLTFSDK/GLTFResourceReader.h>
 #include <GLTFSDK/GLTFResourceWriter.h>
 #include <GLTFSDK/IResourceWriter.h>
+#include <GLTFSDK/BufferBuilder.h>
 
 #include <DirectXMath.h>
-
-#include "BufferBuilder.h"
-
-using namespace Microsoft::glTF::exp;
 
 namespace Microsoft::glTF::Toolkit
 {
@@ -76,7 +73,6 @@ namespace Microsoft::glTF::Toolkit
 
         friend std::ostream& operator<<(std::ostream&, const AccessorInfo&);
     };
-
     std::ostream& operator<<(std::ostream& s, const AccessorInfo& a);
 
 
@@ -113,8 +109,8 @@ namespace Microsoft::glTF::Toolkit
 
         friend std::ostream& operator<<(std::ostream&, const PrimitiveInfo&);
     };
-
     std::ostream& operator<<(std::ostream& s, const PrimitiveInfo& p);
+
 
     //------------------------------------------
     // MeshInfo
@@ -157,11 +153,11 @@ namespace Microsoft::glTF::Toolkit
         void ReadVertices(const PrimitiveInfo& info, const std::vector<uint8_t>& input);
 
         // Exports the mesh data to a BufferBuilder and Mesh in a specific format.
-        void ExportCSI(BufferBuilder& builder, Mesh& outMesh) const;	// Combine primitives, separate attributes, indexed
-        void ExportCS(BufferBuilder& builder, Mesh& outMesh) const;		// Combine primitives, separate attributes, non-indexed
-        void ExportCI(BufferBuilder& builder, Mesh& outMesh) const;		// Combine primitives, interleave attributes
-        void ExportSS(BufferBuilder& builder, Mesh& outMesh) const;		// Separate primitives, separate attributes
-        void ExportSI(BufferBuilder& builder, Mesh& outMesh) const;		// Separate primitives, interleave attributes
+        void ExportCSI(BufferBuilder& builder, Mesh& outMesh) const; // Combine primitives, separate attributes, indexed
+        void ExportCS(BufferBuilder& builder, Mesh& outMesh) const;  // Combine primitives, separate attributes, non-indexed
+        void ExportCI(BufferBuilder& builder, Mesh& outMesh) const;  // Combine primitives, interleave attributes
+        void ExportSS(BufferBuilder& builder, Mesh& outMesh) const;  // Separate primitives, separate attributes
+        void ExportSI(BufferBuilder& builder, Mesh& outMesh) const;  // Separate primitives, interleave attributes
 
         // Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
         template <typename T>
@@ -187,17 +183,17 @@ namespace Microsoft::glTF::Toolkit
         std::string m_name;
         std::vector<PrimitiveInfo> m_primitives;
 
-        std::vector<uint32_t>			m_indices;
-        std::vector<DirectX::XMFLOAT3>	m_positions;
-        std::vector<DirectX::XMFLOAT3>	m_normals;
-        std::vector<DirectX::XMFLOAT4>	m_tangents;
-        std::vector<DirectX::XMFLOAT2>	m_uv0;
-        std::vector<DirectX::XMFLOAT2>	m_uv1;
-        std::vector<DirectX::XMFLOAT4>	m_color0;
-        std::vector<DirectX::XMUINT4>	m_joints0;
-        std::vector<DirectX::XMFLOAT4>	m_weights0;
+        std::vector<uint32_t>          m_indices;
+        std::vector<DirectX::XMFLOAT3> m_positions;
+        std::vector<DirectX::XMFLOAT3> m_normals;
+        std::vector<DirectX::XMFLOAT4> m_tangents;
+        std::vector<DirectX::XMFLOAT2> m_uv0;
+        std::vector<DirectX::XMFLOAT2> m_uv1;
+        std::vector<DirectX::XMFLOAT4> m_color0;
+        std::vector<DirectX::XMUINT4>  m_joints0;
+        std::vector<DirectX::XMFLOAT4> m_weights0;
 
-        AttributeList	m_attributes;
+        AttributeList m_attributes;
         PrimitiveFormat m_primFormat;
 
         mutable std::vector<uint8_t> m_scratch; // Temp staging buffer used when organizing data for writes to buffer files.
