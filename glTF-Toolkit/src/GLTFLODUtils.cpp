@@ -17,6 +17,7 @@
 #include <iostream>
 #include <set>
 #include <codecvt>
+#include <filesystem>
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
@@ -213,7 +214,7 @@ namespace
 
                 std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
                 std::wstring uri = conv.from_bytes(image.uri);
-                if (PathIsRelative(uri.c_str())) {
+                if (std::experimental::filesystem::path(uri).is_relative()) {
                     // to be able to reference images with the same name, prefix with relative path
                     std::string relativePathUtf8 = conv.to_bytes(relativePath);
                     image.uri = relativePathUtf8 + image.uri;
