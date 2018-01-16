@@ -156,7 +156,6 @@ int wmain(int argc, wchar_t *argv[])
             std::vector<GLTFDocument> lodDocuments;
             std::vector<std::wstring> lodDocumentRelativePaths;
             lodDocuments.push_back(document);
-            lodDocumentRelativePaths.push_back(L"");
 
             for (size_t i = 0; i < lodFilePaths.size(); i++)
             {
@@ -169,7 +168,7 @@ int wmain(int argc, wchar_t *argv[])
                 lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }
 
-            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, lodDocumentRelativePaths, screenCoveragePercentages);
+            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages, lodDocumentRelativePaths);
         }
 
         // 4. Make sure there's a default scene
