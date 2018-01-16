@@ -110,7 +110,7 @@ namespace
         return stringBuffer.GetString();
     }
 
-    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath)
+    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath = L"")
     {
         Microsoft::glTF::GLTFDocument gltfLod(primary);
 
@@ -387,7 +387,7 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
 
     for (size_t i = 1; i < docs.size(); i++)
     {
-        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], relativePaths[i]);
+        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], (relativePaths.size() == docs.size() - 1 ? relativePaths[i - 1] : L""));
     }
 
     for (auto lod : lods)
@@ -410,7 +410,7 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
     return gltfPrimary;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths, const std::vector<double>& screenCoveragePercentages)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths)
 {
     GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths);
 

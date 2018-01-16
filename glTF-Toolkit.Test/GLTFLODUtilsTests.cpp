@@ -97,13 +97,9 @@ namespace Microsoft::glTF::Toolkit::Test
                 auto doc = DeserializeJson(inputJson);
 
                 std::vector<GLTFDocument> docs;
-                std::vector<std::wstring> relativePaths;
                 docs.push_back(doc);
                 docs.push_back(doc);
-                relativePaths.push_back(L"");
-                relativePaths.push_back(L"");
-
-                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs, relativePaths);
+                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs);
 
                 // Serialize GLTFDocument back to json
                 auto outputJson = Serialize(newlodgltfDoc);
@@ -155,16 +151,11 @@ namespace Microsoft::glTF::Toolkit::Test
                 auto doc = DeserializeJson(inputJson);
 
                 std::vector<GLTFDocument> docs;
-                std::vector<std::wstring> relativePaths;
                 docs.push_back(doc);
                 docs.push_back(doc);
                 docs.push_back(doc);
-                relativePaths.push_back(L"");
-                relativePaths.push_back(L"");
-                relativePaths.push_back(L"");
 
-
-                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs, relativePaths);
+                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs);
 
                 CheckGLTFLODNodeCountAgainstOriginal(doc, newlodgltfDoc, 3);
 
@@ -220,18 +211,13 @@ namespace Microsoft::glTF::Toolkit::Test
                 auto doc = DeserializeJson(inputJson);
 
                 std::vector<GLTFDocument> docs;
-                std::vector<std::wstring> relativePaths;
                 docs.push_back(doc);
                 docs.push_back(doc);
                 docs.push_back(doc);
-                relativePaths.push_back(L"");
-                relativePaths.push_back(L"");
-                relativePaths.push_back(L"");
-
 
                 std::vector<double> screenCoverages{ 0.5, 0.2, 0.01 };
 
-                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs, relativePaths, screenCoverages);
+                auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs, screenCoverages);
 
                 CheckGLTFLODNodeCountAgainstOriginal(doc, newlodgltfDoc, 3);
 
