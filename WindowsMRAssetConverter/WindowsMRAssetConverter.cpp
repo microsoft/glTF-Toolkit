@@ -15,6 +15,7 @@
 
 #include "CommandLine.h"
 #include "FileSystem.h"
+#include <filesystem>
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
@@ -76,7 +77,8 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     size_t maxTextureSize)
 {
     // Load the document
-    std::wstring inputFileName = PathFindFileName(inputFilePath.c_str());
+    std::experimental::filesystem::path inputFilePathFS(inputFilePath);
+    std::wstring inputFileName = inputFilePathFS.filename();
     std::wcout << L"Loading input document: " << inputFileName << L"..." << std::endl;
 
     if (inputAssetType == AssetType::GLB)
@@ -86,11 +88,8 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
         std::string inputFilePathA(inputFilePath.begin(), inputFilePath.end());
         std::string tempDirectoryA(tempDirectory.begin(), tempDirectory.end());
 
-        wchar_t *inputFileNameRaw = &inputFileName[0];
-        PathRemoveExtension(inputFileNameRaw);
-
         // inputGltfName is the path to the converted GLTF without extension
-        std::wstring inputGltfName = inputFileNameRaw;
+        std::wstring inputGltfName = inputFilePathFS.stem();
         std::string inputGltfNameA = std::string(inputGltfName.begin(), inputGltfName.end());
 
         GLBToGLTF::UnpackGLB(inputFilePathA, tempDirectoryA, inputGltfNameA);
