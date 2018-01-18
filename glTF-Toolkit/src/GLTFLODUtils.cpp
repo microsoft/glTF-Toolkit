@@ -110,7 +110,7 @@ namespace
         return stringBuffer.GetString();
     }
 
-    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath = L"")
+    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath = L"", bool shared_materials = false)
     {
         Microsoft::glTF::GLTFDocument gltfLod(primary);
 
@@ -256,7 +256,8 @@ namespace
         // Material Merge
         // Note the extension KHR_materials_pbrSpecularGlossiness will be also updated
         // Materials depend upon textures
-        size_t materialOffset = gltfLod.materials.Size();
+        size_t materialOffset = shared_materials ? 0 : gltfLod.materials.Size();
+        if (!shared_materials)
         {
             auto lodMaterials = lod.materials.Elements();
             for (auto material : lodMaterials)
@@ -432,7 +433,7 @@ LODMap GLTFLODUtils::ParseDocumentNodeLODs(const GLTFDocument& doc)
     return lodMap;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths, const bool& shared_materials)
 {
     if (docs.empty())
     {
@@ -444,7 +445,7 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
 
     for (size_t i = 1; i < docs.size(); i++)
     {
-        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], (relativePaths.size() == docs.size() - 1 ? relativePaths[i - 1] : L""));
+        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], (relativePaths.size() == docs.size() - 1 ? relativePaths[i - 1] : L""), shared_materials);
     }
 
     for (auto lod : lods)
@@ -467,9 +468,9 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
     return gltfPrimary;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths, const bool& shared_materials)
 {
-    GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths);
+    GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths, shared_materials);
 
     if (screenCoveragePercentages.size() == 0)
     {

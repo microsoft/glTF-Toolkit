@@ -73,7 +73,8 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     std::wstring& inputFilePath,
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
-    size_t maxTextureSize)
+    size_t maxTextureSize,
+    bool packTextures)
 {
     // Load the document
     std::experimental::filesystem::path inputFilePathFS(inputFilePath);
@@ -103,16 +104,19 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
 
     GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
 
-    std::wcout << L"Packing textures..." << std::endl;
+    if (packTextures)
+    {
+        std::wcout << L"Packing textures..." << std::endl;
 
-    // 1. Texture Packing
-    auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
-    document = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, TexturePacking::RoughnessMetallicOcclusion, tempDirectoryA);
+        // 1. Texture Packing
+        auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
+        document = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, TexturePacking::RoughnessMetallicOcclusion, tempDirectoryA);
 
-    std::wcout << L"Compressing textures - this can take a few minutes..." << std::endl;
+        std::wcout << L"Compressing textures - this can take a few minutes..." << std::endl;
 
-    // 2. Texture Compression
-    document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
+        // 2. Texture Compression
+        document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
+    }
 
     return document;
 }
@@ -138,13 +142,14 @@ int wmain(int argc, wchar_t *argv[])
         std::vector<std::wstring> lodFilePaths;
         std::vector<double> screenCoveragePercentages;
         size_t maxTextureSize;
+        bool share_materials;
 
-        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize);
+        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize, share_materials);
 
         // Load document, and perform steps:
         // 1. Texture Packing
         // 2. Texture Compression
-        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize);
+        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize, true);
 
         // 3. LOD Merging
         if (lodFilePaths.size() > 0)
@@ -161,12 +166,12 @@ int wmain(int argc, wchar_t *argv[])
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
-                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize));
+                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, !share_materials));
             
                 lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }
 
-            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages, lodDocumentRelativePaths);
+            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages, lodDocumentRelativePaths, share_materials);
         }
 
         // 4. Make sure there's a default scene
