@@ -156,7 +156,7 @@ namespace
         // lod merge is performed from the lowest reference back upwards
         // e.g. buffers/samplers/extensions do not reference any other part of the gltf manifest    
         size_t buffersOffset = gltfLod.buffers.Size();
-        size_t samplersOffset = gltfLod.samplers.Size();
+        size_t samplersOffset = shared_materials ? 0 : gltfLod.samplers.Size();
         {
             auto lodBuffers = lod.buffers.Elements();
             for (auto buffer : lodBuffers)
@@ -167,11 +167,14 @@ namespace
                 gltfLod.buffers.Append(std::move(buffer));
             }
 
-            auto lodSamplers = lod.samplers.Elements();
-            for (auto sampler : lodSamplers)
+            if (!shared_materials)
             {
-                AddIndexOffset(sampler.id, samplersOffset);
-                gltfLod.samplers.Append(std::move(sampler));
+                auto lodSamplers = lod.samplers.Elements();
+                for (auto sampler : lodSamplers)
+                {
+                    AddIndexOffset(sampler.id, samplersOffset);
+                    gltfLod.samplers.Append(std::move(sampler));
+                }
             }
 
             for (const auto& extension : lod.extensionsUsed)
@@ -205,51 +208,55 @@ namespace
             }
 
             // Images depend upon Buffer views
-            size_t imageOffset = gltfLod.images.Size();
-            auto lodImages = lod.images.Elements();
-            for (auto image : lodImages)
+            size_t imageOffset = shared_materials ? 0 : gltfLod.images.Size();
+            if (!shared_materials)
             {
-                AddIndexOffset(image.id, imageOffset);
-                AddIndexOffset(image.bufferViewId, bufferViewsOffset);
-
-                std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
-                std::wstring uri = conv.from_bytes(image.uri);
-                if (std::experimental::filesystem::path(uri).is_relative()) {
-                    // to be able to reference images with the same name, prefix with relative path
-                    std::string relativePathUtf8 = conv.to_bytes(relativePath);
-                    image.uri = relativePathUtf8 + image.uri;
-                }
-                gltfLod.images.Append(std::move(image));
-            }
-
-            // Textures depend upon Samplers and Images
-            auto lodTextures = lod.textures.Elements();
-            for (auto texture : lodTextures)
-            {
-                AddIndexOffset(texture.id, texturesOffset);
-                AddIndexOffset(texture.samplerId, samplersOffset);
-                AddIndexOffset(texture.imageId, imageOffset);
-
-                // MSFT_texture_dds extension
-                auto ddsExtensionIt = texture.extensions.find(EXTENSION_MSFT_TEXTURE_DDS);
-                if (ddsExtensionIt != texture.extensions.end() && !ddsExtensionIt->second.empty())
+                auto lodImages = lod.images.Elements();
+                for (auto image : lodImages)
                 {
-                    rapidjson::Document ddsJson = RapidJsonUtils::CreateDocumentFromString(ddsExtensionIt->second);
 
-                    if (ddsJson.HasMember("source"))
+                    AddIndexOffset(image.id, imageOffset);
+                    AddIndexOffset(image.bufferViewId, bufferViewsOffset);
+
+                    std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
+                    std::wstring uri = conv.from_bytes(image.uri);
+                    if (std::experimental::filesystem::path(uri).is_relative()) {
+                        // to be able to reference images with the same name, prefix with relative path
+                        std::string relativePathUtf8 = conv.to_bytes(relativePath);
+                        image.uri = relativePathUtf8 + image.uri;
+                    }
+                    gltfLod.images.Append(std::move(image));
+                }
+
+                // Textures depend upon Samplers and Images
+                auto lodTextures = lod.textures.Elements();
+                for (auto texture : lodTextures)
+                {
+                    AddIndexOffset(texture.id, texturesOffset);
+                    AddIndexOffset(texture.samplerId, samplersOffset);
+                    AddIndexOffset(texture.imageId, imageOffset);
+
+                    // MSFT_texture_dds extension
+                    auto ddsExtensionIt = texture.extensions.find(EXTENSION_MSFT_TEXTURE_DDS);
+                    if (ddsExtensionIt != texture.extensions.end() && !ddsExtensionIt->second.empty())
                     {
-                        auto index = ddsJson["source"].GetInt();
-                        ddsJson["source"] = index + imageOffset;
+                        rapidjson::Document ddsJson = RapidJsonUtils::CreateDocumentFromString(ddsExtensionIt->second);
+
+                        if (ddsJson.HasMember("source"))
+                        {
+                            auto index = ddsJson["source"].GetInt();
+                            ddsJson["source"] = index + imageOffset;
+                        }
+
+                        rapidjson::StringBuffer buffer;
+                        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                        ddsJson.Accept(writer);
+
+                        ddsExtensionIt->second = buffer.GetString();
                     }
 
-                    rapidjson::StringBuffer buffer;
-                    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-                    ddsJson.Accept(writer);
-
-                    ddsExtensionIt->second = buffer.GetString();
+                    gltfLod.textures.Append(std::move(texture));
                 }
-
-                gltfLod.textures.Append(std::move(texture));
             }
         }
 
