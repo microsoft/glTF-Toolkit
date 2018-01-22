@@ -165,7 +165,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
 
     // Pack textures using DirectXTex
 
-    if (packing & TexturePacking::OcclusionRoughnessMetallic)
+    if (packing & TexturePacking::OcclusionRoughnessMetallic && (hasMR || hasOcclusion))
     {
         std::string ormImageId;
 
@@ -209,7 +209,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         AddTextureToOrmExtension(ormImageId, TexturePacking::OcclusionRoughnessMetallic, outputDoc, ormExtensionJson, allocator);
     }
 
-    if (packing & TexturePacking::RoughnessMetallicOcclusion)
+    if (packing & TexturePacking::RoughnessMetallicOcclusion && (hasMR || hasOcclusion))
     {
         auto rmo = std::make_unique<DirectX::ScratchImage>();
 
@@ -242,7 +242,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         AddTextureToOrmExtension(rmoImageId, TexturePacking::RoughnessMetallicOcclusion, outputDoc, ormExtensionJson, allocator);
     }
 
-    if (!normal.empty())
+    if (hasNormal)
     {
         rapidjson::Value ormNormalTextureJson(rapidjson::kObjectType);
         {
