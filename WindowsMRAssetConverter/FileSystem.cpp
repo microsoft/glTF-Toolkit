@@ -3,7 +3,6 @@
 
 #include "stdafx.h"
 #include "FileSystem.h"
-#include <experimental/filesystem>
 
 std::wstring FileSystem::GetRelativePathWithTrailingSeparator(std::wstring from, std::wstring to)
 {
