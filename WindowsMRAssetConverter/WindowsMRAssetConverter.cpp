@@ -15,7 +15,6 @@
 
 #include "CommandLine.h"
 #include "FileSystem.h"
-#include <filesystem>
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;

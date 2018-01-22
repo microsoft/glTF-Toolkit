@@ -24,7 +24,6 @@
 #include <windows.h>
 #include <wincodec.h>
 #include <pathcch.h>
-#include <shlwapi.h>
 
 #include <wrl/client.h>
 
