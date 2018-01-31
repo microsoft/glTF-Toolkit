@@ -325,7 +325,35 @@ namespace
                     AddIndexOffset(primitive.uv1AccessorId, accessorOffset);
                     AddIndexOffset(primitive.color0AccessorId, accessorOffset);
 
-                    AddIndexOffset(primitive.materialId, materialOffset);
+                    if (shared_materials)
+                    {
+                        // lower quality LODs can have fewer images and textures than the highest LOD,
+                        // so we need to find the correct material index for the same material from the highest LOD
+
+                        auto localMaterial = lod.materials.Get(primitive.materialId);
+
+                        // find merged material index for the given material index in this LOD
+                        auto iter = std::find_if(gltfLod.materials.Elements().begin(),
+                                gltfLod.materials.Elements().end(),
+                                [localMaterial](auto globalMaterial) {
+                                    return localMaterial.name == globalMaterial.name;
+                                }
+                        );
+
+                        if (iter != gltfLod.materials.Elements().end())
+                        {
+                            size_t newMaterialIndex = std::distance(gltfLod.materials.Elements().begin(), iter);
+                            primitive.materialId = std::to_string(newMaterialIndex);
+                        }
+                        else
+                        {
+                            throw new std::runtime_error("Couldn't find the shared material in the highest LOD.");
+                        }
+                    }
+                    else
+                    {
+                        AddIndexOffset(primitive.materialId, materialOffset);
+                    }
                 }
 
                 gltfLod.meshes.Append(std::move(mesh));
