@@ -336,7 +336,18 @@ namespace
                         auto iter = std::find_if(gltfLod.materials.Elements().begin(),
                                 gltfLod.materials.Elements().end(),
                                 [localMaterial](auto globalMaterial) {
-                                    return localMaterial.name == globalMaterial.name;
+                                    // check that the materials are the same, noting that the texture and material ids will differ
+                                    return localMaterial.name == globalMaterial.name &&
+                                           localMaterial.alphaMode == globalMaterial.alphaMode &&
+                                           localMaterial.alphaCutoff == globalMaterial.alphaCutoff &&
+                                           localMaterial.emissiveFactor == globalMaterial.emissiveFactor &&
+                                           localMaterial.doubleSided == globalMaterial.doubleSided &&
+                                           localMaterial.metallicRoughness.baseColorFactor == globalMaterial.metallicRoughness.baseColorFactor &&
+                                           localMaterial.metallicRoughness.metallicFactor == globalMaterial.metallicRoughness.metallicFactor &&
+                                           localMaterial.occlusionTexture.strength == globalMaterial.occlusionTexture.strength &&
+                                           localMaterial.specularGlossiness.diffuseFactor == globalMaterial.specularGlossiness.diffuseFactor &&
+                                           localMaterial.specularGlossiness.glossinessFactor == globalMaterial.specularGlossiness.glossinessFactor &&
+                                           localMaterial.specularGlossiness.specularFactor == globalMaterial.specularGlossiness.specularFactor;
                                 }
                         );
 
