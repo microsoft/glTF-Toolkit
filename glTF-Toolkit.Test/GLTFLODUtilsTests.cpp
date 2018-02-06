@@ -99,7 +99,6 @@ namespace Microsoft::glTF::Toolkit::Test
                 std::vector<GLTFDocument> docs;
                 docs.push_back(doc);
                 docs.push_back(doc);
-
                 auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs);
 
                 // Serialize GLTFDocument back to json

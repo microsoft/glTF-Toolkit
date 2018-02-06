@@ -4,6 +4,48 @@
 #include "stdafx.h"
 #include "FileSystem.h"
 
+std::wstring FileSystem::GetRelativePathWithTrailingSeparator(std::wstring from, std::wstring to)
+{
+    // once c++17 filesystem is fully supported, this should become something like:
+    // return std::filesystem::relative(to, from) + std::filesystem::path::preferred_separator;
+
+    std::experimental::filesystem::path fromFS(std::experimental::filesystem::canonical(from));
+    std::experimental::filesystem::path toFS(std::experimental::filesystem::canonical(to));
+
+    std::experimental::filesystem::path result;
+    auto fromIter = fromFS.begin();
+    auto toIter = toFS.begin();
+
+    while (fromIter != fromFS.end() || toIter != toFS.end())
+    {
+        const auto& f = *fromIter;
+        const auto& t = *toIter;
+        if (f == t)
+        {
+            fromIter++;
+            toIter++;
+        }
+        else
+        {
+            while (fromIter != fromFS.end())
+            {
+                result /= "..";
+                fromIter++;
+            }
+
+            while (toIter != toFS.end())
+            {
+                result /= *toIter;
+                toIter++;
+            }
+
+            result += std::experimental::filesystem::path::preferred_separator;
+        }
+    }
+
+    return result;
+}
+
 std::wstring FileSystem::GetBasePath(const std::wstring& path)
 {
     std::wstring pathCopy(path);
