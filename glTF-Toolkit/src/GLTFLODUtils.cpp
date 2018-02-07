@@ -326,6 +326,8 @@ namespace
 
         // Nodes depend upon Nodes and Meshes
         size_t nodeOffset = gltfLod.nodes.Size();
+        // Skins depend upon Nodes
+        size_t skinOffset = gltfLod.skins.Size();
         {
             auto nodes = lod.nodes.Elements();
             for (auto node : nodes)
@@ -335,6 +337,10 @@ namespace
                 node.name += nodeLodLabel;
                 AddIndexOffset(node.id, nodeOffset);
                 AddIndexOffset(node.meshId, meshOffset);
+                if (!node.skinId.empty())
+                {
+                    AddIndexOffset(node.skinId, skinOffset);
+                }
 
                 for (auto Itr = node.children.begin(); Itr != node.children.end(); Itr++)
                 {
@@ -342,7 +348,58 @@ namespace
                 }
 
                 gltfLod.nodes.Append(std::move(node));
-            };
+            }
+        }
+
+        {
+            auto skins = lod.skins.Elements();
+            for (auto skin : skins)
+            {
+                // post-fix with lod level indication; 
+                // no functional reason other than making it easier to natively read gltf files with lods
+                skin.name += nodeLodLabel;
+                AddIndexOffset(skin.id, skinOffset);
+                AddIndexOffset(skin.skeletonId, nodeOffset);
+                AddIndexOffset(skin.inverseBindMatricesAccessorId, accessorOffset);
+
+                for (auto Itr = skin.jointIds.begin(); Itr != skin.jointIds.end(); Itr++)
+                {
+                    AddIndexOffset(*Itr, nodeOffset);
+                }
+
+                gltfLod.skins.Append(std::move(skin));
+            }
+        }
+
+        // Animation channels depend upon Nodes and Accessors
+        {
+            for (size_t animationIndex = 0; animationIndex < gltfLod.animations.Size(); animationIndex++)
+            {
+                const auto &baseAnimation = gltfLod.animations[animationIndex];
+                Animation newAnimation(baseAnimation);
+                const auto &lodAnimation = lod.animations[animationIndex];
+
+                size_t samplerOffset = baseAnimation.samplers.Size();
+                for (const auto &sampler : lodAnimation.samplers.Elements())
+                {
+                    AnimationSampler newSampler(sampler);
+                    AddIndexOffset(newSampler.id, samplerOffset);
+                    AddIndexOffset(newSampler.inputAccessorId, accessorOffset);
+                    AddIndexOffset(newSampler.outputAccessorId, accessorOffset);
+                    newAnimation.samplers.Append(std::move(newSampler));
+                }
+                
+                size_t channelsOffset = baseAnimation.channels.size();
+                for (auto channel : lodAnimation.channels)
+                {
+                    AddIndexOffset(channel.id, channelsOffset);
+                    AddIndexOffset(channel.target.nodeId, nodeOffset);
+                    AddIndexOffset(channel.samplerId, samplerOffset);
+
+                    newAnimation.channels.push_back(std::move(channel));
+                }
+                gltfLod.animations.Replace(newAnimation);
+            }
         }
 
         // update the primary GLTF root nodes lod extension to reference the new lod root node
