@@ -308,16 +308,16 @@ namespace
                 mesh.name += nodeLodLabel;
                 AddIndexOffset(mesh.id, meshOffset);
 
-                for (auto Itr = mesh.primitives.begin(); Itr != mesh.primitives.end(); Itr++)
+                for (auto &primative : mesh.primitives)
                 {
-                    AddIndexOffset(Itr->positionsAccessorId, accessorOffset);
-                    AddIndexOffset(Itr->normalsAccessorId, accessorOffset);
-                    AddIndexOffset(Itr->indicesAccessorId, accessorOffset);
-                    AddIndexOffset(Itr->uv0AccessorId, accessorOffset);
-                    AddIndexOffset(Itr->uv1AccessorId, accessorOffset);
-                    AddIndexOffset(Itr->color0AccessorId, accessorOffset);
+                    AddIndexOffset(primative.positionsAccessorId, accessorOffset);
+                    AddIndexOffset(primative.normalsAccessorId, accessorOffset);
+                    AddIndexOffset(primative.indicesAccessorId, accessorOffset);
+                    AddIndexOffset(primative.uv0AccessorId, accessorOffset);
+                    AddIndexOffset(primative.uv1AccessorId, accessorOffset);
+                    AddIndexOffset(primative.color0AccessorId, accessorOffset);
 
-                    AddIndexOffset(Itr->materialId, materialOffset);
+                    AddIndexOffset(primative.materialId, materialOffset);
                 }
 
                 gltfLod.meshes.Append(std::move(mesh));
@@ -342,9 +342,9 @@ namespace
                     AddIndexOffset(node.skinId, skinOffset);
                 }
 
-                for (auto Itr = node.children.begin(); Itr != node.children.end(); Itr++)
+                for (auto &child : node.children)
                 {
-                    AddIndexOffset(*Itr, nodeOffset);
+                    AddIndexOffset(child, nodeOffset);
                 }
 
                 gltfLod.nodes.Append(std::move(node));
@@ -362,9 +362,9 @@ namespace
                 AddIndexOffset(skin.skeletonId, nodeOffset);
                 AddIndexOffset(skin.inverseBindMatricesAccessorId, accessorOffset);
 
-                for (auto Itr = skin.jointIds.begin(); Itr != skin.jointIds.end(); Itr++)
+                for (auto &jointId : skin.jointIds)
                 {
-                    AddIndexOffset(*Itr, nodeOffset);
+                    AddIndexOffset(jointId, nodeOffset);
                 }
 
                 gltfLod.skins.Append(std::move(skin));
