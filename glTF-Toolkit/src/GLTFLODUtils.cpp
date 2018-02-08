@@ -308,16 +308,16 @@ namespace
                 mesh.name += nodeLodLabel;
                 AddIndexOffset(mesh.id, meshOffset);
 
-                for (auto &primative : mesh.primitives)
+                for (auto &primitive : mesh.primitives)
                 {
-                    AddIndexOffset(primative.positionsAccessorId, accessorOffset);
-                    AddIndexOffset(primative.normalsAccessorId, accessorOffset);
-                    AddIndexOffset(primative.indicesAccessorId, accessorOffset);
-                    AddIndexOffset(primative.uv0AccessorId, accessorOffset);
-                    AddIndexOffset(primative.uv1AccessorId, accessorOffset);
-                    AddIndexOffset(primative.color0AccessorId, accessorOffset);
+                    AddIndexOffset(primitive.positionsAccessorId, accessorOffset);
+                    AddIndexOffset(primitive.normalsAccessorId, accessorOffset);
+                    AddIndexOffset(primitive.indicesAccessorId, accessorOffset);
+                    AddIndexOffset(primitive.uv0AccessorId, accessorOffset);
+                    AddIndexOffset(primitive.uv1AccessorId, accessorOffset);
+                    AddIndexOffset(primitive.color0AccessorId, accessorOffset);
 
-                    AddIndexOffset(primative.materialId, materialOffset);
+                    AddIndexOffset(primitive.materialId, materialOffset);
                 }
 
                 gltfLod.meshes.Append(std::move(mesh));
