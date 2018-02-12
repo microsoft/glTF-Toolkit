@@ -105,6 +105,12 @@ void DeviceResources::CreateDeviceResources()
             context.GetAddressOf()      // Returns the device immediate context.
             );
     }
+#if defined(NDEBUG)
+    else
+    {
+        throw std::exception("No Direct3D hardware device found");
+    }
+#else
     if (FAILED(hr))
     {
         // If the initialization fails, fall back to the WARP device.
@@ -128,6 +134,7 @@ void DeviceResources::CreateDeviceResources()
             OutputDebugStringA("Direct3D Adapter - WARP\n");
         }
     }
+#endif
 
     ThrowIfFailed(hr);
 
