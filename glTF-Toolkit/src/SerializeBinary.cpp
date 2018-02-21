@@ -53,7 +53,7 @@ namespace
             max = minmax.second;
         }
 
-        builder.AddAccessor(accessorContents, accessor.componentType, accessor.type, min, max);
+        builder.AddAccessor(accessorContents, AccessorDesc(accessor.type, accessor.componentType, accessor.normalized, min, max));
     }
 
     template <typename OriginalType, typename NewType>
