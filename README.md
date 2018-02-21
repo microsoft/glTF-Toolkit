@@ -17,7 +17,7 @@ The current release includes code for:
 ## Dependencies
 
 This project consumes the following projects through NuGet packages:
-- [Microsoft.glTF.CPP](https://www.nuget.org/packages/Microsoft.glTF.CPP/1.3.25), licensed under the MIT license
+- [Microsoft.glTF.CPP](https://www.nuget.org/packages/Microsoft.glTF.CPP), licensed under the MIT license
 - [DirectXTex](http://github.com/Microsoft/DirectXTex), licensed under the MIT license
 - [RapidJSON](https://github.com/Tencent/rapidjson/), licensed under the MIT license
 
