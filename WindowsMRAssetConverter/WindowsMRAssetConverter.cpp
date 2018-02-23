@@ -10,7 +10,6 @@
 #include <GLTFTexturePackingUtils.h>
 #include <GLTFTextureCompressionUtils.h>
 #include <GLTFLODUtils.h>
-#include <GLTFMeshUtils.h>
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
 
@@ -74,11 +73,11 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     std::wstring& inputFilePath,
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
-    size_t maxTextureSize,
-	bool generateTangents)
+    size_t maxTextureSize)
 {
     // Load the document
-    std::wstring inputFileName = PathFindFileName(inputFilePath.c_str());
+    std::experimental::filesystem::path inputFilePathFS(inputFilePath);
+    std::wstring inputFileName = inputFilePathFS.filename();
     std::wcout << L"Loading input document: " << inputFileName << L"..." << std::endl;
 
     if (inputAssetType == AssetType::GLB)
@@ -88,11 +87,8 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
         std::string inputFilePathA(inputFilePath.begin(), inputFilePath.end());
         std::string tempDirectoryA(tempDirectory.begin(), tempDirectory.end());
 
-        wchar_t *inputFileNameRaw = &inputFileName[0];
-        PathRemoveExtension(inputFileNameRaw);
-
         // inputGltfName is the path to the converted GLTF without extension
-        std::wstring inputGltfName = inputFileNameRaw;
+        std::wstring inputGltfName = inputFilePathFS.stem();
         std::string inputGltfNameA = std::string(inputGltfName.begin(), inputGltfName.end());
 
         GLBToGLTF::UnpackGLB(inputFilePathA, tempDirectoryA, inputGltfNameA);
@@ -118,15 +114,6 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     // 2. Texture Compression
     document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
 
-	std::wcout << L"Optimizing mesh" << std::endl;
-
-	// 3. Mesh Optimization
-	MeshOptions options = MeshOptions::Defaults();
-	options.GenerateTangentSpace = generateTangents;
-
-	auto inputFileNameA = std::string(inputFileName.begin(), inputFileName.end());
-	document = GLTFMeshUtils::ProcessMeshes(inputFileNameA, document, streamReader, options, tempDirectoryA);
-
     return document;
 }
 
@@ -151,14 +138,13 @@ int wmain(int argc, wchar_t *argv[])
         std::vector<std::wstring> lodFilePaths;
         std::vector<double> screenCoveragePercentages;
         size_t maxTextureSize;
-		bool generateTangents;
 
-        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize, generateTangents);
+        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize);
 
         // Load document, and perform steps:
         // 1. Texture Packing
         // 2. Texture Compression
-        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize, generateTangents);
+        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize);
 
         // 3. LOD Merging
         if (lodFilePaths.size() > 0)
@@ -166,6 +152,7 @@ int wmain(int argc, wchar_t *argv[])
             std::wcout << L"Merging LODs..." << std::endl;
 
             std::vector<GLTFDocument> lodDocuments;
+            std::vector<std::wstring> lodDocumentRelativePaths;
             lodDocuments.push_back(document);
 
             for (size_t i = 0; i < lodFilePaths.size(); i++)
@@ -174,13 +161,12 @@ int wmain(int argc, wchar_t *argv[])
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
-                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, generateTangents));
+                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize));
+            
+                lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }
 
-            // TODO: LOD assets can be in different places in disk, so the merged document will not have 
-            // the right relative paths to resources. We must either compute the correct relative paths or embed
-            // all resources as base64 in the source document, otherwise the export to GLB will fail.
-            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages);
+            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages, lodDocumentRelativePaths);
         }
 
         // 4. Make sure there's a default scene

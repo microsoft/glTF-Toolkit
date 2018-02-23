@@ -254,19 +254,26 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
         break;
     }
 
-    DX::DeviceResources deviceResources;
-    deviceResources.CreateDeviceResources();
-    ComPtr<ID3D11Device> device(deviceResources.GetD3DDevice());
-    
+    bool gpuCompressionSuccessful = false;
     DirectX::ScratchImage compressedImage;
 
-    bool gpuCompressionSuccessful = false;
-    if (device != nullptr)
+    try
     {
-        if (SUCCEEDED(DirectX::Compress(device.Get(), image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, DirectX::TEX_COMPRESS_DEFAULT, 0, compressedImage)))
+        DX::DeviceResources deviceResources;
+        deviceResources.CreateDeviceResources();
+        ComPtr<ID3D11Device> device(deviceResources.GetD3DDevice());
+
+        if (device != nullptr)
         {
-            gpuCompressionSuccessful = true;
+            if (SUCCEEDED(DirectX::Compress(device.Get(), image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, DirectX::TEX_COMPRESS_DEFAULT, 0, compressedImage)))
+            {
+                gpuCompressionSuccessful = true;
+            }
         }
+    }
+    catch (std::exception e)
+    {
+        // Failed to initialize device - GPU is not available
     }
 
     if (!gpuCompressionSuccessful)

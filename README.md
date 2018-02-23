@@ -12,11 +12,12 @@ The current release includes code for:
 - Compressing textures as BC3, BC5 and BC7 and generate mip maps using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_texture_dds](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_texture_dds) extension.
 - Merging multiple glTF assets into a asset with multiple levels of detail using the [MSFT_lod](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_lod) extension.
 - A command line tool that combines these components to create optimized glTF assets for the Windows Mixed Reality Home
+- A UWP compatible Windows Runtime component to perform conversions between GLTF and GLB, as well as optimize assets for Windows Mixed Reality at runtime
 
 ## Dependencies
 
 This project consumes the following projects through NuGet packages:
-- [Microsoft.glTF.CPP](https://www.nuget.org/packages/Microsoft.glTF.CPP/1.3.25), licensed under the MIT license
+- [Microsoft.glTF.CPP](https://www.nuget.org/packages/Microsoft.glTF.CPP), licensed under the MIT license
 - [DirectXTex](http://github.com/Microsoft/DirectXTex), licensed under the MIT license
 - [RapidJSON](https://github.com/Tencent/rapidjson/), licensed under the MIT license
 
