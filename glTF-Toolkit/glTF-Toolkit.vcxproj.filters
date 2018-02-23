@@ -51,9 +51,6 @@
     <ClInclude Include="inc\GLTFMeshUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="inc\BufferBuilder.h">
-      <Filter>inc</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DeviceResources.cpp">
@@ -84,9 +81,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\GLTFMeshUtils.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\BufferBuilder.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

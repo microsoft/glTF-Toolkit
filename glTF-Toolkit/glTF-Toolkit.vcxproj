@@ -207,7 +207,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="inc\AccessorUtils.h" />
-    <ClInclude Include="inc\BufferBuilder.h" />
     <ClInclude Include="inc\DeviceResources.h" />
     <ClInclude Include="inc\DirectXMathUtils.h" />
     <ClInclude Include="inc\GLBtoGLTF.h" />
@@ -221,7 +220,6 @@
     <ClInclude Include="inc\SerializeBinary.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\BufferBuilder.cpp" />
     <ClCompile Include="src\DeviceResources.cpp" />
     <ClCompile Include="src\GLBtoGLTF.cpp" />
     <ClCompile Include="src\GLTFLODUtils.cpp" />
