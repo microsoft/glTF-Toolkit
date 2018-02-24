@@ -297,13 +297,17 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="inc\GLTFMeshSerializationHelpers.inl" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="inc\AccessorUtils.h" />
     <ClInclude Include="inc\DeviceResources.h" />
+    <ClInclude Include="inc\DirectXMathUtils.h" />
     <ClInclude Include="inc\GLBtoGLTF.h" />
     <ClInclude Include="inc\GLTFLODUtils.h" />
+    <ClInclude Include="inc\GLTFMeshSerializationHelpers.h" />
+    <ClInclude Include="inc\GLTFMeshUtils.h" />
     <ClInclude Include="inc\GLTFTextureCompressionUtils.h" />
     <ClInclude Include="inc\GLTFTextureLoadingUtils.h" />
     <ClInclude Include="inc\GLTFTexturePackingUtils.h" />
@@ -314,6 +318,8 @@
     <ClCompile Include="src\DeviceResources.cpp" />
     <ClCompile Include="src\GLBtoGLTF.cpp" />
     <ClCompile Include="src\GLTFLODUtils.cpp" />
+    <ClCompile Include="src\GLTFMeshSerializationHelpers.cpp" />
+    <ClCompile Include="src\GLTFMeshUtils.cpp" />
     <ClCompile Include="src\GLTFTextureCompressionUtils.cpp" />
     <ClCompile Include="src\GLTFTextureLoadingUtils.cpp" />
     <ClCompile Include="src\GLTFTexturePackingUtils.cpp" />
@@ -332,6 +338,7 @@
     <Import Project="..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets" Condition="Exists('..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets')" />
     <Import Project="..\packages\directxtex_desktop_2015.2018.2.9.1\build\native\directxtex_desktop_2015.targets" Condition="Exists('..\packages\directxtex_desktop_2015.2018.2.9.1\build\native\directxtex_desktop_2015.targets')" />
     <Import Project="..\packages\Microsoft.glTF.CPP.1.3.46.0\build\native\Microsoft.glTF.CPP.targets" Condition="Exists('..\packages\Microsoft.glTF.CPP.1.3.46.0\build\native\Microsoft.glTF.CPP.targets')" />
+    <Import Project="..\packages\directxmesh_desktop_2015.2018.2.7.1\build\native\directxmesh_desktop_2015.targets" Condition="Exists('..\packages\directxmesh_desktop_2015.2018.2.7.1\build\native\directxmesh_desktop_2015.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -340,5 +347,6 @@
     <Error Condition="!Exists('..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\rapidjson.temprelease.0.0.2.20\build\native\rapidjson.temprelease.targets'))" />
     <Error Condition="!Exists('..\packages\directxtex_desktop_2015.2018.2.9.1\build\native\directxtex_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_desktop_2015.2018.2.9.1\build\native\directxtex_desktop_2015.targets'))" />
     <Error Condition="!Exists('..\packages\Microsoft.glTF.CPP.1.3.46.0\build\native\Microsoft.glTF.CPP.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.glTF.CPP.1.3.46.0\build\native\Microsoft.glTF.CPP.targets'))" />
+    <Error Condition="!Exists('..\packages\directxmesh_desktop_2015.2018.2.7.1\build\native\directxmesh_desktop_2015.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxmesh_desktop_2015.2018.2.7.1\build\native\directxmesh_desktop_2015.targets'))" />
   </Target>
 </Project>

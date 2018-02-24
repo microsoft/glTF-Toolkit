@@ -5,7 +5,6 @@
 
 #include <numeric>
 #include <DirectXMesh.h>
-#include <rapidjson/writer.h>
 
 #include "DirectXMathUtils.h"
 #include "GLTFMeshUtils.h"
@@ -488,7 +487,6 @@ void MeshInfo::Optimize(void)
     // DirectXMesh intermediate data
     std::vector<uint32_t> facePrims; // Mapping from face index to primitive index.
     std::vector<uint32_t> pointReps;
-    std::vector<uint32_t> adjacency;
     std::vector<uint32_t> dupVerts;
     std::vector<uint32_t> faceRemap;
     std::vector<uint32_t> vertRemap;
@@ -507,16 +505,14 @@ void MeshInfo::Optimize(void)
 
     // Ensure intermediate buffer sizes.
     pointReps.resize(vertexCount);
-    adjacency.resize(GetFaceCount() * 3);
     faceRemap.resize(facePrims.size());
     vertRemap.resize(vertexCount);
 
-    // Perform DirectXMesh optimizations
-    DX::ThrowIfFailed(DirectX::GenerateAdjacencyAndPointReps(m_indices.data(), faceCount, m_positions.data(), vertexCount, EPSILON, pointReps.data(), adjacency.data()));
-    DX::ThrowIfFailed(DirectX::Clean(m_indices.data(), faceCount, vertexCount, adjacency.data(), facePrims.data(), dupVerts));
+    // DirectXMesh optimization - Forsyth algorithm. https://github.com/Microsoft/DirectXMesh/wiki/DirectXMesh
+    DX::ThrowIfFailed(DirectX::Clean(m_indices.data(), faceCount, vertexCount, nullptr, facePrims.data(), dupVerts));
     DX::ThrowIfFailed(DirectX::AttributeSort(faceCount, facePrims.data(), faceRemap.data()));
-    DX::ThrowIfFailed(DirectX::ReorderIBAndAdjacency(m_indices.data(), faceCount, adjacency.data(), faceRemap.data()));
-    DX::ThrowIfFailed(DirectX::OptimizeFacesEx(m_indices.data(), faceCount, adjacency.data(), facePrims.data(), faceRemap.data()));
+    DX::ThrowIfFailed(DirectX::ReorderIB(m_indices.data(), faceCount, faceRemap.data()));
+    DX::ThrowIfFailed(DirectX::OptimizeFacesLRU(m_indices.data(), faceCount, faceRemap.data()));
     DX::ThrowIfFailed(DirectX::ReorderIB(m_indices.data(), faceCount, faceRemap.data()));
     DX::ThrowIfFailed(DirectX::OptimizeVertices(m_indices.data(), faceCount, vertexCount, vertRemap.data()));
     DX::ThrowIfFailed(DirectX::FinalizeIB(m_indices.data(), faceCount, vertRemap.data(), vertexCount));

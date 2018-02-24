@@ -29,11 +29,8 @@ namespace Microsoft::glTF::Toolkit::Test
         "Resources\\gltf\\2CylinderEngine\\2CylinderEngine.gltf",
         "Resources\\gltf\\BoxAnimated\\BoxAnimated.gltf",
         "Resources\\gltf\\03_all_animations\\03_all_animations.gltf",
-        "Resources\\gltf\\03_skinned_cylinder\\03_skinned_cylinder.gltf",
-        "Resources\\gltf\\GearboxAssy\\GearboxAssy.gltf",
-        "Resources\\gltf\\Primitives\\Primitives.gltf"
     };
-    const size_t s_TestFileIdx = 5;
+    const size_t s_TestFileIdx = 2;
 
     TEST_CLASS(GLTFMeshUtilsTest)
     {

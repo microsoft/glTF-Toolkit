@@ -45,10 +45,10 @@
     <ClInclude Include="inc\DirectXMathUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="inc\GLTFMeshSerializationHelpers.h">
+    <ClInclude Include="inc\GLTFMeshUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="inc\GLTFMeshUtils.h">
+    <ClInclude Include="inc\GLTFMeshSerializationHelpers.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
@@ -77,10 +77,10 @@
     <ClCompile Include="src\GLBtoGLTF.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\GLTFMeshSerializationHelpers.cpp">
+    <ClCompile Include="src\GLTFMeshUtils.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\GLTFMeshUtils.cpp">
+    <ClCompile Include="src\GLTFMeshSerializationHelpers.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
