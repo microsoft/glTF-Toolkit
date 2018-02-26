@@ -14,6 +14,6 @@ namespace CommandLine
         int argc, wchar_t *argv[],
         std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
         std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-        bool& shared_materials);
+        bool& sharedMaterials);
 };
 

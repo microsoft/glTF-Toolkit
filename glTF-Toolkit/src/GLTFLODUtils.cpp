@@ -325,7 +325,7 @@ namespace
                     AddIndexOffset(primitive.uv1AccessorId, accessorOffset);
                     AddIndexOffset(primitive.color0AccessorId, accessorOffset);
 
-                    if (shared_materials)
+                    if (sharedMaterials)
                     {
                         // lower quality LODs can have fewer images and textures than the highest LOD,
                         // so we need to find the correct material index for the same material from the highest LOD
