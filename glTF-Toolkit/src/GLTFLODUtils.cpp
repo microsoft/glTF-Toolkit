@@ -110,7 +110,7 @@ namespace
         return stringBuffer.GetString();
     }
 
-    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath = L"", bool shared_materials = false)
+    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath = L"", bool sharedMaterials = false)
     {
         Microsoft::glTF::GLTFDocument gltfLod(primary);
 
@@ -156,7 +156,7 @@ namespace
         // lod merge is performed from the lowest reference back upwards
         // e.g. buffers/samplers/extensions do not reference any other part of the gltf manifest    
         size_t buffersOffset = gltfLod.buffers.Size();
-        size_t samplersOffset = shared_materials ? 0 : gltfLod.samplers.Size();
+        size_t samplersOffset = sharedMaterials ? 0 : gltfLod.samplers.Size();
         {
             auto lodBuffers = lod.buffers.Elements();
             for (auto buffer : lodBuffers)
@@ -167,7 +167,7 @@ namespace
                 gltfLod.buffers.Append(std::move(buffer));
             }
 
-            if (!shared_materials)
+            if (!sharedMaterials)
             {
                 auto lodSamplers = lod.samplers.Elements();
                 for (auto sampler : lodSamplers)
@@ -208,8 +208,8 @@ namespace
             }
 
             // Images depend upon Buffer views
-            size_t imageOffset = shared_materials ? 0 : gltfLod.images.Size();
-            if (!shared_materials)
+            size_t imageOffset = sharedMaterials ? 0 : gltfLod.images.Size();
+            if (!sharedMaterials)
             {
                 auto lodImages = lod.images.Elements();
                 for (auto image : lodImages)
@@ -263,8 +263,8 @@ namespace
         // Material Merge
         // Note the extension KHR_materials_pbrSpecularGlossiness will be also updated
         // Materials depend upon textures
-        size_t materialOffset = shared_materials ? 0 : gltfLod.materials.Size();
-        if (!shared_materials)
+        size_t materialOffset = sharedMaterials ? 0 : gltfLod.materials.Size();
+        if (!sharedMaterials)
         {
             auto lodMaterials = lod.materials.Elements();
             for (auto material : lodMaterials)
@@ -479,7 +479,7 @@ LODMap GLTFLODUtils::ParseDocumentNodeLODs(const GLTFDocument& doc)
     return lodMap;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths, const bool& shared_materials)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths, const bool& sharedMaterials)
 {
     if (docs.empty())
     {
@@ -491,7 +491,7 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
 
     for (size_t i = 1; i < docs.size(); i++)
     {
-        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], (relativePaths.size() == docs.size() - 1 ? relativePaths[i - 1] : L""), shared_materials);
+        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], (relativePaths.size() == docs.size() - 1 ? relativePaths[i - 1] : L""), sharedMaterials);
     }
 
     for (auto lod : lods)
@@ -514,9 +514,9 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
     return gltfPrimary;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths, const bool& shared_materials)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths, const bool& sharedMaterials)
 {
-    GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths, shared_materials);
+    GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths, sharedMaterials);
 
     if (screenCoveragePercentages.size() == 0)
     {

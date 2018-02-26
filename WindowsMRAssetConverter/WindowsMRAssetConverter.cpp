@@ -74,7 +74,7 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
     size_t maxTextureSize,
-    bool packTextures)
+    bool processTextures = true)
 {
     // Load the document
     std::experimental::filesystem::path inputFilePathFS(inputFilePath);
@@ -104,7 +104,7 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
 
     GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
 
-    if (packTextures)
+    if (processTextures)
     {
         std::wcout << L"Packing textures..." << std::endl;
 
@@ -142,14 +142,14 @@ int wmain(int argc, wchar_t *argv[])
         std::vector<std::wstring> lodFilePaths;
         std::vector<double> screenCoveragePercentages;
         size_t maxTextureSize;
-        bool share_materials;
+        bool shareMaterials;
 
-        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize, share_materials);
+        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize, shareMaterials);
 
         // Load document, and perform steps:
         // 1. Texture Packing
         // 2. Texture Compression
-        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize, true);
+        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize);
 
         // 3. LOD Merging
         if (lodFilePaths.size() > 0)
@@ -166,12 +166,12 @@ int wmain(int argc, wchar_t *argv[])
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
-                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, !share_materials));
+                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, !shareMaterials));
             
                 lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }
 
-            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages, lodDocumentRelativePaths, share_materials);
+            document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages, lodDocumentRelativePaths, shareMaterials);
         }
 
         // 4. Make sure there's a default scene

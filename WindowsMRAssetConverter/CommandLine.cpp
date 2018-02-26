@@ -66,7 +66,7 @@ void CommandLine::ParseCommandLineArguments(
     int argc, wchar_t *argv[],
     std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
     std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-    bool& share_materials)
+    bool& shareMaterials)
 {
     CommandLineParsingState state = CommandLineParsingState::Initial;
 
@@ -80,7 +80,7 @@ void CommandLine::ParseCommandLineArguments(
     lodFilePaths.clear();
     screenCoveragePercentages.clear();
     maxTextureSize = MAXTEXTURESIZE_DEFAULT;
-    share_materials = false;
+    shareMaterials = false;
 
     state = CommandLineParsingState::InputRead;
 
@@ -117,7 +117,7 @@ void CommandLine::ParseCommandLineArguments(
         }
         else if (param == PARAM_SHARE_MATERIALS)
         {
-            share_materials = true;
+            shareMaterials = true;
         }
         else
         {
