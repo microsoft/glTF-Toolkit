@@ -22,6 +22,7 @@ namespace Microsoft::glTF::Toolkit
         BC3,
         BC5,
         BC7,
+        BC7_SRGB
     };
 
     /// <summary>
