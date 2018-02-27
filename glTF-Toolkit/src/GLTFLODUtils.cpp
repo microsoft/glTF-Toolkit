@@ -110,7 +110,7 @@ namespace
         return stringBuffer.GetString();
     }
 
-    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath = L"")
+    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath = L"", bool sharedMaterials = false)
     {
         Microsoft::glTF::GLTFDocument gltfLod(primary);
 
@@ -156,7 +156,7 @@ namespace
         // lod merge is performed from the lowest reference back upwards
         // e.g. buffers/samplers/extensions do not reference any other part of the gltf manifest    
         size_t buffersOffset = gltfLod.buffers.Size();
-        size_t samplersOffset = gltfLod.samplers.Size();
+        size_t samplersOffset = sharedMaterials ? 0 : gltfLod.samplers.Size();
         {
             auto lodBuffers = lod.buffers.Elements();
             for (auto buffer : lodBuffers)
@@ -167,11 +167,14 @@ namespace
                 gltfLod.buffers.Append(std::move(buffer));
             }
 
-            auto lodSamplers = lod.samplers.Elements();
-            for (auto sampler : lodSamplers)
+            if (!sharedMaterials)
             {
-                AddIndexOffset(sampler.id, samplersOffset);
-                gltfLod.samplers.Append(std::move(sampler));
+                auto lodSamplers = lod.samplers.Elements();
+                for (auto sampler : lodSamplers)
+                {
+                    AddIndexOffset(sampler.id, samplersOffset);
+                    gltfLod.samplers.Append(std::move(sampler));
+                }
             }
 
             for (const auto& extension : lod.extensionsUsed)
@@ -205,58 +208,63 @@ namespace
             }
 
             // Images depend upon Buffer views
-            size_t imageOffset = gltfLod.images.Size();
-            auto lodImages = lod.images.Elements();
-            for (auto image : lodImages)
+            size_t imageOffset = sharedMaterials ? 0 : gltfLod.images.Size();
+            if (!sharedMaterials)
             {
-                AddIndexOffset(image.id, imageOffset);
-                AddIndexOffset(image.bufferViewId, bufferViewsOffset);
-
-                std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
-                std::wstring uri = conv.from_bytes(image.uri);
-                if (std::experimental::filesystem::path(uri).is_relative()) {
-                    // to be able to reference images with the same name, prefix with relative path
-                    std::string relativePathUtf8 = conv.to_bytes(relativePath);
-                    image.uri = relativePathUtf8 + image.uri;
-                }
-                gltfLod.images.Append(std::move(image));
-            }
-
-            // Textures depend upon Samplers and Images
-            auto lodTextures = lod.textures.Elements();
-            for (auto texture : lodTextures)
-            {
-                AddIndexOffset(texture.id, texturesOffset);
-                AddIndexOffset(texture.samplerId, samplersOffset);
-                AddIndexOffset(texture.imageId, imageOffset);
-
-                // MSFT_texture_dds extension
-                auto ddsExtensionIt = texture.extensions.find(EXTENSION_MSFT_TEXTURE_DDS);
-                if (ddsExtensionIt != texture.extensions.end() && !ddsExtensionIt->second.empty())
+                auto lodImages = lod.images.Elements();
+                for (auto image : lodImages)
                 {
-                    rapidjson::Document ddsJson = RapidJsonUtils::CreateDocumentFromString(ddsExtensionIt->second);
 
-                    if (ddsJson.HasMember("source"))
+                    AddIndexOffset(image.id, imageOffset);
+                    AddIndexOffset(image.bufferViewId, bufferViewsOffset);
+
+                    std::wstring_convert<std::codecvt_utf8<wchar_t>> conv;
+                    std::wstring uri = conv.from_bytes(image.uri);
+                    if (std::experimental::filesystem::path(uri).is_relative()) {
+                        // to be able to reference images with the same name, prefix with relative path
+                        std::string relativePathUtf8 = conv.to_bytes(relativePath);
+                        image.uri = relativePathUtf8 + image.uri;
+                    }
+                    gltfLod.images.Append(std::move(image));
+                }
+
+                // Textures depend upon Samplers and Images
+                auto lodTextures = lod.textures.Elements();
+                for (auto texture : lodTextures)
+                {
+                    AddIndexOffset(texture.id, texturesOffset);
+                    AddIndexOffset(texture.samplerId, samplersOffset);
+                    AddIndexOffset(texture.imageId, imageOffset);
+
+                    // MSFT_texture_dds extension
+                    auto ddsExtensionIt = texture.extensions.find(EXTENSION_MSFT_TEXTURE_DDS);
+                    if (ddsExtensionIt != texture.extensions.end() && !ddsExtensionIt->second.empty())
                     {
-                        auto index = ddsJson["source"].GetInt();
-                        ddsJson["source"] = index + imageOffset;
+                        rapidjson::Document ddsJson = RapidJsonUtils::CreateDocumentFromString(ddsExtensionIt->second);
+
+                        if (ddsJson.HasMember("source"))
+                        {
+                            auto index = ddsJson["source"].GetInt();
+                            ddsJson["source"] = index + imageOffset;
+                        }
+
+                        rapidjson::StringBuffer buffer;
+                        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                        ddsJson.Accept(writer);
+
+                        ddsExtensionIt->second = buffer.GetString();
                     }
 
-                    rapidjson::StringBuffer buffer;
-                    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-                    ddsJson.Accept(writer);
-
-                    ddsExtensionIt->second = buffer.GetString();
+                    gltfLod.textures.Append(std::move(texture));
                 }
-
-                gltfLod.textures.Append(std::move(texture));
             }
         }
 
         // Material Merge
         // Note the extension KHR_materials_pbrSpecularGlossiness will be also updated
         // Materials depend upon textures
-        size_t materialOffset = gltfLod.materials.Size();
+        size_t materialOffset = sharedMaterials ? 0 : gltfLod.materials.Size();
+        if (!sharedMaterials)
         {
             auto lodMaterials = lod.materials.Elements();
             for (auto material : lodMaterials)
@@ -317,7 +325,46 @@ namespace
                     AddIndexOffset(primitive.uv1AccessorId, accessorOffset);
                     AddIndexOffset(primitive.color0AccessorId, accessorOffset);
 
-                    AddIndexOffset(primitive.materialId, materialOffset);
+                    if (sharedMaterials)
+                    {
+                        // lower quality LODs can have fewer images and textures than the highest LOD,
+                        // so we need to find the correct material index for the same material from the highest LOD
+
+                        auto localMaterial = lod.materials.Get(primitive.materialId);
+
+                        // find merged material index for the given material index in this LOD
+                        auto iter = std::find_if(gltfLod.materials.Elements().begin(),
+                                gltfLod.materials.Elements().end(),
+                                [localMaterial](auto globalMaterial) {
+                                    // check that the materials are the same, noting that the texture and material ids will differ
+                                    return localMaterial.name == globalMaterial.name &&
+                                           localMaterial.alphaMode == globalMaterial.alphaMode &&
+                                           localMaterial.alphaCutoff == globalMaterial.alphaCutoff &&
+                                           localMaterial.emissiveFactor == globalMaterial.emissiveFactor &&
+                                           localMaterial.doubleSided == globalMaterial.doubleSided &&
+                                           localMaterial.metallicRoughness.baseColorFactor == globalMaterial.metallicRoughness.baseColorFactor &&
+                                           localMaterial.metallicRoughness.metallicFactor == globalMaterial.metallicRoughness.metallicFactor &&
+                                           localMaterial.occlusionTexture.strength == globalMaterial.occlusionTexture.strength &&
+                                           localMaterial.specularGlossiness.diffuseFactor == globalMaterial.specularGlossiness.diffuseFactor &&
+                                           localMaterial.specularGlossiness.glossinessFactor == globalMaterial.specularGlossiness.glossinessFactor &&
+                                           localMaterial.specularGlossiness.specularFactor == globalMaterial.specularGlossiness.specularFactor;
+                                }
+                        );
+
+                        if (iter != gltfLod.materials.Elements().end())
+                        {
+                            size_t newMaterialIndex = std::distance(gltfLod.materials.Elements().begin(), iter);
+                            primitive.materialId = std::to_string(newMaterialIndex);
+                        }
+                        else
+                        {
+                            throw new std::runtime_error("Couldn't find the shared material in the highest LOD.");
+                        }
+                    }
+                    else
+                    {
+                        AddIndexOffset(primitive.materialId, materialOffset);
+                    }
                 }
 
                 gltfLod.meshes.Append(std::move(mesh));
@@ -432,7 +479,7 @@ LODMap GLTFLODUtils::ParseDocumentNodeLODs(const GLTFDocument& doc)
     return lodMap;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths, const bool& sharedMaterials)
 {
     if (docs.empty())
     {
@@ -444,7 +491,7 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
 
     for (size_t i = 1; i < docs.size(); i++)
     {
-        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], (relativePaths.size() == docs.size() - 1 ? relativePaths[i - 1] : L""));
+        gltfPrimary = AddGLTFNodeLOD(gltfPrimary, lods, docs[i], (relativePaths.size() == docs.size() - 1 ? relativePaths[i - 1] : L""), sharedMaterials);
     }
 
     for (auto lod : lods)
@@ -467,9 +514,9 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
     return gltfPrimary;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths)
+GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths, const bool& sharedMaterials)
 {
-    GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths);
+    GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths, sharedMaterials);
 
     if (screenCoveragePercentages.size() == 0)
     {
