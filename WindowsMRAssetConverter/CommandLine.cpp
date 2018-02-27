@@ -25,8 +25,7 @@ enum class CommandLineParsingState
     ReadTmpDir,
     ReadLods,
     ReadScreenCoverage,
-    ReadMaxTextureSize,
-    ShareMaterials
+    ReadMaxTextureSize
 };
 
 void CommandLine::PrintHelp()
