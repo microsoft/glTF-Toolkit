@@ -198,7 +198,7 @@ GLTFDocument GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(const 
 
         // Compress base and emissive texture as BC7
         compressIfNotEmpty(material.metallicRoughness.baseColorTextureId, TextureCompression::BC7_SRGB);
-        compressIfNotEmpty(material.emissiveTextureId, TextureCompression::BC7);
+        compressIfNotEmpty(material.emissiveTextureId, TextureCompression::BC7_SRGB);
 
         // Get other textures from the MSFT_packing_occlusionRoughnessMetallic extension
         if (material.extensions.find(EXTENSION_MSFT_PACKING_ORM) != material.extensions.end())
