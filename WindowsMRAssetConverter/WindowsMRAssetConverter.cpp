@@ -76,7 +76,8 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     const std::wstring& tempDirectory,
     size_t maxTextureSize,
     bool generateTangents,
-    bool processTextures = true)
+    bool processTextures = true,
+    bool processMeshes = true)
 {
     // Load the document
     std::experimental::filesystem::path inputFilePathFS(inputFilePath);
@@ -119,15 +120,20 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
         // 2. Texture Compression
         document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
     }
+    
+    if (processMeshes)
+    {
+        std::wcout << L"Optimizing meshes..." << std::endl;
 
-    std::wcout << L"Optimizing mesh" << std::endl;
+        auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
+        auto inputFileNameA = std::string(inputFileName.begin(), inputFileName.end());
 
-    // 3. Mesh Optimization
-    auto options = MeshOptions::Defaults();
-    options.GenerateTangentSpace = generateTangents;
+        auto options = MeshOptions::Defaults();
+        options.GenerateTangentSpace = generateTangents;
 
-    auto inputFileNameA = std::string(inputFileName.begin(), inputFileName.end());
-    document = GLTFMeshUtils::ProcessMeshes(inputFileNameA, document, streamReader, options, tempDirectoryA);
+        // 3. Mesh Optimization
+        document = GLTFMeshUtils::ProcessMeshes(inputFileNameA, document, streamReader, options, tempDirectoryA);
+    }
 
     return document;
 }
