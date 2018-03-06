@@ -11,6 +11,7 @@ const wchar_t * PARAM_TMPDIR = L"-temp-directory";
 const wchar_t * PARAM_LOD = L"-lod";
 const wchar_t * PARAM_SCREENCOVERAGE = L"-screen-coverage";
 const wchar_t * PARAM_MAXTEXTURESIZE = L"-max-texture-size";
+const wchar_t * PARAM_SHARE_MATERIALS = L"-share-materials";
 const wchar_t * PARAM_GENTANGENTS = L"-gen-tangents";
 const wchar_t * SUFFIX_CONVERTED = L"_converted";
 const wchar_t * CLI_INDENT = L"    ";
@@ -46,6 +47,7 @@ void CommandLine::PrintHelp()
         << indent << "[" << std::wstring(PARAM_LOD) << " <path to each lower LOD asset in descending order of quality>]" << std::endl
         << indent << "[" << std::wstring(PARAM_SCREENCOVERAGE) << " <LOD screen coverage values>]" << std::endl
         << indent << "[" << std::wstring(PARAM_MAXTEXTURESIZE) << " <Max texture size in pixels, defaults to 512>]" << std::endl
+        << indent << "[" << std::wstring(PARAM_SHARE_MATERIALS) << " defaults to false" << std::endl
         << indent << "[" << std::wstring(PARAM_GENTANGENTS) << "]" << std::endl
         << std::endl
         << "Example:" << std::endl
@@ -66,7 +68,7 @@ void CommandLine::ParseCommandLineArguments(
     int argc, wchar_t *argv[],
     std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
     std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-    bool& generateTangents)
+    bool& shareMaterials, bool& generateTangents)
 {
     CommandLineParsingState state = CommandLineParsingState::Initial;
 
@@ -80,6 +82,7 @@ void CommandLine::ParseCommandLineArguments(
     lodFilePaths.clear();
     screenCoveragePercentages.clear();
     maxTextureSize = MAXTEXTURESIZE_DEFAULT;
+    shareMaterials = false;
     generateTangents = false;
 
     state = CommandLineParsingState::InputRead;
@@ -114,6 +117,10 @@ void CommandLine::ParseCommandLineArguments(
         {
             maxTextureSize = MAXTEXTURESIZE_DEFAULT;
             state = CommandLineParsingState::ReadMaxTextureSize;
+        }
+        else if (param == PARAM_SHARE_MATERIALS)
+        {
+            shareMaterials = true;
         }
         else if (param == PARAM_GENTANGENTS)
         {
