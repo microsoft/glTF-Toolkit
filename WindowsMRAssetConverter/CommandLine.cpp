@@ -151,6 +151,18 @@ void CommandLine::ParseCommandLineArguments(
         }
     }
 
+    if (!std::experimental::filesystem::exists(inputFilePath))
+    {
+        throw std::invalid_argument("Input file not found.");
+    }
+    for (auto& lodFilePath : lodFilePaths)
+    {
+        if (!std::experimental::filesystem::exists(lodFilePath))
+        {
+            throw  std::invalid_argument("Lod file not found.");
+        }
+    }
+
     if (outFile.empty())
     {
         std::wstring inputFilePathWithoutExtension = inputFilePath;
