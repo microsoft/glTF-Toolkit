@@ -117,6 +117,7 @@ void CommandLine::ParseCommandLineArguments(
         else if (param == PARAM_SHARE_MATERIALS)
         {
             shareMaterials = true;
+            state = CommandLineParsingState::Initial;
         }
         else
         {
