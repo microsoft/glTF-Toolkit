@@ -155,6 +155,7 @@ void CommandLine::ParseCommandLineArguments(
     {
         throw std::invalid_argument("Input file not found.");
     }
+
     for (auto& lodFilePath : lodFilePaths)
     {
         if (!std::experimental::filesystem::exists(lodFilePath))
