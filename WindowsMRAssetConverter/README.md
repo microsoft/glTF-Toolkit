@@ -21,7 +21,7 @@ WindowsMRAssetConverter _&lt;path to GLTF/GLB&gt;_
 - `-compatibility-mode <on | off>`
   - **Default:** `on`
   - Generates assets that are also compatible with versions of Windows 10 older than the Spring Creators Update (version 1803).
-  - Enabling compatibility mode results in assets with a larger file size. If your app is compatible with Windows 10 1803+ only, it is recommended to set `-compatibility-mode off`
+  - Enabling compatibility mode results in assets with a larger file size. If your app is compatible with Windows 10 1803+ only, it is recommended to set `-compatibility-mode off`.
   - This setting does not have any effect on the Holographic platform.
 
 - `-lod <path to each lower LOD asset in descending order of quality>`

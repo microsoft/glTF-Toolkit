@@ -87,18 +87,18 @@ namespace
 
         rapidjson::Value packedTextureJson(rapidjson::kObjectType);
         {
-            packedTextureJson.AddMember(MSFT_PACKING_INDEX_KEY, rapidjson::Value(std::stoi(textureId)), a);
+            packedTextureJson.AddMember(rapidjson::StringRef(MSFT_PACKING_INDEX_KEY), rapidjson::Value(std::stoi(textureId)), a);
         }
         switch (packing)
         {
         case TexturePacking::OcclusionRoughnessMetallic:
-            packedExtensionJson.AddMember(MSFT_PACKING_ORM_ORMTEXTURE_KEY, packedTextureJson, a);
+            packedExtensionJson.AddMember(rapidjson::StringRef(MSFT_PACKING_ORM_ORMTEXTURE_KEY), packedTextureJson, a);
             break;
         case TexturePacking::RoughnessMetallicOcclusion:
-            packedExtensionJson.AddMember(MSFT_PACKING_ORM_RMOTEXTURE_KEY, packedTextureJson, a);
+            packedExtensionJson.AddMember(rapidjson::StringRef(MSFT_PACKING_ORM_RMOTEXTURE_KEY), packedTextureJson, a);
             break;
         case TexturePacking::NormalRoughnessMetallic:
-            packedExtensionJson.AddMember(MSFT_PACKING_NRM_KEY, packedTextureJson, a);
+            packedExtensionJson.AddMember(rapidjson::StringRef(MSFT_PACKING_NRM_KEY), packedTextureJson, a);
             break;
         default:
             throw GLTFException("Invalid packing.");
@@ -314,9 +314,9 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         {
             rapidjson::Value ormNormalTextureJson(rapidjson::kObjectType);
             {
-                ormNormalTextureJson.AddMember(MSFT_PACKING_INDEX_KEY, rapidjson::Value(std::stoi(normal)), ormAllocator);
+                ormNormalTextureJson.AddMember(rapidjson::StringRef(MSFT_PACKING_INDEX_KEY), rapidjson::Value(std::stoi(normal)), ormAllocator);
             }
-            ormExtensionJson.AddMember(MSFT_PACKING_ORM_NORMALTEXTURE_KEY, ormNormalTextureJson, ormAllocator);
+            ormExtensionJson.AddMember(rapidjson::StringRef(MSFT_PACKING_ORM_NORMALTEXTURE_KEY), ormNormalTextureJson, ormAllocator);
         }
 
         rapidjson::StringBuffer buffer;

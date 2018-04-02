@@ -291,7 +291,7 @@ namespace
                     rapidjson::Document ormJson = RapidJsonUtils::CreateDocumentFromString(ormExtensionIt->second);
 
                     AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_ORMTEXTURE_KEY, texturesOffset);
-                    AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_RMOTEXTURE_KEY texturesOffset);
+                    AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_RMOTEXTURE_KEY, texturesOffset);
                     AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_NORMALTEXTURE_KEY, texturesOffset);
 
                     rapidjson::StringBuffer buffer;
