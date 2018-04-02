@@ -74,7 +74,7 @@ namespace Microsoft.glTF.Toolkit.UWP.Test
 
             StorageFolder outputFolder = await CreateTemporaryOutputFolderAsync("Out_" + glbBaseName);
 
-            var converted = await WindowsMRConversion.ConvertAssetForWindowsMR(sourceGlbFile, outputFolder);
+            var converted = await WindowsMRConversion.ConvertAssetForWindowsMR(sourceGlbFile, outputFolder, 512, TexturePacking.OcclusionRoughnessMetallic);
 
             Assert.IsTrue(converted.Name == "WaterBottle_converted.glb");
         }

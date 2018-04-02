@@ -8,9 +8,9 @@ Additionally the repository includes a command line tool that uses these steps i
 
 ## Features
 The current release includes code for:
-- Packing PBR material textures using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_packing_occlusionRoughnessMetallic](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_packing_occlusionRoughnessMetallic) extension.
-- Compressing textures as BC3, BC5 and BC7 and generate mip maps using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_texture_dds](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_texture_dds) extension.
-- Merging multiple glTF assets into a asset with multiple levels of detail using the [MSFT_lod](https://github.com/sbtron/glTF/tree/MSFT_lod/extensions/Vendor/MSFT_lod) extension.
+- Packing PBR material textures using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_packing_occlusionRoughnessMetallic](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/MSFT_packing_occlusionRoughnessMetallic) and [MSFT_packing_normalRoughnessMetallic](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/MSFT_packing_normalRoughnessMetallic) extensions.
+- Compressing textures as BC3, BC5 and BC7 and generate mip maps using [DirectXTex](http://github.com/Microsoft/DirectXTex) for use with the [MSFT_texture_dds](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/MSFT_texture_dds) extension.
+- Merging multiple glTF assets into a asset with multiple levels of detail using the [MSFT_lod](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/MSFT_lod) extension.
 - A command line tool that combines these components to create optimized glTF assets for the Windows Mixed Reality Home
 - A UWP compatible Windows Runtime component to perform conversions between GLTF and GLB, as well as optimize assets for Windows Mixed Reality at runtime
 

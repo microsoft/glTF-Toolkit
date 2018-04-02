@@ -74,7 +74,9 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
     size_t maxTextureSize,
-    bool processTextures = true)
+    TexturePacking packing,
+    bool processTextures = true,
+    bool retainOriginalImages = true)
 {
     // Load the document
     std::experimental::filesystem::path inputFilePathFS(inputFilePath);
@@ -110,12 +112,12 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
 
         // 1. Texture Packing
         auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
-        document = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, TexturePacking::RoughnessMetallicOcclusion, tempDirectoryA);
+        document = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, packing, tempDirectoryA);
 
         std::wcout << L"Compressing textures - this can take a few minutes..." << std::endl;
 
         // 2. Texture Compression
-        document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
+        document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize, retainOriginalImages);
     }
 
     return document;
@@ -143,13 +145,55 @@ int wmain(int argc, wchar_t *argv[])
         std::vector<double> screenCoveragePercentages;
         size_t maxTextureSize;
         bool shareMaterials;
+        bool compatibilityMode;
+        CommandLine::Platform targetPlatforms;
+        bool replaceTextures;
 
-        CommandLine::ParseCommandLineArguments(argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, maxTextureSize, shareMaterials);
+        CommandLine::ParseCommandLineArguments(
+            argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, 
+            maxTextureSize, shareMaterials, compatibilityMode, targetPlatforms, replaceTextures);
+
+        TexturePacking packing = TexturePacking::None;
+
+        std::wstring compatibleVersionsText;
+
+        if ((targetPlatforms & CommandLine::Platform::Holographic) > 0)
+        {
+            compatibleVersionsText += L"HoloLens";
+
+            // Holographic mode: NRM
+            packing = (TexturePacking)(packing | TexturePacking::NormalRoughnessMetallic);
+        }
+
+        if ((targetPlatforms & CommandLine::Platform::Desktop) > 0)
+        {
+            if (!compatibleVersionsText.empty())
+            {
+                compatibleVersionsText += L" and ";
+            }
+
+            // Desktop 1803+ mode: ORM
+            packing = (TexturePacking)(packing | TexturePacking::OcclusionRoughnessMetallic);
+
+            if (compatibilityMode)
+            {
+                // Desktop 1709 mode: RMO
+                packing = (TexturePacking)(packing | TexturePacking::RoughnessMetallicOcclusion);
+
+                compatibleVersionsText += L"Desktop (all versions)";
+            }
+            else
+            {
+                compatibleVersionsText +=  L"Desktop (version 1803+)";
+            }
+        }
+
+        std::wcout << L"\nThis will generate an asset compatible with " << compatibleVersionsText << L"\n" << std::endl;
 
         // Load document, and perform steps:
         // 1. Texture Packing
         // 2. Texture Compression
-        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize);
+        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize, packing, true /* processTextures */, !replaceTextures);
 
         // 3. LOD Merging
         if (lodFilePaths.size() > 0)
@@ -166,7 +210,7 @@ int wmain(int argc, wchar_t *argv[])
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
-                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, !shareMaterials));
+                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, packing, !shareMaterials, !replaceTextures));
             
                 lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }

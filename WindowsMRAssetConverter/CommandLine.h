@@ -8,12 +8,19 @@
 
 namespace CommandLine
 {
+    enum Platform
+    {
+        None = 0x0,
+        Holographic = 0x1,
+        Desktop = 0x2
+    };
+
     void PrintHelp();
 
     void ParseCommandLineArguments(
         int argc, wchar_t *argv[],
         std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
         std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-        bool& sharedMaterials);
+        bool& sharedMaterials, bool& compatibilityMode, Platform& targetPlatforms, bool& replaceTextures);
 };
 

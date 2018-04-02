@@ -19,7 +19,9 @@
 using namespace concurrency;
 using namespace Platform;
 using namespace Windows::Foundation;
+using namespace Windows::Foundation::Metadata;
 using namespace Windows::Storage;
+using namespace Windows::System::Profile;
 
 using namespace Microsoft::glTF::Toolkit::UWP;
 
@@ -30,9 +32,26 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
 
 IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile^ gltfOrGlbFile, StorageFolder^ outputFolder, size_t maxTextureSize)
 {
+    UWP::TexturePacking detectedPacking = UWP::TexturePacking::None;
+
+    if (AnalyticsInfo::VersionInfo->DeviceFamily == "Windows.Holographic")
+    {
+        detectedPacking = UWP::TexturePacking::NormalRoughnessMetallic;
+    }
+    else
+    {
+        bool isVersion1803OrNewer = ApiInformation::IsApiContractPresent("Windows.Foundation.UniversalApiContract", 6);
+        detectedPacking = isVersion1803OrNewer ? UWP::TexturePacking::OcclusionRoughnessMetallic : UWP::TexturePacking::RoughnessMetallicOcclusion;
+    }
+
+    return ConvertAssetForWindowsMR(gltfOrGlbFile, outputFolder, maxTextureSize, detectedPacking);
+}
+
+IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile ^ gltfOrGlbFile, StorageFolder ^ outputFolder, size_t maxTextureSize, TexturePacking packing)
+{
     auto isGlb = gltfOrGlbFile->FileType == L".glb";
 
-    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb]()
+    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb, packing]()
     {
         return create_task([gltfOrGlbFile, isGlb]()
         {
@@ -45,23 +64,23 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 return task_from_result<StorageFile^>(gltfOrGlbFile);
             }
         })
-        .then([maxTextureSize, outputFolder, isGlb](StorageFile^ gltfFile)
+        .then([maxTextureSize, outputFolder, isGlb, packing](StorageFile^ gltfFile)
         {
             auto stream = std::make_shared<std::ifstream>(gltfFile->Path->Data(), std::ios::in);
             GLTFDocument document = DeserializeJson(*stream);
 
             return create_task(gltfFile->GetParentAsync())
-            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb](StorageFolder^ baseFolder)
+            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, packing](StorageFolder^ baseFolder)
             {
                 GLTFStreamReader streamReader(baseFolder);
 
                 // 1. Texture Packing
                 auto tempDirectory = std::wstring(ApplicationData::Current->TemporaryFolder->Path->Data());
                 auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
-                auto convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, TexturePacking::RoughnessMetallicOcclusion, tempDirectoryA);
+                auto convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, static_cast<Toolkit::TexturePacking>(packing), tempDirectoryA);
 
                 // 2. Texture Compression
-                convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize);
+                convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize, false /* retainOriginalImages */);
 
                 // 3. Make sure there's a default scene set
                 if (!convertedDoc.HasDefaultScene())

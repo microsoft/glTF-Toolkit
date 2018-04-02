@@ -4,17 +4,25 @@
 #pragma once
 
 #include <GLTFSDK/GLTFDocument.h>
+#include <GLTFSDK/IStreamReader.h>
 
 namespace Microsoft::glTF::Toolkit
 {
     extern const char* EXTENSION_MSFT_PACKING_ORM;
+    extern const char* EXTENSION_MSFT_PACKING_NRM;
+    extern const char* MSFT_PACKING_INDEX_KEY;
+    extern const char* MSFT_PACKING_ORM_ORMTEXTURE_KEY;
+    extern const char* MSFT_PACKING_ORM_RMOTEXTURE_KEY;
+    extern const char* MSFT_PACKING_ORM_NORMALTEXTURE_KEY;
+    extern const char* MSFT_PACKING_NRM_KEY;
 
     /// <summary>Texture packing flags. May be combined to pack multiple formats at once.</summary>
     enum TexturePacking
     {
         None = 0x0,
         OcclusionRoughnessMetallic = 0x1,
-        RoughnessMetallicOcclusion = 0x2
+        RoughnessMetallicOcclusion = 0x2,
+        NormalRoughnessMetallic = 0x4
     };
 
     /// <summary>

@@ -37,10 +37,10 @@ namespace
     {
         if (json.HasMember(textureId))
         {
-            if (json[textureId].HasMember("index"))
+            if (json[textureId].HasMember(MSFT_PACKING_INDEX_KEY))
             {
-                auto index = json[textureId]["index"].GetInt();
-                json[textureId]["index"] = index + offset;
+                auto index = json[textureId][MSFT_PACKING_INDEX_KEY].GetInt();
+                json[textureId][MSFT_PACKING_INDEX_KEY] = index + offset;
             }
         }
     }
@@ -290,15 +290,30 @@ namespace
                 {
                     rapidjson::Document ormJson = RapidJsonUtils::CreateDocumentFromString(ormExtensionIt->second);
 
-                    AddIndexOffsetPacked(ormJson, "occlusionRoughnessMetallicTexture", texturesOffset);
-                    AddIndexOffsetPacked(ormJson, "roughnessMetallicOcclusionTexture", texturesOffset);
-                    AddIndexOffsetPacked(ormJson, "normalTexture", texturesOffset);
+                    AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_ORMTEXTURE_KEY, texturesOffset);
+                    AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_RMOTEXTURE_KEY texturesOffset);
+                    AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_NORMALTEXTURE_KEY, texturesOffset);
 
                     rapidjson::StringBuffer buffer;
                     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
                     ormJson.Accept(writer);
 
                     ormExtensionIt->second = buffer.GetString();
+                }
+
+                // MSFT_packing_normalRoughnessMetallic packed texture
+                auto nrmExtensionIt = material.extensions.find(EXTENSION_MSFT_PACKING_NRM);
+                if (nrmExtensionIt != material.extensions.end() && !nrmExtensionIt->second.empty())
+                {
+                    rapidjson::Document nrmJson = RapidJsonUtils::CreateDocumentFromString(nrmExtensionIt->second);
+
+                    AddIndexOffsetPacked(nrmJson, MSFT_PACKING_NRM_KEY, texturesOffset);
+                    
+                    rapidjson::StringBuffer buffer;
+                    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                    nrmJson.Accept(writer);
+
+                    nrmExtensionIt->second = buffer.GetString();
                 }
 
                 gltfLod.materials.Append(std::move(material));

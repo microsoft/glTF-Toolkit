@@ -18,6 +18,12 @@ using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
 
 const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_PACKING_ORM = "MSFT_packing_occlusionRoughnessMetallic";
+const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_PACKING_NRM = "MSFT_packing_normalRoughnessMetallic";
+const char* Microsoft::glTF::Toolkit::MSFT_PACKING_INDEX_KEY = "index";
+const char* Microsoft::glTF::Toolkit::MSFT_PACKING_ORM_ORMTEXTURE_KEY = "occlusionRoughnessMetallicTexture";
+const char* Microsoft::glTF::Toolkit::MSFT_PACKING_ORM_RMOTEXTURE_KEY = "roughnessMetallicOcclusionTexture";
+const char* Microsoft::glTF::Toolkit::MSFT_PACKING_ORM_NORMALTEXTURE_KEY = "normalTexture";
+const char* Microsoft::glTF::Toolkit::MSFT_PACKING_NRM_KEY = "normalRoughnessMetallicTexture";
 
 namespace
 {
@@ -71,25 +77,28 @@ namespace
         return imageId;
     }
 
-    void AddTextureToOrmExtension(const std::string& imageId, TexturePacking packing, GLTFDocument& doc, rapidjson::Value& ormExtensionJson, rapidjson::MemoryPoolAllocator<>& a)
+    void AddTextureToExtension(const std::string& imageId, TexturePacking packing, GLTFDocument& doc, rapidjson::Value& packedExtensionJson, rapidjson::MemoryPoolAllocator<>& a)
     {
-        Texture ormTexture;
+        Texture packedTexture;
         auto textureId = std::to_string(doc.textures.Size());
-        ormTexture.id = textureId;
-        ormTexture.imageId = imageId;
-        doc.textures.Append(std::move(ormTexture));
+        packedTexture.id = textureId;
+        packedTexture.imageId = imageId;
+        doc.textures.Append(std::move(packedTexture));
 
-        rapidjson::Value ormTextureJson(rapidjson::kObjectType);
+        rapidjson::Value packedTextureJson(rapidjson::kObjectType);
         {
-            ormTextureJson.AddMember("index", rapidjson::Value(std::stoi(textureId)), a);
+            packedTextureJson.AddMember(MSFT_PACKING_INDEX_KEY, rapidjson::Value(std::stoi(textureId)), a);
         }
         switch (packing)
         {
         case TexturePacking::OcclusionRoughnessMetallic:
-            ormExtensionJson.AddMember("occlusionRoughnessMetallicTexture", ormTextureJson, a);
+            packedExtensionJson.AddMember(MSFT_PACKING_ORM_ORMTEXTURE_KEY, packedTextureJson, a);
             break;
         case TexturePacking::RoughnessMetallicOcclusion:
-            ormExtensionJson.AddMember("roughnessMetallicOcclusionTexture", ormTextureJson, a);
+            packedExtensionJson.AddMember(MSFT_PACKING_ORM_RMOTEXTURE_KEY, packedTextureJson, a);
+            break;
+        case TexturePacking::NormalRoughnessMetallic:
+            packedExtensionJson.AddMember(MSFT_PACKING_NRM_KEY, packedTextureJson, a);
             break;
         default:
             throw GLTFException("Invalid packing.");
@@ -131,7 +140,11 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     // Create the JSON for the material extension element
     rapidjson::Document ormExtensionJson;
     ormExtensionJson.SetObject();
-    rapidjson::MemoryPoolAllocator<>& allocator = ormExtensionJson.GetAllocator();
+    rapidjson::MemoryPoolAllocator<>& ormAllocator = ormExtensionJson.GetAllocator();
+
+    rapidjson::Document nrmExtensionJson;
+    nrmExtensionJson.SetObject();
+    rapidjson::MemoryPoolAllocator<>& nrmAllocator = nrmExtensionJson.GetAllocator();
 
     std::unique_ptr<DirectX::ScratchImage> metallicRoughnessImage = nullptr;
     uint8_t *mrPixels = nullptr;
@@ -148,9 +161,11 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         }
     }
 
+    bool packingIncludesOrm = (packing & (TexturePacking::OcclusionRoughnessMetallic | TexturePacking::RoughnessMetallicOcclusion)) > 0;
+
     std::unique_ptr<DirectX::ScratchImage> occlusionImage = nullptr;
     uint8_t *occlusionPixels = nullptr;
-    if (hasOcclusion)
+    if (hasOcclusion && packingIncludesOrm)
     {
         try
         {
@@ -160,6 +175,23 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         catch (GLTFException)
         {
             throw GLTFException("Failed to load occlusion texture.");
+        }
+    }
+
+    bool packingIncludesNrm = (packing & TexturePacking::NormalRoughnessMetallic) > 0;
+
+    std::unique_ptr<DirectX::ScratchImage> normalImage = nullptr;
+    uint8_t *normalPixels = nullptr;
+    if (hasNormal && packingIncludesNrm)
+    {
+        try
+        {
+            normalImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, normal));
+            normalPixels = normalImage->GetPixels();
+        }
+        catch (GLTFException)
+        {
+            throw GLTFException("Failed to load normal texture.");
         }
     }
 
@@ -206,7 +238,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
             ormImageId = AddImageToDocument(outputDoc, imagePath);
         }
 
-        AddTextureToOrmExtension(ormImageId, TexturePacking::OcclusionRoughnessMetallic, outputDoc, ormExtensionJson, allocator);
+        AddTextureToExtension(ormImageId, TexturePacking::OcclusionRoughnessMetallic, outputDoc, ormExtensionJson, ormAllocator);
     }
 
     if (packing & TexturePacking::RoughnessMetallicOcclusion && (hasMR || hasOcclusion))
@@ -239,27 +271,75 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         // Add back to GLTF
         auto rmoImageId = AddImageToDocument(outputDoc, imagePath);
 
-        AddTextureToOrmExtension(rmoImageId, TexturePacking::RoughnessMetallicOcclusion, outputDoc, ormExtensionJson, allocator);
+        AddTextureToExtension(rmoImageId, TexturePacking::RoughnessMetallicOcclusion, outputDoc, ormExtensionJson, ormAllocator);
     }
 
-    if (hasNormal)
+    if (packingIncludesNrm && (hasMR || hasNormal))
     {
-        rapidjson::Value ormNormalTextureJson(rapidjson::kObjectType);
+        auto nrm = std::make_unique<DirectX::ScratchImage>();
+
+        // TODO: resize?
+
+        auto sourceImage = hasMR ? *metallicRoughnessImage->GetImage(0, 0, 0) : *normalImage->GetImage(0, 0, 0);
+        if (FAILED(nrm->Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
         {
-            ormNormalTextureJson.AddMember("index", rapidjson::Value(std::stoi(normal)), allocator);
+            throw GLTFException("Failed to initialize from texture.");
         }
-        ormExtensionJson.AddMember("normalTexture", ormNormalTextureJson, allocator);
+
+        auto nrmPixels = nrm->GetPixels();
+        auto metadata = nrm->GetMetadata();
+
+        for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
+        {
+            // Normal: N [RG] -> NRM [RG]
+            *GetChannelValue(nrmPixels, i, Channel::Red) = hasNormal ? *GetChannelValue(normalPixels, i, Channel::Red) : 255.0f;
+            *GetChannelValue(nrmPixels, i, Channel::Green) = hasNormal ? *GetChannelValue(normalPixels, i, Channel::Green) : 255.0f;
+            // Roughness: MR [G] -> NRM [B]
+            *GetChannelValue(nrmPixels, i, Channel::Blue) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Green) : 255.0f;
+            // Metalness: MR [B] -> NRM [A]
+            *GetChannelValue(nrmPixels, i, Channel::Alpha) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
+        }
+
+        auto imagePath = SaveAsPng(nrm, "packing_nrm_" + material.id + ".png", outputDirectory);
+
+        // Add back to GLTF
+        auto nrmImageId = AddImageToDocument(outputDoc, imagePath);
+
+        AddTextureToExtension(nrmImageId, TexturePacking::NormalRoughnessMetallic, outputDoc, nrmExtensionJson, nrmAllocator);
     }
 
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    ormExtensionJson.Accept(writer);
+    if (packingIncludesOrm)
+    {
+        if (hasNormal)
+        {
+            rapidjson::Value ormNormalTextureJson(rapidjson::kObjectType);
+            {
+                ormNormalTextureJson.AddMember(MSFT_PACKING_INDEX_KEY, rapidjson::Value(std::stoi(normal)), ormAllocator);
+            }
+            ormExtensionJson.AddMember(MSFT_PACKING_ORM_NORMALTEXTURE_KEY, ormNormalTextureJson, ormAllocator);
+        }
 
-    outputMaterial.extensions.insert(std::pair<std::string, std::string>(EXTENSION_MSFT_PACKING_ORM, buffer.GetString()));
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        ormExtensionJson.Accept(writer);
+
+        outputMaterial.extensions.insert(std::pair<std::string, std::string>(EXTENSION_MSFT_PACKING_ORM, buffer.GetString()));
+
+        outputDoc.extensionsUsed.insert(EXTENSION_MSFT_PACKING_ORM);
+    }
+
+    if (packingIncludesNrm)
+    {
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        nrmExtensionJson.Accept(writer);
+
+        outputMaterial.extensions.insert(std::pair<std::string, std::string>(EXTENSION_MSFT_PACKING_NRM, buffer.GetString()));
+
+        outputDoc.extensionsUsed.insert(EXTENSION_MSFT_PACKING_NRM);
+    }
 
     outputDoc.materials.Replace(outputMaterial);
-
-    outputDoc.extensionsUsed.insert(EXTENSION_MSFT_PACKING_ORM);
 
     return outputDoc;
 }
