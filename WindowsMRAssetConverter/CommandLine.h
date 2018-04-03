@@ -15,12 +15,19 @@ namespace CommandLine
         Desktop = 0x2
     };
 
+    enum class Version
+    {
+        Version1709, // Fall Creators Update (RS3)
+        Version1803,  // Spring Creators Update (RS4)
+        Latest = Version1803
+    };
+
     void PrintHelp();
 
     void ParseCommandLineArguments(
         int argc, wchar_t *argv[],
         std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
         std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-        bool& sharedMaterials, bool& compatibilityMode, Platform& targetPlatforms, bool& replaceTextures);
+        bool& sharedMaterials, Version& minVersion, Platform& targetPlatforms, bool& replaceTextures);
 };
 

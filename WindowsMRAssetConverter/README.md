@@ -18,10 +18,11 @@ WindowsMRAssetConverter _&lt;path to GLTF/GLB&gt;_
   - `holographic`: optimizes assets for HoloLens using the [MSFT_packing_normalRoughnessMetallic](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Vendor/MSFT_packing_normalRoughnessMetallic) extension.
   - `all`: creates assets optimized for both holographic and desktop devices, but with a larger file size.
 
-- `-compatibility-mode <on | off>`
-  - **Default:** `on`
-  - Generates assets that are also compatible with versions of Windows 10 older than the Spring Creators Update (version 1803).
-  - Enabling compatibility mode results in assets with a larger file size. If your app is compatible with Windows 10 1803+ only, it is recommended to set `-compatibility-mode off`.
+- `-min-version <1709 | 1803 | latest>`
+  - **Default:** `1709`
+  - Specifies the minimum version of Windows 10 supported by this asset.
+  - The current options are `1709` (Fall Creators Update) and `1803` (Spring Creators Update), as well as `latest` which is currently the same as `1803`.
+  - Supporting Windows 10 version 1709 results in assets with a larger file size. If your app is compatible with Windows 10 1803+ only, it is recommended to set `-min-version 1803`.
   - This setting does not have any effect on the Holographic platform.
 
 - `-lod <path to each lower LOD asset in descending order of quality>`

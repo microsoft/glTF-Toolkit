@@ -145,13 +145,13 @@ int wmain(int argc, wchar_t *argv[])
         std::vector<double> screenCoveragePercentages;
         size_t maxTextureSize;
         bool shareMaterials;
-        bool compatibilityMode;
+        CommandLine::Version minVersion;
         CommandLine::Platform targetPlatforms;
         bool replaceTextures;
 
         CommandLine::ParseCommandLineArguments(
             argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, 
-            maxTextureSize, shareMaterials, compatibilityMode, targetPlatforms, replaceTextures);
+            maxTextureSize, shareMaterials, minVersion, targetPlatforms, replaceTextures);
 
         TexturePacking packing = TexturePacking::None;
 
@@ -175,12 +175,12 @@ int wmain(int argc, wchar_t *argv[])
             // Desktop 1803+ mode: ORM
             packing = (TexturePacking)(packing | TexturePacking::OcclusionRoughnessMetallic);
 
-            if (compatibilityMode)
+            if (minVersion == CommandLine::Version::Version1709)
             {
                 // Desktop 1709 mode: RMO
                 packing = (TexturePacking)(packing | TexturePacking::RoughnessMetallicOcclusion);
 
-                compatibleVersionsText += L"Desktop (all versions)";
+                compatibleVersionsText += L"Desktop (version 1709+)";
             }
             else
             {
