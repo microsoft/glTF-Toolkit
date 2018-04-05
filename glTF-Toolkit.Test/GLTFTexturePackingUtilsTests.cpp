@@ -46,35 +46,57 @@ namespace Microsoft::glTF::Toolkit::Test
                 Assert::IsTrue(material.id == packedMaterial.id);
                 Assert::IsTrue(doc.materials.Size() == packedDoc.materials.Size());
 
-                // Check that the packed material has the new extension
-                Assert::IsTrue(material.extensions.size() + 1 == packedMaterial.extensions.size());
+                size_t expectedExtensionsSize = material.extensions.size();
 
                 // Check the new extension is not empty
-                auto packingOrmExtension = packedMaterial.extensions.at(std::string(EXTENSION_MSFT_PACKING_ORM));
-                Assert::IsFalse(packingOrmExtension.empty());
-
-                // Check the new extension contains an ORM texture
-                rapidjson::Document ormJson;
-                ormJson.Parse(packingOrmExtension.c_str());
-
-                if (packing & TexturePacking::OcclusionRoughnessMetallic)
+                if (packing & (TexturePacking::OcclusionRoughnessMetallic | TexturePacking::RoughnessMetallicOcclusion))
                 {
-                    Assert::IsTrue(ormJson["occlusionRoughnessMetallicTexture"].IsObject());
-                    Assert::IsTrue(ormJson["occlusionRoughnessMetallicTexture"].HasMember("index"));
+                    expectedExtensionsSize++;
+
+                    auto packingOrmExtension = packedMaterial.extensions.at(std::string(EXTENSION_MSFT_PACKING_ORM));
+                    Assert::IsFalse(packingOrmExtension.empty());
+
+                    // Check the new extension contains an ORM texture
+                    rapidjson::Document ormJson;
+                    ormJson.Parse(packingOrmExtension.c_str());
+
+                    if (packing & TexturePacking::OcclusionRoughnessMetallic)
+                    {
+                        Assert::IsTrue(ormJson[MSFT_PACKING_ORM_ORMTEXTURE_KEY].IsObject());
+                        Assert::IsTrue(ormJson[MSFT_PACKING_ORM_ORMTEXTURE_KEY].HasMember(MSFT_PACKING_INDEX_KEY));
+                    }
+
+                    if (packing & TexturePacking::RoughnessMetallicOcclusion)
+                    {
+                        Assert::IsTrue(ormJson[MSFT_PACKING_ORM_RMOTEXTURE_KEY].IsObject());
+                        Assert::IsTrue(ormJson[MSFT_PACKING_ORM_RMOTEXTURE_KEY].HasMember(MSFT_PACKING_INDEX_KEY));
+                    }
+
+                    if (!material.normalTexture.id.empty())
+                    {
+                        // Check the new extension contains a normal texture
+                        Assert::IsTrue(ormJson[MSFT_PACKING_ORM_NORMALTEXTURE_KEY].IsObject());
+                        Assert::IsTrue(ormJson[MSFT_PACKING_ORM_NORMALTEXTURE_KEY].HasMember(MSFT_PACKING_INDEX_KEY));
+                    }
                 }
 
-                if (packing & TexturePacking::RoughnessMetallicOcclusion)
+                if (packing & TexturePacking::NormalRoughnessMetallic)
                 {
-                    Assert::IsTrue(ormJson["roughnessMetallicOcclusionTexture"].IsObject());
-                    Assert::IsTrue(ormJson["roughnessMetallicOcclusionTexture"].HasMember("index"));
+                    expectedExtensionsSize++;
+
+                    auto packingNrmExtension = packedMaterial.extensions.at(std::string(EXTENSION_MSFT_PACKING_NRM));
+                    Assert::IsFalse(packingNrmExtension.empty());
+
+                    // Check the new extension contains an NRM texture
+                    rapidjson::Document nrmJson;
+                    nrmJson.Parse(packingNrmExtension.c_str());
+
+                    Assert::IsTrue(nrmJson[MSFT_PACKING_NRM_KEY].IsObject());
+                    Assert::IsTrue(nrmJson[MSFT_PACKING_NRM_KEY].HasMember(MSFT_PACKING_INDEX_KEY));
                 }
 
-                if (!material.normalTexture.id.empty())
-                {
-                    // Check the new extension contains a normal texture
-                    Assert::IsTrue(ormJson["normalTexture"].IsObject());
-                    Assert::IsTrue(ormJson["normalTexture"].HasMember("index"));
-                }
+                // Check that the packed material has the new extension
+                Assert::IsTrue(expectedExtensionsSize == packedMaterial.extensions.size());
             });
         }
 
@@ -117,6 +139,23 @@ namespace Microsoft::glTF::Toolkit::Test
         TEST_METHOD(GLTFTexturePackingUtils_PackORMandRMO)
         {
             ExecutePackingTest(c_waterBottleJson, (TexturePacking)(TexturePacking::OcclusionRoughnessMetallic | TexturePacking::RoughnessMetallicOcclusion));
+        }
+
+        TEST_METHOD(GLTFTexturePackingUtils_PackNRM)
+        {
+            ExecutePackingTest(c_waterBottleJson, TexturePacking::NormalRoughnessMetallic);
+        }
+
+        TEST_METHOD(GLTFTexturePackingUtils_PackNRMandORM)
+        {
+            // Default for RS4+ compatible with both HoloLens and Desktop
+            ExecutePackingTest(c_waterBottleJson, (TexturePacking)(TexturePacking::OcclusionRoughnessMetallic | TexturePacking::NormalRoughnessMetallic));
+        }
+
+        TEST_METHOD(GLTFTexturePackingUtils_PackNRMandORMandRMO)
+        {
+            // Maximum compatibility: all packings
+            ExecutePackingTest(c_waterBottleJson, (TexturePacking)(TexturePacking::OcclusionRoughnessMetallic | TexturePacking::NormalRoughnessMetallic | TexturePacking::RoughnessMetallicOcclusion));
         }
 
         TEST_METHOD(GLTFTexturePackingUtils_PackAllWithNoMaterials)

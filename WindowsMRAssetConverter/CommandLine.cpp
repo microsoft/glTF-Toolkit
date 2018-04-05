@@ -12,10 +12,25 @@ const wchar_t * PARAM_LOD = L"-lod";
 const wchar_t * PARAM_SCREENCOVERAGE = L"-screen-coverage";
 const wchar_t * PARAM_MAXTEXTURESIZE = L"-max-texture-size";
 const wchar_t * PARAM_SHARE_MATERIALS = L"-share-materials";
+const wchar_t * PARAM_MIN_VERSION = L"-min-version";
+const wchar_t * PARAM_PLATFORM = L"-platform";
+const wchar_t * PARAM_REPLACE_TEXTURES = L"-replace-textures";
+const wchar_t * PARAM_VALUE_VERSION_1709 = L"1709";
+const wchar_t * PARAM_VALUE_VERSION_1803 = L"1803";
+const wchar_t * PARAM_VALUE_VERSION_RS3 = L"rs3";
+const wchar_t * PARAM_VALUE_VERSION_RS4 = L"rs4";
+const wchar_t * PARAM_VALUE_VERSION_LATEST = L"latest";
+const wchar_t * PARAM_VALUE_HOLOGRAPHIC = L"holographic";
+const wchar_t * PARAM_VALUE_HOLOLENS= L"hololens";
+const wchar_t * PARAM_VALUE_DESKTOP = L"desktop";
+const wchar_t * PARAM_VALUE_PC = L"pc";
+const wchar_t * PARAM_VALUE_ALL = L"all";
 const wchar_t * SUFFIX_CONVERTED = L"_converted";
 const wchar_t * CLI_INDENT = L"    ";
 const size_t MAXTEXTURESIZE_DEFAULT = 512;
 const size_t MAXTEXTURESIZE_MAX = 4096;
+const CommandLine::Version MIN_VERSION_DEFAULT = CommandLine::Version::Version1709;
+const CommandLine::Platform PLATFORM_DEFAULT = CommandLine::Platform::Desktop;
 
 enum class CommandLineParsingState
 {
@@ -25,7 +40,9 @@ enum class CommandLineParsingState
     ReadTmpDir,
     ReadLods,
     ReadScreenCoverage,
-    ReadMaxTextureSize
+    ReadMaxTextureSize,
+    ReadMinVersion,
+    ReadPlatform
 };
 
 void CommandLine::PrintHelp()
@@ -41,11 +58,14 @@ void CommandLine::PrintHelp()
         << std::endl
         << L"Optional arguments:" << std::endl
         << indent << "[" << std::wstring(PARAM_OUTFILE) << L" <output file path>]" << std::endl
-        << indent << "[" << std::wstring(PARAM_TMPDIR) << L" <temporary folder, default is the system temp folder for the user>]" << std::endl
+        << indent << "[" << std::wstring(PARAM_TMPDIR) << L" <temporary folder>] - default is the system temp folder for the user" << std::endl
+        << indent << "[" << std::wstring(PARAM_PLATFORM) << " <" << PARAM_VALUE_ALL << " | " << PARAM_VALUE_HOLOGRAPHIC << " | " << PARAM_VALUE_DESKTOP << ">] - defaults to " << PARAM_VALUE_DESKTOP << std::endl
+        << indent << "[" << std::wstring(PARAM_MIN_VERSION) << " <" << PARAM_VALUE_VERSION_1709 << " | " << PARAM_VALUE_VERSION_1803 << " | " << PARAM_VALUE_VERSION_LATEST << ">] - defaults to " << PARAM_VALUE_VERSION_1709 << std::endl
         << indent << "[" << std::wstring(PARAM_LOD) << " <path to each lower LOD asset in descending order of quality>]" << std::endl
         << indent << "[" << std::wstring(PARAM_SCREENCOVERAGE) << " <LOD screen coverage values>]" << std::endl
-        << indent << "[" << std::wstring(PARAM_MAXTEXTURESIZE) << " <Max texture size in pixels, defaults to 512>]" << std::endl
-        << indent << "[" << std::wstring(PARAM_SHARE_MATERIALS) << " defaults to false" << std::endl
+        << indent << "[" << std::wstring(PARAM_SHARE_MATERIALS) << "] - disabled if not present" << std::endl
+        << indent << "[" << std::wstring(PARAM_MAXTEXTURESIZE) << " <Max texture size in pixels>] - defaults to 512" << std::endl
+        << indent << "[" << std::wstring(PARAM_REPLACE_TEXTURES) << "] - disabled if not present" << std::endl
         << std::endl
         << "Example:" << std::endl
         << indent << "WindowsMRAssetConverter FileToConvert.gltf "
@@ -65,7 +85,7 @@ void CommandLine::ParseCommandLineArguments(
     int argc, wchar_t *argv[],
     std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
     std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-    bool& shareMaterials)
+    bool& shareMaterials, Version& minVersion, Platform& targetPlatforms, bool& replaceTextures)
 {
     CommandLineParsingState state = CommandLineParsingState::Initial;
 
@@ -80,6 +100,9 @@ void CommandLine::ParseCommandLineArguments(
     screenCoveragePercentages.clear();
     maxTextureSize = MAXTEXTURESIZE_DEFAULT;
     shareMaterials = false;
+    minVersion = MIN_VERSION_DEFAULT;
+    targetPlatforms = PLATFORM_DEFAULT;
+    replaceTextures = false;
 
     state = CommandLineParsingState::InputRead;
 
@@ -117,6 +140,22 @@ void CommandLine::ParseCommandLineArguments(
         else if (param == PARAM_SHARE_MATERIALS)
         {
             shareMaterials = true;
+            state = CommandLineParsingState::InputRead;
+        }
+        else if (param == PARAM_MIN_VERSION)
+        {
+            minVersion = MIN_VERSION_DEFAULT;
+            state = CommandLineParsingState::ReadMinVersion;
+        }
+        else if (param == PARAM_PLATFORM)
+        {
+            targetPlatforms = PLATFORM_DEFAULT;
+            state = CommandLineParsingState::ReadPlatform;
+        }
+        else if (param == PARAM_REPLACE_TEXTURES)
+        {
+            replaceTextures = true;
+            state = CommandLineParsingState::InputRead;
         }
         else
         {
@@ -141,6 +180,44 @@ void CommandLine::ParseCommandLineArguments(
             }
             case CommandLineParsingState::ReadMaxTextureSize:
                 maxTextureSize = std::min(static_cast<size_t>(std::stoul(param.c_str())), MAXTEXTURESIZE_MAX);
+                break;
+            case CommandLineParsingState::ReadMinVersion:
+                if (_wcsicmp(param.c_str(), PARAM_VALUE_VERSION_1709) == 0 || _wcsicmp(param.c_str(), PARAM_VALUE_VERSION_RS3) == 0)
+                {
+                    minVersion = Version::Version1709;
+                }
+                else if (_wcsicmp(param.c_str(), PARAM_VALUE_VERSION_1803) == 0 || _wcsicmp(param.c_str(), PARAM_VALUE_VERSION_RS4) == 0)
+                {
+                    minVersion = Version::Version1803;
+                }
+                else if (_wcsicmp(param.c_str(), PARAM_VALUE_VERSION_LATEST) == 0)
+                {
+                    minVersion = Version::Latest;
+                }
+                else
+                {
+                    throw std::invalid_argument("Invalid min version specified. For help, try the command again without parameters.");
+                }
+                state = CommandLineParsingState::InputRead;
+                break;
+            case CommandLineParsingState::ReadPlatform:
+                if (_wcsicmp(param.c_str(), PARAM_VALUE_ALL) == 0)
+                {
+                    targetPlatforms = (Platform) (Platform::Desktop | Platform::Holographic);
+                } 
+                else if (_wcsicmp(param.c_str(), PARAM_VALUE_HOLOGRAPHIC) == 0 || _wcsicmp(param.c_str(), PARAM_VALUE_HOLOLENS) == 0)
+                {
+                    targetPlatforms = Platform::Holographic;
+                }
+                else if (_wcsicmp(param.c_str(), PARAM_VALUE_DESKTOP) == 0 || _wcsicmp(param.c_str(), PARAM_VALUE_PC) == 0)
+                {
+                    targetPlatforms = Platform::Desktop;
+                }
+                else
+                {
+                    throw std::invalid_argument("Invalid platform specified. For help, try the command again without parameters.");
+                }
+                state = CommandLineParsingState::InputRead;
                 break;
             case CommandLineParsingState::Initial:
             case CommandLineParsingState::InputRead:

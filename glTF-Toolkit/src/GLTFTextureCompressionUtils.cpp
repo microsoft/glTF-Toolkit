@@ -199,30 +199,44 @@ GLTFDocument GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(const 
         compressIfNotEmpty(material.metallicRoughness.baseColorTextureId, TextureCompression::BC7);
         compressIfNotEmpty(material.emissiveTextureId, TextureCompression::BC7);
 
-        // Get other textures from the MSFT_packing_occlusionRoughnessMetallic extension
+        // Get textures from the MSFT_packing_occlusionRoughnessMetallic extension
         if (material.extensions.find(EXTENSION_MSFT_PACKING_ORM) != material.extensions.end())
         {
             rapidjson::Document packingOrmContents;
             packingOrmContents.Parse(material.extensions[EXTENSION_MSFT_PACKING_ORM].c_str());
 
             // Compress packed textures as BC7
-            if (packingOrmContents.HasMember("roughnessMetallicOcclusionTexture"))
+            if (packingOrmContents.HasMember(MSFT_PACKING_ORM_RMOTEXTURE_KEY))
             {
-                auto rmoTextureId = packingOrmContents["roughnessMetallicOcclusionTexture"]["index"].GetInt();
+                auto rmoTextureId = packingOrmContents[MSFT_PACKING_ORM_RMOTEXTURE_KEY][MSFT_PACKING_INDEX_KEY].GetInt();
                 compressIfNotEmpty(std::to_string(rmoTextureId), TextureCompression::BC7);
             }
 
-            if (packingOrmContents.HasMember("occlusionRoughnessMetallicTexture"))
+            if (packingOrmContents.HasMember(MSFT_PACKING_ORM_ORMTEXTURE_KEY))
             {
-                auto ormTextureId = packingOrmContents["occlusionRoughnessMetallicTexture"]["index"].GetInt();
+                auto ormTextureId = packingOrmContents[MSFT_PACKING_ORM_ORMTEXTURE_KEY][MSFT_PACKING_INDEX_KEY].GetInt();
                 compressIfNotEmpty(std::to_string(ormTextureId), TextureCompression::BC7);
             }
 
             // Compress normal texture as BC5
-            if (packingOrmContents.HasMember("normalTexture"))
+            if (packingOrmContents.HasMember(MSFT_PACKING_ORM_NORMALTEXTURE_KEY))
             {
-                auto normalTextureId = packingOrmContents["normalTexture"]["index"].GetInt();
+                auto normalTextureId = packingOrmContents[MSFT_PACKING_ORM_NORMALTEXTURE_KEY][MSFT_PACKING_INDEX_KEY].GetInt();
                 compressIfNotEmpty(std::to_string(normalTextureId), TextureCompression::BC5);
+            }
+        }
+
+        // Get textures from the MSFT_packing_normalRoughnessMetallic extension
+        if (material.extensions.find(EXTENSION_MSFT_PACKING_NRM) != material.extensions.end())
+        {
+            rapidjson::Document packingNrmContents;
+            packingNrmContents.Parse(material.extensions[EXTENSION_MSFT_PACKING_NRM].c_str());
+
+            // Compress packed texture as BC7
+            if (packingNrmContents.HasMember(MSFT_PACKING_NRM_KEY))
+            {
+                auto nrmTextureId = packingNrmContents[MSFT_PACKING_NRM_KEY][MSFT_PACKING_INDEX_KEY].GetInt();
+                compressIfNotEmpty(std::to_string(nrmTextureId), TextureCompression::BC7);
             }
         }
     }
