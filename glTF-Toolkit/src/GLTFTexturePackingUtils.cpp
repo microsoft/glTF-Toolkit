@@ -104,6 +104,35 @@ namespace
             throw GLTFException("Invalid packing.");
         }
     }
+
+    void ResizeIfNeeded(std::unique_ptr<DirectX::ScratchImage>& image, size_t resizedWidth, size_t resizedHeight)
+    {
+        auto metadata = image->GetMetadata();
+        if (resizedWidth != metadata.width || resizedHeight != metadata.height)
+        {
+            auto resized = std::make_unique<DirectX::ScratchImage>();
+            if (FAILED(DirectX::Resize(image->GetImages(), image->GetImageCount(), metadata, resizedWidth, resizedHeight, DirectX::TEX_FILTER_DEFAULT, *resized)))
+            {
+                throw GLTFException("Failed to resize image while packing.");
+            }
+
+            image = std::move(resized);
+        }
+    }
+
+    void ResizeToLargest(std::unique_ptr<DirectX::ScratchImage>& image1, std::unique_ptr<DirectX::ScratchImage>& image2)
+    {
+        auto metadata1 = image1->GetMetadata();
+        auto metadata2 = image2->GetMetadata();
+        if (metadata1.height != metadata2.height || metadata1.width != metadata2.width)
+        {
+            auto resizedWidth = std::max(metadata1.width, metadata2.width);
+            auto resizedHeight = std::max(metadata1.height, metadata2.height);
+
+            ResizeIfNeeded(image1, resizedWidth, resizedHeight);
+            ResizeIfNeeded(image2, resizedWidth, resizedHeight);
+        }
+    }
 }
 
 GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamReader& streamReader, const GLTFDocument& doc, const Material& material, TexturePacking packing, const std::string& outputDirectory)
@@ -147,13 +176,11 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     rapidjson::MemoryPoolAllocator<>& nrmAllocator = nrmExtensionJson.GetAllocator();
 
     std::unique_ptr<DirectX::ScratchImage> metallicRoughnessImage = nullptr;
-    uint8_t *mrPixels = nullptr;
     if (hasMR)
     {
         try
         {
             metallicRoughnessImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, metallicRoughness));
-            mrPixels = metallicRoughnessImage->GetPixels();
         }
         catch (GLTFException)
         {
@@ -164,13 +191,11 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     bool packingIncludesOrm = (packing & (TexturePacking::OcclusionRoughnessMetallic | TexturePacking::RoughnessMetallicOcclusion)) > 0;
 
     std::unique_ptr<DirectX::ScratchImage> occlusionImage = nullptr;
-    uint8_t *occlusionPixels = nullptr;
     if (hasOcclusion && packingIncludesOrm)
     {
         try
         {
             occlusionImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, occlusion));
-            occlusionPixels = occlusionImage->GetPixels();
         }
         catch (GLTFException)
         {
@@ -178,22 +203,34 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         }
     }
 
+    if (hasMR && hasOcclusion && packingIncludesOrm)
+    {
+        ResizeToLargest(metallicRoughnessImage, occlusionImage);
+    }
+
     bool packingIncludesNrm = (packing & TexturePacking::NormalRoughnessMetallic) > 0;
 
     std::unique_ptr<DirectX::ScratchImage> normalImage = nullptr;
-    uint8_t *normalPixels = nullptr;
     if (hasNormal && packingIncludesNrm)
     {
         try
         {
             normalImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, normal));
-            normalPixels = normalImage->GetPixels();
         }
         catch (GLTFException)
         {
             throw GLTFException("Failed to load normal texture.");
         }
     }
+
+    if (hasMR && hasNormal && packingIncludesNrm)
+    {
+        ResizeToLargest(metallicRoughnessImage, normalImage);
+    }
+
+    uint8_t *mrPixels = metallicRoughnessImage != nullptr ? metallicRoughnessImage->GetPixels() : nullptr;
+    uint8_t *occlusionPixels = occlusionImage != nullptr ? occlusionImage->GetPixels() : nullptr;
+    uint8_t *normalPixels = normalImage != nullptr ? normalImage->GetPixels() : nullptr;
 
     // Pack textures using DirectXTex
 
@@ -221,8 +258,6 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
             auto ormPixels = orm->GetPixels();
             auto metadata = orm->GetMetadata();
 
-            // TODO: resize?
-
             for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
             {
                 // Occlusion: Occ [R] -> ORM [R]
@@ -244,8 +279,6 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     if (packing & TexturePacking::RoughnessMetallicOcclusion && (hasMR || hasOcclusion))
     {
         auto rmo = std::make_unique<DirectX::ScratchImage>();
-
-        // TODO: resize?
 
         auto sourceImage = hasMR ? *metallicRoughnessImage->GetImage(0, 0, 0) : *occlusionImage->GetImage(0, 0, 0);
         if (FAILED(rmo->Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
@@ -277,8 +310,6 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     if (packingIncludesNrm && (hasMR || hasNormal))
     {
         auto nrm = std::make_unique<DirectX::ScratchImage>();
-
-        // TODO: resize?
 
         auto sourceImage = hasMR ? *metallicRoughnessImage->GetImage(0, 0, 0) : *normalImage->GetImage(0, 0, 0);
         if (FAILED(nrm->Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
