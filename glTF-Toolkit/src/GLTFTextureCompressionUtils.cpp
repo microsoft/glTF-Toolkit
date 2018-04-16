@@ -110,6 +110,7 @@ GLTFDocument GLTFTextureCompressionUtils::CompressTextureAsDDS(const IStreamRead
         outputImagePath += "_BC5";
         break;
     case TextureCompression::BC7:
+    case TextureCompression::BC7_SRGB:
         outputImagePath += "_BC7";
         break;
     default:
@@ -196,8 +197,8 @@ GLTFDocument GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(const 
         };
 
         // Compress base and emissive texture as BC7
-        compressIfNotEmpty(material.metallicRoughness.baseColorTextureId, TextureCompression::BC7);
-        compressIfNotEmpty(material.emissiveTextureId, TextureCompression::BC7);
+        compressIfNotEmpty(material.metallicRoughness.baseColorTextureId, TextureCompression::BC7_SRGB);
+        compressIfNotEmpty(material.emissiveTextureId, TextureCompression::BC7_SRGB);
 
         // Get textures from the MSFT_packing_occlusionRoughnessMetallic extension
         if (material.extensions.find(EXTENSION_MSFT_PACKING_ORM) != material.extensions.end())
@@ -251,6 +252,7 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
         return;
     }
 
+    DWORD compressionFlags = DirectX::TEX_COMPRESS_DEFAULT;
     DXGI_FORMAT compressionFormat = DXGI_FORMAT_BC7_UNORM;
     switch (compression)
     {
@@ -262,6 +264,10 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
         break;
     case TextureCompression::BC7:
         compressionFormat = DXGI_FORMAT_BC7_UNORM;
+        break;
+    case TextureCompression::BC7_SRGB:
+        compressionFormat = DXGI_FORMAT_BC7_UNORM_SRGB;
+        compressionFlags |= DirectX::TEX_COMPRESS_SRGB_IN;
         break;
     default:
         throw std::invalid_argument("Invalid compression specified.");
@@ -279,7 +285,7 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
 
         if (device != nullptr)
         {
-            if (SUCCEEDED(DirectX::Compress(device.Get(), image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, DirectX::TEX_COMPRESS_DEFAULT, 0, compressedImage)))
+            if (SUCCEEDED(DirectX::Compress(device.Get(), image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, compressionFlags, 0, compressedImage)))
             {
                 gpuCompressionSuccessful = true;
             }
@@ -293,7 +299,7 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
     if (!gpuCompressionSuccessful)
     {
         // Try software compression
-        if (FAILED(DirectX::Compress(image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, DirectX::TEX_COMPRESS_DEFAULT, 0, compressedImage)))
+        if (FAILED(DirectX::Compress(image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, compressionFlags | DirectX::TEX_COMPRESS_PARALLEL, 0, compressedImage)))
         {
             throw GLTFException("Failed to compress data using software compression");
         }
