@@ -15,6 +15,7 @@
 
 #include "CommandLine.h"
 #include "FileSystem.h"
+#include "Validation.h"
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
@@ -224,7 +225,22 @@ int wmain(int argc, wchar_t *argv[])
             document.defaultSceneId = document.scenes.Elements()[0].id;
         }
 
-        // 5. GLB Export
+        // 5. Validate and throw warnings to help debug issues
+        std::wcout << L"Validating asset...";
+
+        auto validationResult = ::Validation::ValidateWindowsMRAsset(document);
+
+        if (!validationResult.empty())
+        {
+            std::wcerr << L"Errors found!\n" << std::endl;
+            std::wcerr << validationResult.c_str() << std::endl;
+        }
+        else
+        {
+            std::wcout << L"Valid!" << std::endl;
+        }
+
+        // 6. GLB Export
         std::wcout << L"Exporting as GLB..." << std::endl;
 
         // The Windows MR Fall Creators update has restrictions on the supported
