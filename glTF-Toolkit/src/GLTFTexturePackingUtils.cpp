@@ -45,7 +45,7 @@ namespace
         return reinterpret_cast<float*>(imageData + offset * DXGI_FORMAT_R32G32B32A32_FLOAT_STRIDE + channel);
     }
 
-    std::string SaveAsPng(std::unique_ptr<DirectX::ScratchImage>& image, const std::string& fileName, const std::string& directory)
+    std::string SaveAsPng(std::unique_ptr<DirectX::ScratchImage>& image, const std::string& fileName, const std::string& directory, const GUID* targetFormat = &GUID_WICPixelFormat24bppBGR)
     {
         wchar_t outputImageFullPath[MAX_PATH];
         auto fileNameW = std::wstring(fileName.begin(), fileName.end());
@@ -57,7 +57,7 @@ namespace
         }
 
         const DirectX::Image* img = image->GetImage(0, 0, 0);
-        if (FAILED(SaveToWICFile(*img, DirectX::WIC_FLAGS::WIC_FLAGS_NONE, GUID_ContainerFormatPng, outputImageFullPath, &GUID_WICPixelFormat24bppBGR)))
+        if (FAILED(SaveToWICFile(*img, DirectX::WIC_FLAGS::WIC_FLAGS_NONE, GUID_ContainerFormatPng, outputImageFullPath,targetFormat)))
         {
             throw GLTFException("Failed to save file.");
         }
@@ -331,7 +331,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
             *GetChannelValue(nrmPixels, i, Channel::Alpha) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
         }
 
-        auto imagePath = SaveAsPng(nrm, "packing_nrm_" + material.id + ".png", outputDirectory);
+        auto imagePath = SaveAsPng(nrm, "packing_nrm_" + material.id + ".png", outputDirectory, &GUID_WICPixelFormat32bppBGRA);
 
         // Add back to GLTF
         auto nrmImageId = AddImageToDocument(outputDoc, imagePath);
