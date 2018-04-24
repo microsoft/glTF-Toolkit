@@ -57,7 +57,7 @@ namespace
         }
 
         const DirectX::Image* img = image->GetImage(0, 0, 0);
-        if (FAILED(SaveToWICFile(*img, DirectX::WIC_FLAGS::WIC_FLAGS_NONE, GUID_ContainerFormatPng, outputImageFullPath,targetFormat)))
+        if (FAILED(SaveToWICFile(*img, DirectX::WIC_FLAGS::WIC_FLAGS_NONE, GUID_ContainerFormatPng, outputImageFullPath, targetFormat)))
         {
             throw GLTFException("Failed to save file.");
         }
