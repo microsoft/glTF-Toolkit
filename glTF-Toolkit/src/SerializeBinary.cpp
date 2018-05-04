@@ -149,7 +149,10 @@ namespace
     }
 }
 
-void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader, std::unique_ptr<const IStreamFactory>& outputStreamFactory, const AccessorConversionStrategy& accessorConversion)
+void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
+                                               const GLTFResourceReader& resourceReader,
+                                               std::unique_ptr<const IStreamFactory>& outputStreamFactory,
+                                               const AccessorConversionStrategy& accessorConversion)
 {
     auto writer = std::make_unique<GLBResourceWriter2>(std::move(outputStreamFactory), std::string());
 
@@ -158,8 +161,6 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     outputDoc.buffers.Clear();
     outputDoc.bufferViews.Clear();
     outputDoc.accessors.Clear();
-
-    GLTFResourceReader gltfResourceReader(inputStreamReader);
 
     std::unique_ptr<BufferBuilder> builder = std::make_unique<BufferBuilder>(std::move(writer));
 
@@ -171,31 +172,28 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     {
         if (accessor.count > 0)
         {
-            SerializeAccessor(accessor, gltfDocument, gltfResourceReader, *builder, accessorConversion);
+            SerializeAccessor(accessor, gltfDocument, resourceReader, *builder, accessorConversion);
         }
     }
 
     // Serialize images
     for (auto image : outputDoc.images.Elements())
     {
-        if (!image.uri.empty())
+        Image newImage(image);
+
+        auto data = resourceReader.ReadBinaryData(gltfDocument, image);
+
+        auto imageBufferView = builder->AddBufferView(data);
+
+        newImage.bufferViewId = imageBufferView.id;
+        if (image.mimeType.empty())
         {
-            Image newImage(image);
-
-            auto data = gltfResourceReader.ReadBinaryData(gltfDocument, image);
-
-            auto imageBufferView = builder->AddBufferView(data);
-
-            newImage.bufferViewId = imageBufferView.id;
-            if (image.mimeType.empty())
-            {
-                newImage.mimeType = MimeTypeFromUri(image.uri);
-            }
-
-            newImage.uri.clear();
-
-            outputDoc.images.Replace(newImage);
+            newImage.mimeType = MimeTypeFromUri(image.uri);
         }
+
+        newImage.uri.clear();
+
+        outputDoc.images.Replace(newImage);
     }
 
     builder->Output(outputDoc);
@@ -217,4 +215,11 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     {
         outputWriter->Flush(manifest, std::string());
     }
+}
+
+void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader,
+                                               std::unique_ptr<const IStreamFactory>& outputStreamFactory,
+                                               const AccessorConversionStrategy& accessorConversion)
+{
+    SerializeBinary(gltfDocument, GLTFResourceReader{inputStreamReader}, outputStreamFactory, accessorConversion);
 }
