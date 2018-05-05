@@ -61,8 +61,7 @@ IAsyncOperation<StorageFile^>^ GLTFSerialization::PackGLTFAsync(StorageFile^ sou
 
                 String^ outputGlbPath = outputFolder->Path + "\\" + glbName;
                 std::wstring outputGlbPathW = outputGlbPath->Data();
-                std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(outputGlbPathW);
-                SerializeBinary(*document, streamReader, streamFactory);
+                SerializeBinary(*document, streamReader, std::make_unique<GLBStreamFactory>(outputGlbPathW));
 
                 return outputFolder->GetFileAsync(glbName);
             });

@@ -27,7 +27,7 @@ namespace Microsoft::glTF::Toolkit
     /// <param name="inputStreamReader">A stream reader that is capable of accessing the resources used in the glTF asset by URI.</param>
     /// <param name="outputStreamFactory">A stream factory that is capable of creating an output stream where the GLB will be saved, and a temporary stream for
     /// use during the serialization process.</param>
-    void SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader, std::unique_ptr<const IStreamFactory>& outputStreamFactory, const AccessorConversionStrategy& accessorConversion = nullptr);
+    void SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader, std::unique_ptr<const IStreamFactory>&& outputStreamFactory, const AccessorConversionStrategy& accessorConversion = nullptr);
 
     /// <summary>
     /// Serializes a glTF asset as a glTF binary (GLB) file.
@@ -36,5 +36,5 @@ namespace Microsoft::glTF::Toolkit
     /// <param name="resourceReader">A resource reader that is capable of accessing the resources used in the document.</param>
     /// <param name="outputStreamFactory">A stream factory that is capable of creating an output stream where the GLB will be saved, and a temporary stream for
     /// use during the serialization process.</param>
-    void SerializeBinary(const GLTFDocument& gltfDocument, const GLTFResourceReader& resourceReader, std::unique_ptr<const IStreamFactory>& outputStreamFactory, const AccessorConversionStrategy& accessorConversion = nullptr);
+    void SerializeBinary(const GLTFDocument& gltfDocument, const GLTFResourceReader& resourceReader, std::unique_ptr<const IStreamFactory>&& outputStreamFactory, const AccessorConversionStrategy& accessorConversion = nullptr);
 }
