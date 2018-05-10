@@ -125,8 +125,7 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 glbName += L".glb";
 
                 std::wstring outputGlbPathW = std::wstring(outputFolder->Path->Data()) + L"\\" + glbName;
-                std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(outputGlbPathW);
-                SerializeBinary(convertedDoc, streamReader, streamFactory, accessorConversion);
+                SerializeBinary(convertedDoc, streamReader, std::make_unique<GLBStreamFactory>(outputGlbPathW), accessorConversion);
 
                 return create_task(outputFolder->GetFileAsync(ref new String(glbName.c_str())));
             });

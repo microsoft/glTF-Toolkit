@@ -252,8 +252,7 @@ int wmain(int argc, wchar_t *argv[])
         };
 
         GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
-        std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(outFilePath);
-        SerializeBinary(document, streamReader, streamFactory, accessorConversion);
+        SerializeBinary(document, streamReader, std::make_unique<GLBStreamFactory>(outFilePath), accessorConversion);
 
         std::wcout << L"Done!" << std::endl;
         std::wcout << L"Output file: " << outFilePath << std::endl;

@@ -151,7 +151,7 @@ namespace
 
 void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
                                                const GLTFResourceReader& resourceReader,
-                                               std::unique_ptr<const IStreamFactory>& outputStreamFactory,
+                                               std::unique_ptr<const IStreamFactory>&& outputStreamFactory,
                                                const AccessorConversionStrategy& accessorConversion)
 {
     auto writer = std::make_unique<GLBResourceWriter2>(std::move(outputStreamFactory), std::string());
@@ -218,8 +218,8 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
 }
 
 void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader,
-                                               std::unique_ptr<const IStreamFactory>& outputStreamFactory,
+                                               std::unique_ptr<const IStreamFactory>&& outputStreamFactory,
                                                const AccessorConversionStrategy& accessorConversion)
 {
-    SerializeBinary(gltfDocument, GLTFResourceReader{inputStreamReader}, outputStreamFactory, accessorConversion);
+    SerializeBinary(gltfDocument, GLTFResourceReader{inputStreamReader}, std::move(outputStreamFactory), accessorConversion);
 }

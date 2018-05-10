@@ -95,8 +95,7 @@ namespace Microsoft::glTF::Toolkit::Test
                 // Serialize GLTFDocument to GLB
                 TestStreamReader streamReader(TestUtils::GetAbsolutePath(c_waterBottleJson));
                 auto stream = std::make_shared<std::stringstream>(std::ios_base::app | std::ios_base::binary | std::ios_base::in | std::ios_base::out);
-                std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<InMemoryStreamFactory>(stream);
-                SerializeBinary(doc, streamReader, streamFactory);
+                SerializeBinary(doc, streamReader, std::make_unique<InMemoryStreamFactory>(stream));
 
                 // Deserialize the GLB again
                 auto glbReader = std::make_unique<GLBResourceReader>(streamReader, stream);
