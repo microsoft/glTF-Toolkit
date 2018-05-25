@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <GLTFSDK/GLTFDocument.h>
+#include "GLTFSDK.h"
 #include <functional>
 #include <vector>
 

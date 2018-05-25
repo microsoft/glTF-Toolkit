@@ -32,14 +32,19 @@
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 
+// Silence C4996 for CodeCVT deprecations. CodeCVT is still used for UTF8 conversions in GLTFLODUtils.cpp
+// TODO: Remove
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#include <string>
+#undef _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+
 #include <algorithm>
 #include <exception>
-#include <memory>
-#include <stdexcept>
 #include <fstream>
 #include <iostream>
-#include <sstream>
+#include <memory>
 #include <set>
-#include <string>
+#include <sstream>
+#include <stdexcept>
 
 #include <stdio.h>

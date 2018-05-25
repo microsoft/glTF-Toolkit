@@ -3,9 +3,6 @@
 
 #include "pch.h"
 
-#include <GLTFSDK/GLTF.h>
-#include <GLTFSDK/GLTFResourceReader.h>
-
 #include "GLTFTextureLoadingUtils.h"
 
 using namespace Microsoft::glTF;

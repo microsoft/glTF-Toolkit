@@ -3,8 +3,7 @@
 
 #pragma once
 
-#include <GLTFSDK/GLTFDocument.h>
-#include <GLTFSDK/IStreamReader.h>
+#include "GLTFSDK.h"
 
 namespace DirectX
 {

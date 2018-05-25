@@ -5,12 +5,6 @@
 
 #include <DirectXTex.h>
 
-#include <GLTFSDK/GLTF.h>
-#include <GLTFSDK/GLTFConstants.h>
-#include <GLTFSDK/GLTFResourceReader.h>
-#include <GLTFSDK/IStreamReader.h>
-#include <GLTFSDK/RapidJsonUtils.h>
-
 #include "GLTFTextureLoadingUtils.h"
 #include "GLTFTexturePackingUtils.h"
 
