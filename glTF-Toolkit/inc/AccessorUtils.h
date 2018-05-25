@@ -15,14 +15,11 @@ namespace Microsoft::glTF::Toolkit
     class AccessorUtils
     {
     public:
-        /// <summary>
-        /// Calculates the min and max values for an accessor according to the glTF 2.0 specification.
-        /// <param name="accessor">The accessor definition for which the min and max values will be calculated.</param>
-        /// <param name="accessorContents">The raw data contained in the accessor.</param>
-        /// <returns>
-        /// A pair containing the min and max vectors for the accessor, in that order.
-        /// </returns>
-        /// </summary>
+        // Note: XML Documentation cannot be applied to templated types per https://docs.microsoft.com/en-us/cpp/ide/xml-documentation-visual-cpp
+        // Calculates the min and max values for an accessor according to the glTF 2.0 specification.
+        // accessor is: The accessor definition for which the min and max values will be calculated.</param>
+        // accessorContents is: The raw data contained in the accessor.
+        // returns: A pair containing the min and max vectors for the accessor, in that order.
         template <typename T>
         static std::pair<std::vector<float>, std::vector<float>> CalculateMinMax(const Accessor& accessor, const std::vector<T>& accessorContents)
         {
