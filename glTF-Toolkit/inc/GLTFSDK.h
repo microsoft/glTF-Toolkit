@@ -16,7 +16,6 @@
 #include <GLTFSDK/IStreamReader.h>
 #include <GLTFSDK/IStreamFactory.h>
 #include <GLTFSDK/RapidJsonUtils.h>
-#include <GLTFSDK/Schema.h>
 #include <GLTFSDK/GLTF.h>
 #include <GLTFSDK/GLTFConstants.h>
 
