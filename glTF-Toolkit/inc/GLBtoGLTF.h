@@ -3,10 +3,7 @@
 
 #pragma once
 
-#include <GLTFSDK/Deserialize.h>
-#include <GLTFSDK/Serialize.h>
-#include <GLTFSDK/GLTFResourceWriter.h>
-#include <GLTFSDK/GLBResourceReader.h>
+#include "GLTFSDK.h"
 
 namespace Microsoft::glTF::Toolkit
 {

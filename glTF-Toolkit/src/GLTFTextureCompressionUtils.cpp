@@ -8,12 +8,6 @@
 #include "GLTFTextureCompressionUtils.h"
 #include "DeviceResources.h"
 
-#include <GLTFSDK/GLTF.h>
-#include <GLTFSDK/GLTFConstants.h>
-#include <GLTFSDK/Deserialize.h>
-#include <GLTFSDK/RapidJsonUtils.h>
-#include <GLTFSDK/Schema.h>
-
 // Usings for ComPtr
 using namespace ABI::Windows::Foundation;
 using namespace Microsoft::WRL;
