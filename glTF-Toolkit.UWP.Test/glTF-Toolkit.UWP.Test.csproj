@@ -120,6 +120,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Assets\3DModels\WaterBottle_diffuse.png" />
+    <Content Include="Assets\Avocado\Avocado_baseColor.png" />
+    <Content Include="Assets\Avocado\Avocado_normal.png" />
+    <Content Include="Assets\Avocado\Avocado_roughnessMetallic.png" />
     <Content Include="Properties\UnitTestApp.rd.xml" />
     <Content Include="Assets\LockScreenLogo.scale-200.png" />
     <Content Include="Assets\SplashScreen.scale-200.png" />
@@ -149,6 +152,10 @@
     <Reference Include="Microsoft.glTF.Toolkit.UWP">
       <HintPath>..\Built\Out\v141\$(Platform)\$(Configuration)\glTF-Toolkit.UWP\Microsoft.glTF.Toolkit.UWP.winmd</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Assets\Avocado\Avocado.bin" />
+    <Content Include="Assets\Avocado\Avocado.gltf" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(VisualStudioVersion)' == '' or '$(VisualStudioVersion)' &lt; '14.0' ">
     <VisualStudioVersion>14.0</VisualStudioVersion>

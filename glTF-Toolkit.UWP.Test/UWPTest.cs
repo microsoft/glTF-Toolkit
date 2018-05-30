@@ -2,8 +2,10 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Windows.ApplicationModel;
 using Windows.Foundation;
 using Windows.Security.Cryptography;
 using Windows.Storage;
@@ -74,9 +76,76 @@ namespace Microsoft.glTF.Toolkit.UWP.Test
 
             StorageFolder outputFolder = await CreateTemporaryOutputFolderAsync("Out_" + glbBaseName);
 
-            var converted = await WindowsMRConversion.ConvertAssetForWindowsMR(sourceGlbFile, outputFolder, 512, TexturePacking.OcclusionRoughnessMetallic);
+            var converted = await WindowsMRConversion.ConvertAssetForWindowsMR(sourceGlbFile, outputFolder, 1, TexturePacking.OcclusionRoughnessMetallic);
 
             Assert.IsTrue(converted.Name == "WaterBottle_converted.glb");
+
+            var basicProperties = await converted.GetBasicPropertiesAsync();
+            Assert.IsTrue(basicProperties.Size > 0);
+        }
+
+        [TestMethod]
+        public async Task GLTFConvertToWindowsMR()
+        {
+            const string gltfFileName = "Avocado.gltf";
+
+            // Copy all the resources to a temp folder, and save a reference to the GLTF file
+            var folder = await StorageFolder.GetFolderFromPathAsync(Path.Combine(Package.Current.InstalledLocation.Path, "Assets", "Avocado"));
+            StorageFile copiedGltfFile = null;
+
+            foreach (var resource in await folder.GetFilesAsync())
+            {
+                var copied = await resource.CopyAsync(ApplicationData.Current.TemporaryFolder, resource.Name, NameCollisionOption.ReplaceExisting);
+
+                if (resource.Name == gltfFileName)
+                {
+                    copiedGltfFile = copied;
+                }
+            }
+
+            Assert.IsNotNull(copiedGltfFile);
+
+            // Convert the file for Windows MR and pack it.
+            StorageFolder outputFolder = await CreateTemporaryOutputFolderAsync("Out_" + Path.GetFileNameWithoutExtension(gltfFileName));
+
+            var converted = await WindowsMRConversion.ConvertAssetForWindowsMR(copiedGltfFile, outputFolder, 1, TexturePacking.OcclusionRoughnessMetallic);
+
+            Assert.IsTrue(converted.Name == "Avocado.glb");
+
+            var basicProperties = await converted.GetBasicPropertiesAsync();
+            Assert.IsTrue(basicProperties.Size > 0);
+        }
+
+        [TestMethod]
+        public async Task GLTFConvertToWindowsMRFromLocalState()
+        {
+            const string gltfFileName = "Avocado.gltf";
+
+            // Copy all the resources to a temp folder, and save a reference to the GLTF file
+            var folder = await StorageFolder.GetFolderFromPathAsync(Path.Combine(Package.Current.InstalledLocation.Path, "Assets", "Avocado"));
+            StorageFile copiedGltfFile = null;
+
+            foreach (var resource in await folder.GetFilesAsync())
+            {
+                var copied = await resource.CopyAsync(ApplicationData.Current.LocalFolder, resource.Name, NameCollisionOption.ReplaceExisting);
+
+                if (resource.Name == gltfFileName)
+                {
+                    copiedGltfFile = copied;
+                }
+            }
+
+            Assert.IsNotNull(copiedGltfFile);
+
+            // Convert the file for Windows MR and pack it.
+            StorageFolder outputFolder = await CreateTemporaryOutputFolderAsync("Out_" + Path.GetFileNameWithoutExtension(gltfFileName));
+
+            var converted = await WindowsMRConversion.ConvertAssetForWindowsMR(copiedGltfFile, outputFolder, 1, TexturePacking.OcclusionRoughnessMetallic);
+
+            Assert.IsTrue(converted.Name == "Avocado.glb");
+
+            var basicProperties = await converted.GetBasicPropertiesAsync();
+            Assert.IsTrue(basicProperties.Size > 0);
         }
     }
 }
