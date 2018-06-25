@@ -353,6 +353,7 @@ namespace
                     AddIndexOffset(primitive, ACCESSOR_TEXCOORD_0, accessorOffset);
                     AddIndexOffset(primitive, ACCESSOR_TEXCOORD_1, accessorOffset);
                     AddIndexOffset(primitive, ACCESSOR_COLOR_0, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_TANGENT, accessorOffset);
 
                     if (sharedMaterials)
                     {
