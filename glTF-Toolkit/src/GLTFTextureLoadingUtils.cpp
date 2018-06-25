@@ -12,7 +12,7 @@ namespace
 {
 }
 
-DirectX::ScratchImage GLTFTextureLoadingUtils::LoadTexture(const IStreamReader& streamReader, const GLTFDocument& doc, const std::string& textureId)
+DirectX::ScratchImage GLTFTextureLoadingUtils::LoadTexture(std::shared_ptr<const IStreamReader> streamReader, const Document& doc, const std::string& textureId)
 {
     DirectX::ScratchImage output;
 

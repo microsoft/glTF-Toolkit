@@ -5,7 +5,7 @@
 #include <CppUnitTest.h>  
 
 #include "GLTFSDK/IStreamWriter.h"
-#include "GLTFSDK/GLTFConstants.h"
+#include "GLTFSDK/Constants.h"
 #include "GLTFSDK/Deserialize.h"
 #include "GLTFSDK/GLBResourceWriter.h"
 #include "GLTFSDK/GLBResourceReader.h"
@@ -23,31 +23,20 @@ using namespace Microsoft::glTF::Toolkit;
 
 namespace Microsoft::glTF::Toolkit::Test
 {
-    class InMemoryStreamFactory : public Microsoft::glTF::IStreamFactory
+    class InMemoryStream : public Microsoft::glTF::IStreamWriter
     {
     public:
-        InMemoryStreamFactory(std::shared_ptr<std::stringstream> stream) :
-            m_stream(stream),
-            m_tempStream(std::make_shared<std::stringstream>(std::ios_base::app | std::ios_base::binary | std::ios_base::in | std::ios_base::out))
+        InMemoryStream(std::shared_ptr<std::stringstream> stream) :
+            m_stream(stream)
         { }
 
-        std::shared_ptr<std::istream> GetInputStream(const std::string& uri) const override
+        std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const
         {
-            return uri == GLB_BUFFER_ID ? m_tempStream : m_stream;
+            return m_stream;
         }
 
-        std::shared_ptr<std::ostream> GetOutputStream(const std::string& uri) const override
-        {
-            return uri == GLB_BUFFER_ID ? m_tempStream : m_stream;
-        }
-
-        std::shared_ptr<std::iostream> GetTemporaryStream(const std::string&) const override
-        {
-            return m_tempStream;
-        }
     private:
         std::shared_ptr<std::stringstream> m_stream;
-        std::shared_ptr<std::stringstream> m_tempStream;
     };
 
     TEST_CLASS(GLBSerializerTests)
@@ -60,24 +49,24 @@ namespace Microsoft::glTF::Toolkit::Test
             return json;
         }
 
-        static std::shared_ptr<GLTFDocument> ImportGLB(const std::shared_ptr<IStreamReader>& streamReader, const std::shared_ptr<std::istream>& glbStream)
+        static std::shared_ptr<Document> ImportGLB(const std::shared_ptr<IStreamReader>& streamReader, const std::shared_ptr<std::istream>& glbStream)
         {
-            GLBResourceReader resourceReader(*streamReader, glbStream);
+            GLBResourceReader resourceReader(streamReader, glbStream);
             auto json = resourceReader.GetJson();
 
-            auto doc = DeserializeJson(json);
+            auto doc = Deserialize(json);
 
-            return std::make_shared<GLTFDocument>(doc);
+            return std::make_shared<Document>(doc);
         }
 
-        static std::shared_ptr<GLTFDocument> ImportGLTF(const std::shared_ptr<IStreamReader>& streamReader, const std::shared_ptr<std::istream>& stream)
+        static std::shared_ptr<Document> ImportGLTF(const std::shared_ptr<IStreamReader>& streamReader, const std::shared_ptr<std::istream>& stream)
         {
-            GLTFResourceReader resourceReader(*streamReader);
+            GLTFResourceReader resourceReader(streamReader);
             auto json = std::string(std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
 
-            auto doc = DeserializeJson(json);
+            auto doc = Deserialize(json);
 
-            return std::make_shared<GLTFDocument>(doc);
+            return std::make_shared<Document>(doc);
         }
 
         const char* c_waterBottleJson = "Resources\\gltf\\WaterBottle\\WaterBottle.gltf";
@@ -90,17 +79,17 @@ namespace Microsoft::glTF::Toolkit::Test
             {
                 // Deserialize input json
                 auto inputJson = std::string(std::istreambuf_iterator<char>(*input), std::istreambuf_iterator<char>());
-                auto doc = DeserializeJson(inputJson);
+                auto doc = Deserialize(inputJson);
 
-                // Serialize GLTFDocument to GLB
-                TestStreamReader streamReader(TestUtils::GetAbsolutePath(c_waterBottleJson));
+                // Serialize Document to GLB
+                auto streamReader = std::make_shared<TestStreamReader>(TestUtils::GetAbsolutePath(c_waterBottleJson));
                 auto stream = std::make_shared<std::stringstream>(std::ios_base::app | std::ios_base::binary | std::ios_base::in | std::ios_base::out);
-                SerializeBinary(doc, streamReader, std::make_unique<InMemoryStreamFactory>(stream));
+                SerializeBinary(doc, streamReader, std::make_shared<InMemoryStream>(stream));
 
                 // Deserialize the GLB again
                 auto glbReader = std::make_unique<GLBResourceReader>(streamReader, stream);
                 auto outputJson = glbReader->GetJson();
-                auto outputDoc = DeserializeJson(outputJson);
+                auto outputDoc = Deserialize(outputJson);
 
                 // Check some structural elements
                 Assert::AreEqual(doc.nodes.Size(), outputDoc.nodes.Size());

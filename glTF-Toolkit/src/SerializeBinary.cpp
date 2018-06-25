@@ -7,9 +7,9 @@
 #include "SerializeBinary.h"
 
 #include "GLTFSDK/GLTF.h"
-#include "GLTFSDK/GLTFDocument.h"
+#include "GLTFSDK/Document.h"
 #include "GLTFSDK/GLBResourceReader.h"
-#include "GLTFSDK/GLBResourceWriter2.h"
+#include "GLTFSDK/GLBResourceWriter.h"
 #include "GLTFSDK/Serialize.h"
 #include "GLTFSDK/BufferBuilder.h"
 
@@ -23,9 +23,9 @@ namespace
         auto extension = uri.substr(uri.rfind('.') + 1, 3);
         std::transform(extension.begin(), extension.end(), extension.begin(), [](char c) { return static_cast<char>(::tolower(static_cast<int>(c))); });
 
-        if (extension == FILE_EXT_DDS)
+        if (extension == "dds")
         {
-            return MIMETYPE_DDS;
+            return "image/vnd-ms.dds";
         }
 
         if (extension == FILE_EXT_JPEG)
@@ -99,7 +99,7 @@ namespace
     }
 
     template <typename T>
-    void SerializeAccessor(const Accessor& accessor, const GLTFDocument& doc, const GLTFResourceReader& reader, BufferBuilder& builder, const AccessorConversionStrategy& accessorConversion)
+    void SerializeAccessor(const Accessor& accessor, const Document& doc, const GLTFResourceReader& reader, BufferBuilder& builder, const AccessorConversionStrategy& accessorConversion)
     {
         builder.AddBufferView(doc.bufferViews.Get(accessor.bufferViewId).target);
         const std::vector<T>& accessorContents = reader.ReadBinaryData<T>(doc, accessor);
@@ -121,7 +121,7 @@ namespace
         }
     }
 
-    void SerializeAccessor(const Accessor& accessor, const GLTFDocument& doc, const GLTFResourceReader& reader, BufferBuilder& builder, const AccessorConversionStrategy& accessorConversion)
+    void SerializeAccessor(const Accessor& accessor, const Document& doc, const GLTFResourceReader& reader, BufferBuilder& builder, const AccessorConversionStrategy& accessorConversion)
     {
         switch (accessor.componentType)
         {
@@ -149,14 +149,14 @@ namespace
     }
 }
 
-void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
+void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document,
                                                const GLTFResourceReader& resourceReader,
-                                               std::unique_ptr<const IStreamFactory>&& outputStreamFactory,
+                                               std::shared_ptr<const IStreamWriter> outputStreamWriter,
                                                const AccessorConversionStrategy& accessorConversion)
 {
-    auto writer = std::make_unique<GLBResourceWriter2>(std::move(outputStreamFactory), std::string());
+    auto writer = std::make_unique<GLBResourceWriter>(std::move(outputStreamWriter));
 
-    GLTFDocument outputDoc(gltfDocument);
+    Document outputDoc(document);
 
     outputDoc.buffers.Clear();
     outputDoc.bufferViews.Clear();
@@ -168,11 +168,11 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     builder->AddBuffer(GLB_BUFFER_ID);
 
     // Serialize accessors
-    for (auto accessor : gltfDocument.accessors.Elements())
+    for (auto accessor : document.accessors.Elements())
     {
         if (accessor.count > 0)
         {
-            SerializeAccessor(accessor, gltfDocument, resourceReader, *builder, accessorConversion);
+            SerializeAccessor(accessor, document, resourceReader, *builder, accessorConversion);
         }
     }
 
@@ -181,7 +181,7 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     {
         Image newImage(image);
 
-        auto data = resourceReader.ReadBinaryData(gltfDocument, image);
+        auto data = resourceReader.ReadBinaryData(document, image);
 
         auto imageBufferView = builder->AddBufferView(data);
 
@@ -199,7 +199,7 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
     builder->Output(outputDoc);
 
     // Add extensions and extras to bufferViews, if any
-    for (auto bufferView : gltfDocument.bufferViews.Elements())
+    for (auto bufferView : document.bufferViews.Elements())
     {
         auto fixedBufferView = outputDoc.bufferViews.Get(bufferView.id);
         fixedBufferView.extensions = bufferView.extensions;
@@ -210,16 +210,16 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument,
 
     auto manifest = Serialize(outputDoc);
 
-    auto outputWriter = dynamic_cast<GLBResourceWriter2 *>(&builder->GetResourceWriter());
+    auto outputWriter = dynamic_cast<GLBResourceWriter*>(&builder->GetResourceWriter());
     if (outputWriter != nullptr)
     {
         outputWriter->Flush(manifest, std::string());
     }
 }
 
-void Microsoft::glTF::Toolkit::SerializeBinary(const GLTFDocument& gltfDocument, const IStreamReader& inputStreamReader,
-                                               std::unique_ptr<const IStreamFactory>&& outputStreamFactory,
+void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document, std::shared_ptr<const IStreamReader> inputStreamReader,
+                                               std::shared_ptr<const IStreamWriter> outputStreamWriter,
                                                const AccessorConversionStrategy& accessorConversion)
 {
-    SerializeBinary(gltfDocument, GLTFResourceReader{inputStreamReader}, std::move(outputStreamFactory), accessorConversion);
+    SerializeBinary(document, GLTFResourceReader{inputStreamReader}, std::move(outputStreamWriter), accessorConversion);
 }

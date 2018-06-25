@@ -7,16 +7,15 @@
 #pragma warning(disable : 4634)
 #pragma warning(disable : 4996)
 
-#include <GLTFSDK/GLTFDocument.h>
+#include <GLTFSDK/Document.h>
 #include <GLTFSDK/Deserialize.h>
 #include <GLTFSDK/Serialize.h>
 #include <GLTFSDK/GLTFResourceWriter.h>
 #include <GLTFSDK/GLBResourceReader.h>
 #include <GLTFSDK/GLTFResourceReader.h>
 #include <GLTFSDK/IStreamReader.h>
-#include <GLTFSDK/IStreamFactory.h>
 #include <GLTFSDK/RapidJsonUtils.h>
 #include <GLTFSDK/GLTF.h>
-#include <GLTFSDK/GLTFConstants.h>
+#include <GLTFSDK/Constants.h>
 
 #pragma warning(pop)

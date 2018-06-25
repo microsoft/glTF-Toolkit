@@ -49,19 +49,19 @@ namespace Microsoft.glTF.Toolkit.UWP.Test
             // compare one of the extracted images to the source images
             StorageFile sourceImageFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appx:///Assets/3DModels/WaterBottle_diffuse.png"));
             StorageFile outputImageFile = await outputFolder.GetFileAsync(glbBaseName + "_image5.png");
-            Assert.IsTrue(await CompareFilesAsync(sourceImageFile, outputImageFile));
+            Assert.IsTrue(await CompareFilesAsync(sourceImageFile, outputImageFile), "images");
 
             // compare the extracted model (.bin) to the source model (.bin) file
             StorageFile sourceBinFile = await StorageFile.GetFileFromApplicationUriAsync(new Uri("ms-appx:///Assets/3DModels/" + glbBaseName + ".bin"));
             StorageFile outputBinFile = await outputFolder.GetFileAsync(glbBaseName + ".bin");
-            Assert.IsTrue(await CompareFilesAsync(sourceBinFile, outputBinFile));
+            Assert.IsTrue(await CompareFilesAsync(sourceBinFile, outputBinFile), "bins");
 
             // Pack the gltf back into a glb file
             StorageFile gltfFile = await outputFolder.GetFileAsync(glbBaseName + ".gltf");
             StorageFile outputGlbFile = await GLTFSerialization.PackGLTFAsync(gltfFile, outputFolder, glbFileName);
 
             // compare the new glb to the old glb
-            Assert.IsTrue(await CompareFilesAsync(sourceGlbFile, outputGlbFile));
+            Assert.IsTrue(await CompareFilesAsync(sourceGlbFile, outputGlbFile), "glb");
         }
 
         [TestMethod]

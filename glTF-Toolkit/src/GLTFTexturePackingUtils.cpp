@@ -60,7 +60,7 @@ namespace
         return std::string(outputImageFullPathStr.begin(), outputImageFullPathStr.end());
     }
 
-    std::string AddImageToDocument(GLTFDocument& doc, const std::string& imageUri)
+    std::string AddImageToDocument(Document& doc, const std::string& imageUri)
     { 
         Image image;
         auto imageId = std::to_string(doc.images.Size());
@@ -71,7 +71,7 @@ namespace
         return imageId;
     }
 
-    void AddTextureToExtension(const std::string& imageId, TexturePacking packing, GLTFDocument& doc, rapidjson::Value& packedExtensionJson, rapidjson::MemoryPoolAllocator<>& a)
+    void AddTextureToExtension(const std::string& imageId, TexturePacking packing, Document& doc, rapidjson::Value& packedExtensionJson, rapidjson::MemoryPoolAllocator<>& a)
     {
         Texture packedTexture;
         auto textureId = std::to_string(doc.textures.Size());
@@ -129,9 +129,9 @@ namespace
     }
 }
 
-GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamReader& streamReader, const GLTFDocument& doc, const Material& material, TexturePacking packing, const std::string& outputDirectory)
+Document GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document& doc, const Material& material, TexturePacking packing, const std::string& outputDirectory)
 {
-    GLTFDocument outputDoc(doc);
+    Document outputDoc(doc);
 
     // No packing requested, return copy of document
     if (packing == TexturePacking::None)
@@ -140,9 +140,9 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     }
 
     // Read images from material
-    auto metallicRoughness = material.metallicRoughness.metallicRoughnessTextureId;
-    auto normal = material.normalTexture.id;
-    auto occlusion = material.occlusionTexture.id;
+    auto metallicRoughness = material.metallicRoughness.metallicRoughnessTexture.textureId;
+    auto normal = material.normalTexture.textureId;
+    auto occlusion = material.occlusionTexture.textureId;
 
     bool hasMR = !metallicRoughness.empty();
     bool hasNormal = !normal.empty();
@@ -369,9 +369,9 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     return outputDoc;
 }
 
-GLTFDocument GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, TexturePacking packing, const std::string& outputDirectory)
+Document GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document & doc, TexturePacking packing, const std::string& outputDirectory)
 {
-    GLTFDocument outputDoc(doc);
+    Document outputDoc(doc);
 
     // No packing requested, return copy of document
     if (packing == TexturePacking::None)
