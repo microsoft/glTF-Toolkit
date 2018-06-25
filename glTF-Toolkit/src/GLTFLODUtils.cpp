@@ -78,7 +78,7 @@ namespace
     }
 
     template <typename T>
-    std::string SerializeExtensionMSFTLod(const T&, const std::vector<std::string>& lods, const Document& Document)
+    std::string SerializeExtensionMSFTLod(const T&, const std::vector<std::string>& lods, const Document& document)
     {
         // Omit MSFT_lod entirely if no LODs are available
         if (lods.empty())
@@ -96,14 +96,14 @@ namespace
         {
             for (const auto& lodId : lods)
             {
-                lodIndices.push_back(ToKnownSizeType(Document.materials.GetIndex(lodId)));
+                lodIndices.push_back(ToKnownSizeType(document.materials.GetIndex(lodId)));
             }
         }
         else if (std::is_same<T, Node>())
         {
             for (const auto& lodId : lods)
             {
-                lodIndices.push_back(ToKnownSizeType(Document.nodes.GetIndex(lodId)));
+                lodIndices.push_back(ToKnownSizeType(document.nodes.GetIndex(lodId)));
             }
         }
         else

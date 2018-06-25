@@ -217,9 +217,9 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document,
     }
 }
 
-void Microsoft::glTF::Toolkit::SerializeBinary(const Document& Document, std::shared_ptr<const IStreamReader> inputStreamReader,
+void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document, std::shared_ptr<const IStreamReader> inputStreamReader,
                                                std::shared_ptr<const IStreamWriter> outputStreamWriter,
                                                const AccessorConversionStrategy& accessorConversion)
 {
-    SerializeBinary(Document, GLTFResourceReader{inputStreamReader}, std::move(outputStreamWriter), accessorConversion);
+    SerializeBinary(document, GLTFResourceReader{inputStreamReader}, std::move(outputStreamWriter), accessorConversion);
 }
