@@ -339,6 +339,7 @@ namespace
                     AddIndexOffset(primitive.uv0AccessorId, accessorOffset);
                     AddIndexOffset(primitive.uv1AccessorId, accessorOffset);
                     AddIndexOffset(primitive.color0AccessorId, accessorOffset);
+                    AddIndexOffset(primitive.tangentsAccessorId, accessorOffset);
 
                     if (sharedMaterials)
                     {
