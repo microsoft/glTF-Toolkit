@@ -43,7 +43,7 @@ namespace Microsoft::glTF::Toolkit
         /// <param name="generateMipMaps">If true, also generates mip maps when compressing.</param>
         /// <param name="retainOriginalImage">If true, retains the original image on the resulting glTF. If false, 
         /// replaces that image (making the glTF incompatible with most core glTF 2.0 viewers).</param>
-        /// <returns>Returns a new GLTFDocument that contains a new reference to the compressed dds file added as part 
+        /// <returns>Returns a new Document that contains a new reference to the compressed dds file added as part 
         /// of the MSFT_texture_dds extension.</returns>
         /// <example>
         /// Example Input:
@@ -84,7 +84,7 @@ namespace Microsoft::glTF::Toolkit
         /// </code>
         /// </example>
         /// </summary>
-        static GLTFDocument CompressTextureAsDDS(const IStreamReader& streamReader, const GLTFDocument & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize = std::numeric_limits<size_t>::max(), bool generateMipMaps = true, bool retainOriginalImage = true);
+        static Document CompressTextureAsDDS(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize = std::numeric_limits<size_t>::max(), bool generateMipMaps = true, bool retainOriginalImage = true);
 
         /// <summary>
         /// Applies <see cref="CompressTextureAsDDS" /> to all textures in the document that are accessible via materials according to the 
@@ -97,10 +97,10 @@ namespace Microsoft::glTF::Toolkit
         /// <param name="generateMipMaps">If true, also generates mip maps when compressing.</param>
         /// <param name="retainOriginalImage">If true, retains the original image on the resulting glTF. If false, 
         /// replaces that image (making the glTF incompatible with most core glTF 2.0 viewers).</param>
-        /// <returns>Returns a new GLTFDocument that contains alternate textures for all applicable materials following the requirements of the Windows
+        /// <returns>Returns a new Document that contains alternate textures for all applicable materials following the requirements of the Windows
         /// Mixed Reality home using the MSFT_texture_dds extension.</returns>
         /// </summary>
-        static GLTFDocument CompressAllTexturesForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const std::string& outputDirectory, size_t maxTextureSize = std::numeric_limits<size_t>::max(), bool retainOriginalImages = true);
+        static Document CompressAllTexturesForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const std::string& outputDirectory, size_t maxTextureSize = std::numeric_limits<size_t>::max(), bool retainOriginalImages = true);
 
         /// <summary>
         /// Compresses a DirectX::ScratchImage in place using the specified compression.

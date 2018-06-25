@@ -5,7 +5,7 @@
 
 #include <GLTFSDK/GLTF.h>
 #include <GLTFSDK/Deserialize.h>
-#include <GLTFSDK/IStreamFactory.h>
+#include <GLTFSDK/IStreamWriter.h>
 #include <GLTFSDK/GLBResourceReader.h>
 #include <GLTFTexturePackingUtils.h>
 #include <GLTFTextureCompressionUtils.h>
@@ -42,34 +42,23 @@ private:
     const std::wstring m_uriBase;
 };
 
-class GLBStreamFactory : public Microsoft::glTF::IStreamFactory
+class GLBStreamWriter : public Microsoft::glTF::IStreamWriter
 {
 public:
-    GLBStreamFactory(const std::wstring& filename) :
-        m_stream(std::make_shared<std::ofstream>(filename, std::ios_base::binary | std::ios_base::out)),
-        m_tempStream(std::make_shared<std::stringstream>(std::ios_base::binary | std::ios_base::in | std::ios_base::out))
+    GLBStreamWriter(const std::wstring& filename) :
+        m_stream(std::make_shared<std::ofstream>(filename, std::ios_base::binary | std::ios_base::out))
     { }
-
-    std::shared_ptr<std::istream> GetInputStream(const std::string&) const override
-    {
-        throw std::logic_error("Not implemented");
-    }
 
     std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override
     {
         return m_stream;
     }
 
-    std::shared_ptr<std::iostream> GetTemporaryStream(const std::string&) const override
-    {
-        return m_tempStream;
-    }
 private:
     std::shared_ptr<std::ofstream> m_stream;
-    std::shared_ptr<std::stringstream> m_tempStream;
 };
 
-GLTFDocument LoadAndConvertDocumentForWindowsMR(
+Document LoadAndConvertDocumentForWindowsMR(
     std::wstring& inputFilePath,
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
@@ -100,11 +89,11 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     }
 
     auto stream = std::make_shared<std::ifstream>(inputFilePath, std::ios::in);
-    GLTFDocument document = DeserializeJson(*stream);
+    Document document = Deserialize(*stream);
 
     // Get the base path from where to read all the assets
 
-    GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
+    auto streamReader = std::make_shared<GLTFStreamReader>(FileSystem::GetBasePath(inputFilePath));
 
     if (processTextures)
     {
@@ -200,7 +189,7 @@ int wmain(int argc, wchar_t *argv[])
         {
             std::wcout << L"Merging LODs..." << std::endl;
 
-            std::vector<GLTFDocument> lodDocuments;
+            std::vector<Document> lodDocuments;
             std::vector<std::wstring> lodDocumentRelativePaths;
             lodDocuments.push_back(document);
 
@@ -251,8 +240,8 @@ int wmain(int argc, wchar_t *argv[])
             return accessor.componentType;
         };
 
-        GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
-        SerializeBinary(document, streamReader, std::make_unique<GLBStreamFactory>(outFilePath), accessorConversion);
+        auto streamReader = std::make_shared<GLTFStreamReader>(FileSystem::GetBasePath(inputFilePath));
+        SerializeBinary(document, streamReader, std::make_shared<GLBStreamWriter>(outFilePath), accessorConversion);
 
         std::wcout << L"Done!" << std::endl;
         std::wcout << L"Output file: " << outFilePath << std::endl;

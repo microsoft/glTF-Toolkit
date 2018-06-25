@@ -20,9 +20,9 @@ using namespace Microsoft::glTF::Toolkit;
 
 const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_TEXTURE_DDS = "MSFT_texture_dds";
 
-GLTFDocument GLTFTextureCompressionUtils::CompressTextureAsDDS(const IStreamReader& streamReader, const GLTFDocument & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize, bool generateMipMaps, bool retainOriginalImage)
+Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize, bool generateMipMaps, bool retainOriginalImage)
 {
-    GLTFDocument outputDoc(doc);
+    Document outputDoc(doc);
 
     // Early return cases:
     // - No compression requested
@@ -176,9 +176,9 @@ GLTFDocument GLTFTextureCompressionUtils::CompressTextureAsDDS(const IStreamRead
     return outputDoc;
 }
 
-GLTFDocument GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const std::string& outputDirectory, size_t maxTextureSize, bool retainOriginalImages)
+Document GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const std::string& outputDirectory, size_t maxTextureSize, bool retainOriginalImages)
 {
-    GLTFDocument outputDoc(doc);
+    Document outputDoc(doc);
 
     for (auto material : doc.materials.Elements())
     {
@@ -191,8 +191,8 @@ GLTFDocument GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(const 
         };
 
         // Compress base and emissive texture as BC7
-        compressIfNotEmpty(material.metallicRoughness.baseColorTextureId, TextureCompression::BC7_SRGB);
-        compressIfNotEmpty(material.emissiveTextureId, TextureCompression::BC7_SRGB);
+        compressIfNotEmpty(material.metallicRoughness.baseColorTexture.textureId, TextureCompression::BC7_SRGB);
+        compressIfNotEmpty(material.emissiveTexture.textureId, TextureCompression::BC7_SRGB);
 
         // Get textures from the MSFT_packing_occlusionRoughnessMetallic extension
         if (material.extensions.find(EXTENSION_MSFT_PACKING_ORM) != material.extensions.end())
