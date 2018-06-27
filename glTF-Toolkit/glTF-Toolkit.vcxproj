@@ -141,6 +141,7 @@
     <ClInclude Include="inc\DeviceResources.h" />
     <ClInclude Include="inc\GLBtoGLTF.h" />
     <ClInclude Include="inc\GLTFLODUtils.h" />
+    <ClInclude Include="inc\GLTFMeshCompressionUtils.h" />
     <ClInclude Include="inc\GLTFSDK.h" />
     <ClInclude Include="inc\GLTFTextureCompressionUtils.h" />
     <ClInclude Include="inc\GLTFTextureLoadingUtils.h" />
@@ -149,6 +150,7 @@
     <ClInclude Include="inc\SerializeBinary.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="GLTFMeshCompressionUtils.cpp" />
     <ClCompile Include="src\DeviceResources.cpp" />
     <ClCompile Include="src\GLBtoGLTF.cpp" />
     <ClCompile Include="src\GLTFLODUtils.cpp" />

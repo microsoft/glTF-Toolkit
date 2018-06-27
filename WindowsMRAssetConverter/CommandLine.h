@@ -19,7 +19,8 @@ namespace CommandLine
     {
         Version1709, // Fall Creators Update (RS3)
         Version1803,  // Spring Creators Update (RS4)
-        Latest = Version1803
+        Version1809,  // Fall 2018 Update (RS5)
+        Latest = Version1809
     };
 
     void PrintHelp();

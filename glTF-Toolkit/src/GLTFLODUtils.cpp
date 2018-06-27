@@ -36,9 +36,9 @@ namespace
     inline void AddIndexOffset(MeshPrimitive& primitive, const char* attributeName, size_t offset)
     {
         // an empty id string indicates that the id is not inuse and therefore should not be updated
-        if (primitive.HasAttribute(attributeName))
+        auto attributeItr = primitive.attributes.find(attributeName);
+        if (attributeItr != primitive.attributes.end())
         {
-            auto attributeItr = primitive.attributes.find(attributeName);
             attributeItr->second = std::to_string(std::stoi(attributeItr->second) + offset);
         }
     }

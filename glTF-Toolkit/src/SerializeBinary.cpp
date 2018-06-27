@@ -12,6 +12,7 @@
 #include "GLTFSDK/GLBResourceWriter.h"
 #include "GLTFSDK/Serialize.h"
 #include "GLTFSDK/BufferBuilder.h"
+#include "GLTFSDK/ExtensionsKHR.h"
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
@@ -162,28 +163,83 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document,
     outputDoc.bufferViews.Clear();
     outputDoc.accessors.Clear();
 
-    std::unique_ptr<BufferBuilder> builder = std::make_unique<BufferBuilder>(std::move(writer));
+    // Get the collection of bufferViews we won't move around
+    IndexedContainer<const BufferView> staticBufferViews = document.bufferViews;
+    for (const auto& accessor : document.accessors.Elements())
+    {
+        if (!accessor.bufferViewId.empty() && staticBufferViews.Has(accessor.bufferViewId))
+        {
+            staticBufferViews.Remove(accessor.bufferViewId);
+        }
+    }
+
+    for (const auto& image : outputDoc.images.Elements())
+    {
+        if (!image.bufferViewId.empty() && staticBufferViews.Has(image.bufferViewId))
+        {
+            staticBufferViews.Remove(image.bufferViewId);
+        }
+    }
+
+    size_t currentAccessorId = 0;
+    std::string currentAccessorIdStr = std::to_string(currentAccessorId);
+    size_t currentBufferViewId = 0;
+    std::string currentBufferViewIdStr = std::to_string(currentBufferViewId);
+    auto AdvanceAccessorId = [&currentAccessorId, &currentAccessorIdStr, &staticBufferViews]()
+    {
+        currentAccessorId++;
+        currentAccessorIdStr = std::to_string(currentAccessorId);
+    };
+    auto AdvanceBufferViewId = [&currentBufferViewId, &currentBufferViewIdStr, &staticBufferViews]()
+    {
+        do
+        {
+            currentBufferViewId++;
+            currentBufferViewIdStr = std::to_string(currentBufferViewId);
+        } while (staticBufferViews.Has(currentBufferViewIdStr));
+    };
+    std::unique_ptr<BufferBuilder> builder = std::make_unique<BufferBuilder>(std::move(writer),
+        [](const BufferBuilder&) { return GLB_BUFFER_ID; },
+        [&currentBufferViewIdStr](const BufferBuilder&) { return currentBufferViewIdStr; },
+        [&currentAccessorIdStr](const BufferBuilder&) { return currentAccessorIdStr; });
 
     // GLB buffer
     builder->AddBuffer(GLB_BUFFER_ID);
 
-    // Serialize accessors
-    for (auto accessor : document.accessors.Elements())
+    // Add those bufferView to the builder.
+    for (const auto& bufferView : staticBufferViews.Elements())
     {
-        if (accessor.count > 0)
+        currentBufferViewIdStr = bufferView.id;
+        auto data = resourceReader.ReadBinaryData<uint8_t>(document, bufferView);
+        builder->AddBufferView(data);
+    }
+    // Return value to tracked state
+    currentBufferViewIdStr = std::to_string(currentBufferViewId);
+
+    // Serialize accessors
+    for (const auto& accessor : document.accessors.Elements())
+    {
+        if (!accessor.bufferViewId.empty() && accessor.count > 0)
         {
             SerializeAccessor(accessor, document, resourceReader, *builder, accessorConversion);
+            AdvanceBufferViewId();
         }
+        else
+        {
+            outputDoc.accessors.Append(accessor);
+        }
+        AdvanceAccessorId();
     }
 
     // Serialize images
-    for (auto image : outputDoc.images.Elements())
+    for (const auto& image : outputDoc.images.Elements())
     {
         Image newImage(image);
 
         auto data = resourceReader.ReadBinaryData(document, image);
 
         auto imageBufferView = builder->AddBufferView(data);
+        AdvanceBufferViewId();
 
         newImage.bufferViewId = imageBufferView.id;
         if (image.mimeType.empty())
@@ -194,6 +250,75 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document,
         newImage.uri.clear();
 
         outputDoc.images.Replace(newImage);
+    }
+
+    // Collect anything in extensions that looks like it should to be packed for the GLB.
+    for (auto& extension : outputDoc.extensions)
+    {
+        rapidjson::Document extensionJson;
+        extensionJson.Parse(extension.second.c_str());
+        if (!extensionJson.IsObject())
+        {
+            continue;
+        }
+        for (auto& member : extensionJson.GetObject())
+        {
+            if (!member.value.IsArray())
+            {
+                continue;
+            }
+            for (auto& possibleBuffer : member.value.GetArray())
+            {
+                if (!possibleBuffer.IsObject())
+                {
+                    continue;
+                }
+                // Build an Image to object to use to load the data from.
+                Image tmpImg;
+                if (possibleBuffer.HasMember("uri"))
+                {
+                    tmpImg.uri = possibleBuffer["uri"].GetString();
+                }
+                else
+                {
+                    continue;
+                }
+                try
+                {
+                    auto data = resourceReader.ReadBinaryData(document, tmpImg);
+                    auto bufferView = builder->AddBufferView(data);
+                    AdvanceBufferViewId();
+
+                    possibleBuffer.RemoveMember("uri");
+                    possibleBuffer.RemoveMember("bufferView");
+                    possibleBuffer.AddMember("bufferView", rapidjson::Value(std::stoi(bufferView.id)), extensionJson.GetAllocator());
+                }
+                catch (...) 
+                {
+                    // Didn't work out.
+                    continue;
+                }
+            }
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> jsonWriter(buffer);
+        extensionJson.Accept(jsonWriter);
+
+        extension.second = buffer.GetString();
+    }
+
+    // Fill in any gaps in the bufferViewList.
+    for (const auto& bufferView : staticBufferViews.Elements())
+    {
+        auto bufferViewId = std::stoul(bufferView.id);
+        while (bufferViewId > currentBufferViewId)
+        {
+            std::vector<uint8_t> data;
+            data.resize(4);
+            builder->AddBufferView(data);
+            AdvanceBufferViewId();
+        }
     }
 
     builder->Output(outputDoc);
@@ -208,7 +333,15 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document,
         outputDoc.bufferViews.Replace(fixedBufferView);
     }
 
-    auto manifest = Serialize(outputDoc);
+    // We may have put the bufferViews in the IndexedContainer out of order sort them now.
+    auto finalBufferViewList = outputDoc.bufferViews;
+    outputDoc.bufferViews.Clear();
+    for (size_t i = 0; i < finalBufferViewList.Size(); i++)
+    {
+        outputDoc.bufferViews.Append(finalBufferViewList[std::to_string(i)]);
+    }
+
+    auto manifest = Serialize(outputDoc, KHR::GetKHRExtensionSerializer());
 
     auto outputWriter = dynamic_cast<GLBResourceWriter*>(&builder->GetResourceWriter());
     if (outputWriter != nullptr)
