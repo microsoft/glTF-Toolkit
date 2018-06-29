@@ -5,12 +5,13 @@
 #include <CppUnitTest.h>  
 
 #include "GLTFSDK/IStreamWriter.h"
-#include "GLTFSDK/GLTFConstants.h"
+#include "GLTFSDK/Constants.h"
 #include "GLTFSDK/Serialize.h"
 #include "GLTFSDK/Deserialize.h"
 #include "GLTFSDK/GLBResourceReader.h"
 #include "GLTFSDK/GLTFResourceWriter.h"
 #include "GLTFSDK/RapidJsonUtils.h"
+#include "GLTFSDK/ExtensionsKHR.h"
 
 #include "GLTFLODUtils.h"
 
@@ -25,7 +26,7 @@ namespace Microsoft::glTF::Toolkit::Test
 {
     TEST_CLASS(GLTFLODUtilsTests)
     {
-        static void CheckGLTFLODNodeCountAgainstOriginal(GLTFDocument& doc, GLTFDocument& docWLod, size_t lodCount)
+        static void CheckGLTFLODNodeCountAgainstOriginal(Document& doc, Document& docWLod, size_t lodCount)
         {
             // All elements in the lod'd doc should be double the original
             Assert::IsTrue(doc.buffers.Size() * lodCount == docWLod.buffers.Size());
@@ -48,9 +49,9 @@ namespace Microsoft::glTF::Toolkit::Test
             auto readwriter = std::make_shared<StreamMock>();
             try
             {
-                GLTFResourceReader resourceReader(*readwriter);
+                GLTFResourceReader resourceReader(readwriter);
                 auto inputJson = std::string(std::istreambuf_iterator<char>(*input), std::istreambuf_iterator<char>());
-                auto doc = DeserializeJson(inputJson);
+                auto doc = Deserialize(inputJson, KHR::GetKHRExtensionDeserializer());
                 auto lods = GLTFLODUtils::ParseDocumentNodeLODs(doc);
 
                 Assert::IsTrue(GLTFLODUtils::NumberOfNodeLODLevels(doc, lods) == expectedNumberOfLods);
@@ -63,14 +64,14 @@ namespace Microsoft::glTF::Toolkit::Test
             }
         }
 
-        static std::shared_ptr<GLTFDocument> ImportGLTF(const std::shared_ptr<IStreamReader>& streamReader, const std::shared_ptr<std::istream>& stream)
+        static std::shared_ptr<Document> ImportGLTF(const std::shared_ptr<IStreamReader>& streamReader, const std::shared_ptr<std::istream>& stream)
         {
-            GLTFResourceReader resourceReader(*streamReader);
+            GLTFResourceReader resourceReader(streamReader);
             auto json = std::string(std::istreambuf_iterator<char>(*stream), std::istreambuf_iterator<char>());
 
-            auto doc = DeserializeJson(json);
+            auto doc = Deserialize(json, KHR::GetKHRExtensionDeserializer());
 
-            return std::make_shared<GLTFDocument>(doc);
+            return std::make_shared<Document>(doc);
         }
 
         const char* c_cubeAsset3DJson = "Resources\\gltf\\cubeAsset3D.gltf";
@@ -92,17 +93,17 @@ namespace Microsoft::glTF::Toolkit::Test
             try
             {
                 // Deserialize input json
-                GLTFResourceReader resourceReader(*readwriter);
+                GLTFResourceReader resourceReader(readwriter);
                 auto inputJson = std::string(std::istreambuf_iterator<char>(*input), std::istreambuf_iterator<char>());
-                auto doc = DeserializeJson(inputJson);
+                auto doc = Deserialize(inputJson, KHR::GetKHRExtensionDeserializer());
 
-                std::vector<GLTFDocument> docs;
+                std::vector<Document> docs;
                 docs.push_back(doc);
                 docs.push_back(doc);
                 auto newlodgltfDoc = GLTFLODUtils::MergeDocumentsAsLODs(docs);
 
-                // Serialize GLTFDocument back to json
-                auto outputJson = Serialize(newlodgltfDoc);
+                // Serialize Document back to json
+                auto outputJson = Serialize(newlodgltfDoc, KHR::GetKHRExtensionSerializer());
 
                 CheckGLTFLODNodeCountAgainstOriginal(doc, newlodgltfDoc, 2);
 
@@ -146,11 +147,11 @@ namespace Microsoft::glTF::Toolkit::Test
             try
             {
                 // Deserialize input json
-                GLTFResourceReader resourceReader(*readwriter);
+                GLTFResourceReader resourceReader(readwriter);
                 auto inputJson = std::string(std::istreambuf_iterator<char>(*input), std::istreambuf_iterator<char>());
-                auto doc = DeserializeJson(inputJson);
+                auto doc = Deserialize(inputJson, KHR::GetKHRExtensionDeserializer());
 
-                std::vector<GLTFDocument> docs;
+                std::vector<Document> docs;
                 docs.push_back(doc);
                 docs.push_back(doc);
                 docs.push_back(doc);
@@ -188,8 +189,8 @@ namespace Microsoft::glTF::Toolkit::Test
                 Assert::IsTrue(containsLOD2RootNode);
                 Assert::IsTrue(containsLOD2PolyNode);
 
-                // Serialize GLTFDocument back to json
-                auto outputJson = Serialize(newlodgltfDoc);
+                // Serialize Document back to json
+                auto outputJson = Serialize(newlodgltfDoc, KHR::GetKHRExtensionSerializer());
             }
             catch (std::exception ex)
             {
@@ -206,11 +207,11 @@ namespace Microsoft::glTF::Toolkit::Test
             try
             {
                 // Deserialize input json
-                GLTFResourceReader resourceReader(*readwriter);
+                GLTFResourceReader resourceReader(readwriter);
                 auto inputJson = std::string(std::istreambuf_iterator<char>(*input), std::istreambuf_iterator<char>());
-                auto doc = DeserializeJson(inputJson);
+                auto doc = Deserialize(inputJson, KHR::GetKHRExtensionDeserializer());
 
-                std::vector<GLTFDocument> docs;
+                std::vector<Document> docs;
                 docs.push_back(doc);
                 docs.push_back(doc);
                 docs.push_back(doc);
@@ -240,8 +241,8 @@ namespace Microsoft::glTF::Toolkit::Test
 
                 Assert::IsTrue(rootNodeContainsCoverage);
 
-                // Serialize GLTFDocument back to json
-                auto outputJson = Serialize(newlodgltfDoc);
+                // Serialize Document back to json
+                auto outputJson = Serialize(newlodgltfDoc, KHR::GetKHRExtensionSerializer());
             }
             catch (std::exception ex)
             {
@@ -287,13 +288,13 @@ namespace Microsoft::glTF::Toolkit::Test
             try
             {
                 // Deserialize input json
-                GLTFResourceReader resourceReader(*readwriter);
+                GLTFResourceReader resourceReader(readwriter);
                 auto inputJson = std::string(std::istreambuf_iterator<char>(*input), std::istreambuf_iterator<char>());
-                auto doc = DeserializeJson(inputJson);
+                auto doc = Deserialize(inputJson, KHR::GetKHRExtensionDeserializer());
 
-                // Serialize GLTFDocument back to json
-                auto outputJson = Serialize(doc);
-                auto outputDoc = DeserializeJson(outputJson);
+                // Serialize Document back to json
+                auto outputJson = Serialize(doc, KHR::GetKHRExtensionSerializer());
+                auto outputDoc = Deserialize(outputJson, KHR::GetKHRExtensionDeserializer());
 
                 // Compare input and output GLTFDocuments
                 Assert::AreNotSame(doc == outputDoc, true, L"Input gltf and output gltf are not equal");

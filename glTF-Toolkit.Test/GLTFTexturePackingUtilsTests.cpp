@@ -4,7 +4,7 @@
 #include <CppUnitTest.h>  
 
 #include "GLTFSDK/IStreamWriter.h"
-#include "GLTFSDK/GLTFConstants.h"
+#include "GLTFSDK/Constants.h"
 #include "GLTFSDK/Serialize.h"
 #include "GLTFSDK/Deserialize.h"
 #include "GLTFSDK/GLBResourceReader.h"
@@ -36,7 +36,7 @@ namespace Microsoft::glTF::Toolkit::Test
             TestUtils::LoadAndExecuteGLTFTest(gltfRelativePath, [packing](auto doc, auto path)
             {
                 auto material = doc.materials.Elements()[0];
-                auto packedDoc = GLTFTexturePackingUtils::PackMaterialForWindowsMR(TestStreamReader(path), doc, material, packing, "");
+                auto packedDoc = GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::make_shared<TestStreamReader>(path), doc, material, packing, "");
                 auto packedMaterial = packedDoc.materials.Elements()[0];
 
                 // Check that the material changed
@@ -72,7 +72,7 @@ namespace Microsoft::glTF::Toolkit::Test
                         Assert::IsTrue(ormJson[MSFT_PACKING_ORM_RMOTEXTURE_KEY].HasMember(MSFT_PACKING_INDEX_KEY));
                     }
 
-                    if (!material.normalTexture.id.empty())
+                    if (!material.normalTexture.textureId.empty())
                     {
                         // Check the new extension contains a normal texture
                         Assert::IsTrue(ormJson[MSFT_PACKING_ORM_NORMALTEXTURE_KEY].IsObject());
@@ -106,7 +106,7 @@ namespace Microsoft::glTF::Toolkit::Test
             TestUtils::LoadAndExecuteGLTFTest(c_cubeAsset3DJson, [](auto doc, auto path)
             {
                 auto material = doc.materials.Elements()[0];
-                auto packedDoc = GLTFTexturePackingUtils::PackMaterialForWindowsMR(TestStreamReader(path), doc, material, TexturePacking::OcclusionRoughnessMetallic, "");
+                auto packedDoc = GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::make_shared<TestStreamReader>(path), doc, material, TexturePacking::OcclusionRoughnessMetallic, "");
 
                 // Check that nothing changed
                 Assert::IsTrue(doc == packedDoc);
@@ -119,7 +119,7 @@ namespace Microsoft::glTF::Toolkit::Test
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleJson, [](auto doc, auto path)
             {
                 auto material = doc.materials.Elements()[0];
-                auto packedDoc = GLTFTexturePackingUtils::PackMaterialForWindowsMR(TestStreamReader(path), doc, material, TexturePacking::None, "");
+                auto packedDoc = GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::make_shared<TestStreamReader>(path), doc, material, TexturePacking::None, "");
 
                 // Check that nothing changed
                 Assert::IsTrue(doc == packedDoc);
@@ -163,7 +163,7 @@ namespace Microsoft::glTF::Toolkit::Test
             // This asset has no materials
             TestUtils::LoadAndExecuteGLTFTest(c_cubeAsset3DJson, [](auto doc, auto path)
             {
-                auto packedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(TestStreamReader(path), doc, TexturePacking::OcclusionRoughnessMetallic, "");
+                auto packedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(std::make_shared<TestStreamReader>(path), doc, TexturePacking::OcclusionRoughnessMetallic, "");
 
                 // Check that nothing changed
                 Assert::IsTrue(doc == packedDoc);
@@ -175,7 +175,7 @@ namespace Microsoft::glTF::Toolkit::Test
             // This asset has all textures
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleJson, [](auto doc, auto path)
             {
-                auto packedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(TestStreamReader(path), doc, TexturePacking::None, "");
+                auto packedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(std::make_shared<TestStreamReader>(path), doc, TexturePacking::None, "");
 
                 // Check that nothing changed
                 Assert::IsTrue(doc == packedDoc);
@@ -184,18 +184,18 @@ namespace Microsoft::glTF::Toolkit::Test
 
         TEST_METHOD(GLTFTexturePackingUtils_PackAllWithOneMaterial)
         {
-            std::unique_ptr<GLTFDocument> documentPackedSingleTexture;
-            std::unique_ptr<GLTFDocument> documentPackedAllTextures;
+            std::unique_ptr<Document> documentPackedSingleTexture;
+            std::unique_ptr<Document> documentPackedAllTextures;
 
             // This asset has all textures
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleJson, [&documentPackedSingleTexture](auto doc, auto path)
             {
-                documentPackedSingleTexture = std::make_unique<GLTFDocument>(GLTFTexturePackingUtils::PackMaterialForWindowsMR(TestStreamReader(path), doc, doc.materials.Elements()[0], TexturePacking::OcclusionRoughnessMetallic, ""));
+                documentPackedSingleTexture = std::make_unique<Document>(GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::make_shared<TestStreamReader>(path), doc, doc.materials.Elements()[0], TexturePacking::OcclusionRoughnessMetallic, ""));
             });
 
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleJson, [&documentPackedAllTextures](auto doc, auto path)
             {
-                documentPackedAllTextures = std::make_unique<GLTFDocument>(GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(TestStreamReader(path), doc, TexturePacking::OcclusionRoughnessMetallic, ""));
+                documentPackedAllTextures = std::make_unique<Document>(GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(std::make_shared<TestStreamReader>(path), doc, TexturePacking::OcclusionRoughnessMetallic, ""));
             });
 
             // Assert there's one material

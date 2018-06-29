@@ -5,13 +5,14 @@
 
 #include <GLTFSDK/GLTF.h>
 #include <GLTFSDK/Deserialize.h>
-#include <GLTFSDK/IStreamFactory.h>
+#include <GLTFSDK/IStreamWriter.h>
 #include <GLTFSDK/GLBResourceReader.h>
 #include <GLTFTexturePackingUtils.h>
 #include <GLTFTextureCompressionUtils.h>
 #include <GLTFLODUtils.h>
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
+#include <GLTFMeshCompressionUtils.h>
 
 #include "CommandLine.h"
 #include "FileSystem.h"
@@ -42,53 +43,44 @@ private:
     const std::wstring m_uriBase;
 };
 
-class GLBStreamFactory : public Microsoft::glTF::IStreamFactory
+class GLBStreamWriter : public Microsoft::glTF::IStreamWriter
 {
 public:
-    GLBStreamFactory(const std::wstring& filename) :
-        m_stream(std::make_shared<std::ofstream>(filename, std::ios_base::binary | std::ios_base::out)),
-        m_tempStream(std::make_shared<std::stringstream>(std::ios_base::binary | std::ios_base::in | std::ios_base::out))
+    GLBStreamWriter(const std::wstring& filename) :
+        m_stream(std::make_shared<std::ofstream>(filename, std::ios_base::binary | std::ios_base::out))
     { }
-
-    std::shared_ptr<std::istream> GetInputStream(const std::string&) const override
-    {
-        throw std::logic_error("Not implemented");
-    }
 
     std::shared_ptr<std::ostream> GetOutputStream(const std::string&) const override
     {
         return m_stream;
     }
 
-    std::shared_ptr<std::iostream> GetTemporaryStream(const std::string&) const override
-    {
-        return m_tempStream;
-    }
 private:
     std::shared_ptr<std::ofstream> m_stream;
-    std::shared_ptr<std::stringstream> m_tempStream;
 };
 
-GLTFDocument LoadAndConvertDocumentForWindowsMR(
+Document LoadAndConvertDocumentForWindowsMR(
     std::wstring& inputFilePath,
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
     size_t maxTextureSize,
     TexturePacking packing,
-    bool processTextures = true,
-    bool retainOriginalImages = true)
+    bool processTextures,
+    bool retainOriginalImages,
+    bool meshCompression)
 {
     // Load the document
     std::experimental::filesystem::path inputFilePathFS(inputFilePath);
     std::wstring inputFileName = inputFilePathFS.filename();
     std::wcout << L"Loading input document: " << inputFileName << L"..." << std::endl;
 
+    std::string tempDirectoryA(tempDirectory.begin(), tempDirectory.end());
+
     if (inputAssetType == AssetType::GLB)
     {
         // Convert the GLB to GLTF in the temp directory
 
         std::string inputFilePathA(inputFilePath.begin(), inputFilePath.end());
-        std::string tempDirectoryA(tempDirectory.begin(), tempDirectory.end());
 
         // inputGltfName is the path to the converted GLTF without extension
         std::wstring inputGltfName = inputFilePathFS.stem();
@@ -100,24 +92,30 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
     }
 
     auto stream = std::make_shared<std::ifstream>(inputFilePath, std::ios::in);
-    GLTFDocument document = DeserializeJson(*stream);
+    Document document = Deserialize(*stream);
 
     // Get the base path from where to read all the assets
 
-    GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
+    auto streamReader = std::make_shared<GLTFStreamReader>(FileSystem::GetBasePath(inputFilePath));
 
     if (processTextures)
     {
         std::wcout << L"Packing textures..." << std::endl;
 
         // 1. Texture Packing
-        auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
         document = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, packing, tempDirectoryA);
 
         std::wcout << L"Compressing textures - this can take a few minutes..." << std::endl;
 
         // 2. Texture Compression
         document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize, retainOriginalImages);
+    }
+
+    if (meshCompression)
+    {
+        std::wcout << L"Compressing meshes - this can take a few minutes..." << std::endl;
+
+        document = GLTFMeshCompressionUtils::CompressMeshes(streamReader, document, {}, tempDirectoryA);
     }
 
     return document;
@@ -148,6 +146,7 @@ int wmain(int argc, wchar_t *argv[])
         CommandLine::Version minVersion;
         CommandLine::Platform targetPlatforms;
         bool replaceTextures;
+        bool meshCompression = false;
 
         CommandLine::ParseCommandLineArguments(
             argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, 
@@ -188,19 +187,24 @@ int wmain(int argc, wchar_t *argv[])
             }
         }
 
+        if (minVersion >= CommandLine::Version::Version1809)
+        {
+            meshCompression = true;
+        }
+
         std::wcout << L"\nThis will generate an asset compatible with " << compatibleVersionsText << L"\n" << std::endl;
 
         // Load document, and perform steps:
         // 1. Texture Packing
         // 2. Texture Compression
-        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize, packing, true /* processTextures */, !replaceTextures);
+        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize, packing, true /* processTextures */, !replaceTextures, meshCompression);
 
         // 3. LOD Merging
         if (lodFilePaths.size() > 0)
         {
             std::wcout << L"Merging LODs..." << std::endl;
 
-            std::vector<GLTFDocument> lodDocuments;
+            std::vector<Document> lodDocuments;
             std::vector<std::wstring> lodDocumentRelativePaths;
             lodDocuments.push_back(document);
 
@@ -210,7 +214,7 @@ int wmain(int argc, wchar_t *argv[])
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
-                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, packing, !shareMaterials, !replaceTextures));
+                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, packing, !shareMaterials, !replaceTextures, meshCompression));
             
                 lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }
@@ -251,8 +255,8 @@ int wmain(int argc, wchar_t *argv[])
             return accessor.componentType;
         };
 
-        GLTFStreamReader streamReader(FileSystem::GetBasePath(inputFilePath));
-        SerializeBinary(document, streamReader, std::make_unique<GLBStreamFactory>(outFilePath), accessorConversion);
+        auto streamReader = std::make_shared<GLTFStreamReader>(FileSystem::GetBasePath(inputFilePath));
+        SerializeBinary(document, streamReader, std::make_shared<GLBStreamWriter>(outFilePath), accessorConversion);
 
         std::wcout << L"Done!" << std::endl;
         std::wcout << L"Output file: " << outFilePath << std::endl;

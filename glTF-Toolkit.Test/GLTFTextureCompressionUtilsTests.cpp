@@ -4,7 +4,7 @@
 #include <CppUnitTest.h>  
 
 #include "GLTFSDK/IStreamWriter.h"
-#include "GLTFSDK/GLTFConstants.h"
+#include "GLTFSDK/Constants.h"
 #include "GLTFSDK/Serialize.h"
 #include "GLTFSDK/Deserialize.h"
 #include "GLTFSDK/GLBResourceReader.h"
@@ -63,7 +63,7 @@ namespace Microsoft::glTF::Toolkit::Test
             // This asset has all textures
             TestUtils::LoadAndExecuteGLTFTest(c_waterBottleORMJson, [](auto doc, auto path)
             {
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::None, "");
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(std::make_shared<TestStreamReader>(path), doc, doc.textures.Get("0"), TextureCompression::None, "");
 
                 // Check that nothing changed
                 Assert::IsTrue(doc == compressedDoc);
@@ -78,7 +78,7 @@ namespace Microsoft::glTF::Toolkit::Test
                 auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto generateMipMaps = false;
                 auto retainOriginalImages = true;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(std::make_shared<TestStreamReader>(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
 
                 auto originalTexture = doc.textures.Get("0");
                 auto compressedTexture = compressedDoc.textures.Get("0");
@@ -117,7 +117,7 @@ namespace Microsoft::glTF::Toolkit::Test
                 auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto generateMipMaps = false;
                 auto retainOriginalImages = false;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(std::make_shared<TestStreamReader>(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
 
                 auto originalTexture = doc.textures.Get("0");
                 auto compressedTexture = compressedDoc.textures.Get("0");
@@ -159,7 +159,7 @@ namespace Microsoft::glTF::Toolkit::Test
                 auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto generateMipMaps = true;
                 auto retainOriginalImages = true;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC7, "", maxTextureSize, generateMipMaps, retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(std::make_shared<TestStreamReader>(path), doc, doc.textures.Get("0"), TextureCompression::BC7, "", maxTextureSize, generateMipMaps, retainOriginalImages);
 
                 auto originalTexture = doc.textures.Get("0");
                 auto compressedTexture = compressedDoc.textures.Get("0");
@@ -197,7 +197,7 @@ namespace Microsoft::glTF::Toolkit::Test
             {
                 auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto retainOriginalImages = true;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(TestStreamReader(path), doc, "", maxTextureSize, retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(std::make_shared<TestStreamReader>(path), doc, "", maxTextureSize, retainOriginalImages);
 
                 // Check that the materials and textures have not been replaced
                 // Check that the textures has not been replaced
@@ -211,12 +211,12 @@ namespace Microsoft::glTF::Toolkit::Test
                 auto compressedMaterial = compressedDoc.materials.Get("0");
 
                 // Check that all relevant textures now have the extension
-                Assert::IsTrue(doc.textures.Get(originalMaterial.metallicRoughness.baseColorTextureId).extensions.size() + 1 == compressedDoc.textures.Get(compressedMaterial.metallicRoughness.baseColorTextureId).extensions.size());
-                Assert::IsTrue(doc.textures.Get(originalMaterial.emissiveTextureId).extensions.size() + 1 == compressedDoc.textures.Get(compressedMaterial.emissiveTextureId).extensions.size());
+                Assert::IsTrue(doc.textures.Get(originalMaterial.metallicRoughness.baseColorTexture.textureId).extensions.size() + 1 == compressedDoc.textures.Get(compressedMaterial.metallicRoughness.baseColorTexture.textureId).extensions.size());
+                Assert::IsTrue(doc.textures.Get(originalMaterial.emissiveTexture.textureId).extensions.size() + 1 == compressedDoc.textures.Get(compressedMaterial.emissiveTexture.textureId).extensions.size());
                 // TODO: read the WMR (MSFT_packing...) textures as well
 
                 // Check the new extension is not empty
-                auto ddsExtension = compressedDoc.textures.Get(compressedMaterial.emissiveTextureId).extensions.at(std::string(EXTENSION_MSFT_TEXTURE_DDS));
+                auto ddsExtension = compressedDoc.textures.Get(compressedMaterial.emissiveTexture.textureId).extensions.at(std::string(EXTENSION_MSFT_TEXTURE_DDS));
                 Assert::IsFalse(ddsExtension.empty());
 
                 // Check the new extension contains a DDS image
@@ -241,7 +241,7 @@ namespace Microsoft::glTF::Toolkit::Test
                 auto maxTextureSize = std::numeric_limits<size_t>::max();
                 auto generateMipMaps = false;
                 auto retainOriginalImages = true;
-                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(TestStreamReader(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
+                auto compressedDoc = GLTFTextureCompressionUtils::CompressTextureAsDDS(std::make_shared<TestStreamReader>(path), doc, doc.textures.Get("0"), TextureCompression::BC3, "", maxTextureSize, generateMipMaps, retainOriginalImages);
 
                 auto originalUri = compressedDoc.images.Get("0").uri;
                 auto compressedUri = compressedDoc.images.Get("1").uri;

@@ -17,8 +17,10 @@ const wchar_t * PARAM_PLATFORM = L"-platform";
 const wchar_t * PARAM_REPLACE_TEXTURES = L"-replace-textures";
 const wchar_t * PARAM_VALUE_VERSION_1709 = L"1709";
 const wchar_t * PARAM_VALUE_VERSION_1803 = L"1803";
+const wchar_t * PARAM_VALUE_VERSION_1809 = L"1809";
 const wchar_t * PARAM_VALUE_VERSION_RS3 = L"rs3";
 const wchar_t * PARAM_VALUE_VERSION_RS4 = L"rs4";
+const wchar_t * PARAM_VALUE_VERSION_RS5 = L"rs5";
 const wchar_t * PARAM_VALUE_VERSION_LATEST = L"latest";
 const wchar_t * PARAM_VALUE_HOLOGRAPHIC = L"holographic";
 const wchar_t * PARAM_VALUE_HOLOLENS= L"hololens";
@@ -60,7 +62,7 @@ void CommandLine::PrintHelp()
         << indent << "[" << std::wstring(PARAM_OUTFILE) << L" <output file path>]" << std::endl
         << indent << "[" << std::wstring(PARAM_TMPDIR) << L" <temporary folder>] - default is the system temp folder for the user" << std::endl
         << indent << "[" << std::wstring(PARAM_PLATFORM) << " <" << PARAM_VALUE_ALL << " | " << PARAM_VALUE_HOLOGRAPHIC << " | " << PARAM_VALUE_DESKTOP << ">] - defaults to " << PARAM_VALUE_DESKTOP << std::endl
-        << indent << "[" << std::wstring(PARAM_MIN_VERSION) << " <" << PARAM_VALUE_VERSION_1709 << " | " << PARAM_VALUE_VERSION_1803 << " | " << PARAM_VALUE_VERSION_LATEST << ">] - defaults to " << PARAM_VALUE_VERSION_1709 << std::endl
+        << indent << "[" << std::wstring(PARAM_MIN_VERSION) << " <" << PARAM_VALUE_VERSION_1709 << " | " << PARAM_VALUE_VERSION_1803 << " | " << PARAM_VALUE_VERSION_1809 << " | " << PARAM_VALUE_VERSION_LATEST << ">] - defaults to " << PARAM_VALUE_VERSION_1709 << std::endl
         << indent << "[" << std::wstring(PARAM_LOD) << " <path to each lower LOD asset in descending order of quality>]" << std::endl
         << indent << "[" << std::wstring(PARAM_SCREENCOVERAGE) << " <LOD screen coverage values>]" << std::endl
         << indent << "[" << std::wstring(PARAM_SHARE_MATERIALS) << "] - disabled if not present" << std::endl
@@ -189,6 +191,10 @@ void CommandLine::ParseCommandLineArguments(
                 else if (_wcsicmp(param.c_str(), PARAM_VALUE_VERSION_1803) == 0 || _wcsicmp(param.c_str(), PARAM_VALUE_VERSION_RS4) == 0)
                 {
                     minVersion = Version::Version1803;
+                }
+                else if (_wcsicmp(param.c_str(), PARAM_VALUE_VERSION_1809) == 0 || _wcsicmp(param.c_str(), PARAM_VALUE_VERSION_RS5) == 0)
+                {
+                    minVersion = Version::Version1809;
                 }
                 else if (_wcsicmp(param.c_str(), PARAM_VALUE_VERSION_LATEST) == 0)
                 {

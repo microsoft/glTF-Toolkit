@@ -120,5 +120,5 @@
 		}
 	],
 	"scene": 0,
-	"extensionsUsed": ["KHR_materials_PBRSpecularGlossiness"]
+	"extensionsUsed": ["KHR_materials_pbrSpecularGlossiness"]
 }

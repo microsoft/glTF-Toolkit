@@ -12,9 +12,9 @@
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
 
-#include <GLTFSDK/GLTFDocument.h>
+#include <GLTFSDK/Document.h>
 #include <GLTFSDK/IStreamReader.h>
-#include <GLTFSDK/IStreamFactory.h>
+#include <GLTFSDK/IStreamWriter.h>
 
 using namespace concurrency;
 using namespace Platform;
@@ -67,12 +67,12 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
         .then([maxTextureSize, outputFolder, isGlb, packing](StorageFile^ gltfFile)
         {
             auto stream = std::make_shared<std::ifstream>(gltfFile->Path->Data(), std::ios::in);
-            GLTFDocument document = DeserializeJson(*stream);
+            Document document = Deserialize(*stream);
 
             return create_task(gltfFile->GetParentAsync())
             .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, packing](StorageFolder^ baseFolder)
             {
-                GLTFStreamReader streamReader(baseFolder);
+                auto streamReader = std::make_shared<GLTFStreamReader>(baseFolder);
 
                 // 1. Texture Packing
                 auto tempDirectory = std::wstring(ApplicationData::Current->TemporaryFolder->Path->Data());
@@ -125,7 +125,7 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 glbName += L".glb";
 
                 std::wstring outputGlbPathW = std::wstring(outputFolder->Path->Data()) + L"\\" + glbName;
-                SerializeBinary(convertedDoc, streamReader, std::make_unique<GLBStreamFactory>(outputGlbPathW), accessorConversion);
+                SerializeBinary(convertedDoc, streamReader, std::make_shared<GLBStreamWriter>(outputGlbPathW), accessorConversion);
 
                 return create_task(outputFolder->GetFileAsync(ref new String(glbName.c_str())));
             });
