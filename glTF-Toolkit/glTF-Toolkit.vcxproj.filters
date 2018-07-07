@@ -71,7 +71,7 @@
     <ClCompile Include="src\GLBtoGLTF.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="GLTFMeshCompressionUtils.cpp">
+    <ClCompile Include="src\GLTFMeshCompressionUtils.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\GLTFSpecularGlossinessUtils.cpp">

@@ -27,7 +27,8 @@ std::wstring PathConcat(const std::wstring& part1, const std::wstring& part2)
     // Note: PathCchCombine will return the last argument if it's an absolute path
     if (FAILED(::PathCchCombine(uriAbsoluteRaw, ARRAYSIZE(uriAbsoluteRaw), part1.c_str(), part2.c_str())))
     {
-        throw std::invalid_argument("Could not combine the path names.");
+        auto msg = L"Could not combine the path names: " + part1 + L" and " + part2;
+        throw std::invalid_argument(std::string(msg.begin(), msg.end()));
     }
 
     return uriAbsoluteRaw;
@@ -45,24 +46,15 @@ std::string PathConcat(const std::string& part1, const std::string& part2)
 class FilepathStreamWriter : public IStreamWriter
 {
 public:
-    FilepathStreamWriter(std::string uriBase) : m_uriBase(uriBase.begin(), uriBase.end()) {}
+    FilepathStreamWriter(std::string uriBase) : m_uriBase(uriBase) {}
 
     virtual ~FilepathStreamWriter() override {}
     virtual std::shared_ptr<std::ostream> GetOutputStream(const std::string& filename) const override
     {
-        std::wstring filenameW = std::wstring(filename.begin(), filename.end());
-
-        wchar_t uriAbsoluteRaw[MAX_PATH];
-        // Note: PathCchCombine will return the last argument if it's an absolute path
-        if (FAILED(::PathCchCombine(uriAbsoluteRaw, ARRAYSIZE(uriAbsoluteRaw), m_uriBase.c_str(), filenameW.c_str())))
-        {
-            throw std::invalid_argument("Could not get the base path for the GLTF resources. Try specifying the full path.");
-        }
-
-        return std::make_shared<std::ofstream>(uriAbsoluteRaw, std::ios::binary);
+        return std::make_shared<std::ofstream>(PathConcat(m_uriBase, filename), std::ios::binary);
     }
 private:
-    const std::wstring m_uriBase;
+    const std::string m_uriBase;
 };
 
 draco::GeometryAttribute::Type GetTypeFromAttributeName(const std::string& name)
@@ -99,7 +91,7 @@ draco::GeometryAttribute::Type GetTypeFromAttributeName(const std::string& name)
     {
         return draco::GeometryAttribute::Type::GENERIC;
     }
-    return draco::GeometryAttribute::Type::INVALID;
+    return draco::GeometryAttribute::Type::GENERIC;
 }
 
 draco::DataType GetDataType(const Accessor& accessor)
@@ -269,9 +261,9 @@ Document GLTFMeshCompressionUtils::CompressMeshes(std::shared_ptr<IStreamReader>
     auto writer = std::make_unique<GLTFResourceWriter>(writerStream);
     writer->SetUriPrefix(PathConcat(outputDirectory, "MeshCompression"));
     std::unique_ptr<BufferBuilder> builder = std::make_unique<BufferBuilder>(std::move(writer),
-        [&resultDocument](const BufferBuilder& builder) { return std::to_string(resultDocument.buffers.Size() + builder.GetBufferCount()); },
-        [&resultDocument](const BufferBuilder& builder) { return std::to_string(resultDocument.bufferViews.Size() + builder.GetBufferViewCount()); },
-        [&resultDocument](const BufferBuilder& builder) { return std::to_string(resultDocument.accessors.Size() + builder.GetAccessorCount()); });
+        [&doc](const BufferBuilder& builder) { return std::to_string(doc.buffers.Size() + builder.GetBufferCount()); },
+        [&doc](const BufferBuilder& builder) { return std::to_string(doc.bufferViews.Size() + builder.GetBufferViewCount()); },
+        [&doc](const BufferBuilder& builder) { return std::to_string(doc.accessors.Size() + builder.GetAccessorCount()); });
     auto buffer = builder->AddBuffer();
     for (const auto& mesh : doc.meshes.Elements())
     {

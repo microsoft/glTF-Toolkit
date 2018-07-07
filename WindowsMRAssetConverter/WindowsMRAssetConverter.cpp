@@ -188,9 +188,13 @@ int wmain(int argc, wchar_t *argv[])
 
                 compatibleVersionsText += L"Desktop (version 1709+)";
             }
-            else
+            else if (minVersion == CommandLine::Version::Version1803)
             {
                 compatibleVersionsText +=  L"Desktop (version 1803+)";
+            }
+            else
+            {
+                compatibleVersionsText += L"Desktop (version 1809+)";
             }
         }
 

@@ -151,7 +151,7 @@
     <ClInclude Include="inc\SerializeBinary.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="GLTFMeshCompressionUtils.cpp" />
+    <ClCompile Include="src\GLTFMeshCompressionUtils.cpp" />
     <ClCompile Include="src\DeviceResources.cpp" />
     <ClCompile Include="src\GLBtoGLTF.cpp" />
     <ClCompile Include="src\GLTFLODUtils.cpp" />
