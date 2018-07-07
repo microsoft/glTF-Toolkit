@@ -9,12 +9,15 @@
 #include <ppltasks.h>
 #include <GLTFTexturePackingUtils.h>
 #include <GLTFTextureCompressionUtils.h>
+#include <GLTFMeshCompressionUtils.h>
+#include <GLTFSpecularGlossinessUtils.h>
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
 
 #include <GLTFSDK/Document.h>
 #include <GLTFSDK/IStreamReader.h>
 #include <GLTFSDK/IStreamWriter.h>
+#include <GLTFSDK/ExtensionsKHR.h>
 
 using namespace concurrency;
 using namespace Platform;
@@ -49,9 +52,14 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
 
 IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile ^ gltfOrGlbFile, StorageFolder ^ outputFolder, size_t maxTextureSize, TexturePacking packing)
 {
+    return ConvertAssetForWindowsMR(gltfOrGlbFile, outputFolder, maxTextureSize, packing, false);
+}
+
+IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile ^ gltfOrGlbFile, StorageFolder ^ outputFolder, size_t maxTextureSize, TexturePacking packing, bool meshCompression)
+{
     auto isGlb = gltfOrGlbFile->FileType == L".glb";
 
-    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb, packing]()
+    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb, packing, meshCompression]()
     {
         return create_task([gltfOrGlbFile, isGlb]()
         {
@@ -64,23 +72,26 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 return task_from_result<StorageFile^>(gltfOrGlbFile);
             }
         })
-        .then([maxTextureSize, outputFolder, isGlb, packing](StorageFile^ gltfFile)
+        .then([maxTextureSize, outputFolder, isGlb, packing, meshCompression](StorageFile^ gltfFile)
         {
             auto stream = std::make_shared<std::ifstream>(gltfFile->Path->Data(), std::ios::in);
-            Document document = Deserialize(*stream);
+            Document document = Deserialize(*stream, KHR::GetKHRExtensionDeserializer());
 
             return create_task(gltfFile->GetParentAsync())
-            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, packing](StorageFolder^ baseFolder)
+            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, packing, meshCompression](StorageFolder^ baseFolder)
             {
                 auto streamReader = std::make_shared<GLTFStreamReader>(baseFolder);
-
-                // 1. Texture Packing
                 auto tempDirectory = std::wstring(ApplicationData::Current->TemporaryFolder->Path->Data());
                 auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
-                auto convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, static_cast<Toolkit::TexturePacking>(packing), tempDirectoryA);
+
+                // 0. Specular Glossiness conversion
+                auto convertedDoc = GLTFSpecularGlossinessUtils::ConvertMaterials(streamReader, document, tempDirectoryA);
+
+                // 1. Texture Packing
+                convertedDoc = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, convertedDoc, static_cast<Toolkit::TexturePacking>(packing), tempDirectoryA);
 
                 // 2. Texture Compression
-                convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize, false /* retainOriginalImages */);
+                convertedDoc = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, convertedDoc, tempDirectoryA, maxTextureSize, false /* retainOriginalImages */);
 
                 // 3. Make sure there's a default scene set
                 if (!convertedDoc.HasDefaultScene())
@@ -88,7 +99,13 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                     convertedDoc.defaultSceneId = convertedDoc.scenes.Elements()[0].id;
                 }
 
-                // 4. GLB Export
+                // 4. Compress the meshes
+                if (meshCompression)
+                {
+                    convertedDoc = GLTFMeshCompressionUtils::CompressMeshes(streamReader, convertedDoc, {}, tempDirectoryA);
+                }
+
+                // 5. GLB Export
 
                 // The Windows MR Fall Creators update has restrictions on the supported
                 // component types of accessors.

@@ -26,7 +26,7 @@ namespace Microsoft::glTF::Toolkit
     {
     public:
         /// <summary>
-        /// Applies <see cref="CompressMesh" /> to every material in the document, following the same parameter structure as that function.
+        /// Applies <see cref="CompressMesh" /> to every mesh in the document, following the same parameter structure as that function.
         /// </summary>
         /// <param name="streamReader">A stream reader that is capable of accessing the resources used in the glTF asset by URI.</param>
         /// <param name="doc">The document from which the mesh will be loaded.</param>

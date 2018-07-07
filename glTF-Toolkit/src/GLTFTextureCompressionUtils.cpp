@@ -3,7 +3,7 @@
 
 #include "pch.h"
 
-#include "GLTFTextureLoadingUtils.h"
+#include "GLTFTextureUtils.h"
 #include "GLTFTexturePackingUtils.h"
 #include "GLTFTextureCompressionUtils.h"
 #include "DeviceResources.h"
@@ -36,7 +36,7 @@ Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStre
         return outputDoc;
     }
 
-    auto image = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, texture.id));
+    auto image = std::make_unique<DirectX::ScratchImage>(GLTFTextureUtils::LoadTexture(streamReader, doc, texture.id, compression == TextureCompression::BC7_SRGB ? false : true));
 
     // Resize up to a multiple of 4
     auto metadata = image->GetMetadata();
@@ -65,7 +65,7 @@ Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStre
     if (resizedWidth != metadata.width || resizedHeight != metadata.height)
     {
         auto resized = std::make_unique<DirectX::ScratchImage>();
-        if (FAILED(DirectX::Resize(image->GetImages(), image->GetImageCount(), image->GetMetadata(), resizedWidth, resizedHeight, DirectX::TEX_FILTER_DEFAULT, *resized)))
+        if (FAILED(DirectX::Resize(image->GetImages(), image->GetImageCount(), image->GetMetadata(), resizedWidth, resizedHeight, DirectX::TEX_FILTER_SEPARATE_ALPHA, *resized)))
         {
             throw GLTFException("Failed to resize image.");
         }
@@ -76,7 +76,7 @@ Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStre
     if (generateMipMaps)
     {
         auto mipChain = std::make_unique<DirectX::ScratchImage>();
-        if (FAILED(DirectX::GenerateMipMaps(image->GetImages(), image->GetImageCount(), image->GetMetadata(), DirectX::TEX_FILTER_DEFAULT, 0, *mipChain)))
+        if (FAILED(DirectX::GenerateMipMaps(image->GetImages(), image->GetImageCount(), image->GetMetadata(), DirectX::TEX_FILTER_SEPARATE_ALPHA, 0, *mipChain)))
         {
             throw GLTFException("Failed to generate mip maps.");
         }
@@ -246,7 +246,6 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
         return;
     }
 
-    DWORD compressionFlags = DirectX::TEX_COMPRESS_DEFAULT;
     DXGI_FORMAT compressionFormat = DXGI_FORMAT_BC7_UNORM;
     switch (compression)
     {
@@ -261,7 +260,6 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
         break;
     case TextureCompression::BC7_SRGB:
         compressionFormat = DXGI_FORMAT_BC7_UNORM_SRGB;
-        compressionFlags |= DirectX::TEX_COMPRESS_SRGB_IN;
         break;
     default:
         throw std::invalid_argument("Invalid compression specified.");
@@ -279,7 +277,7 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
 
         if (device != nullptr)
         {
-            if (SUCCEEDED(DirectX::Compress(device.Get(), image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, compressionFlags, 0, compressedImage)))
+            if (SUCCEEDED(DirectX::Compress(device.Get(), image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, DirectX::TEX_COMPRESS_DEFAULT, 1, compressedImage)))
             {
                 gpuCompressionSuccessful = true;
             }
@@ -293,7 +291,7 @@ void GLTFTextureCompressionUtils::CompressImage(DirectX::ScratchImage& image, Te
     if (!gpuCompressionSuccessful)
     {
         // Try software compression
-        if (FAILED(DirectX::Compress(image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, compressionFlags | DirectX::TEX_COMPRESS_PARALLEL, 0, compressedImage)))
+        if (FAILED(DirectX::Compress(image.GetImages(), image.GetImageCount(), image.GetMetadata(), compressionFormat, DirectX::TEX_COMPRESS_PARALLEL, 1, compressedImage)))
         {
             throw GLTFException("Failed to compress data using software compression");
         }

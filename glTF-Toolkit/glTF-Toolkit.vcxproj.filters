@@ -21,9 +21,6 @@
     <ClInclude Include="inc\GLTFTextureCompressionUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="inc\GLTFTextureLoadingUtils.h">
-      <Filter>inc</Filter>
-    </ClInclude>
     <ClInclude Include="inc\GLTFTexturePackingUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
@@ -45,6 +42,12 @@
     <ClInclude Include="inc\GLTFMeshCompressionUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="inc\GLTFSpecularGlossinessUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFTextureUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\DeviceResources.cpp">
@@ -54,9 +57,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\GLTFTextureCompressionUtils.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\GLTFTextureLoadingUtils.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\GLTFTexturePackingUtils.cpp">
@@ -72,6 +72,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="GLTFMeshCompressionUtils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLTFSpecularGlossinessUtils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLTFTextureUtils.cpp">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>

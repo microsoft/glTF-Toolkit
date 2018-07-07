@@ -7,8 +7,10 @@
 #include <GLTFSDK/Deserialize.h>
 #include <GLTFSDK/IStreamWriter.h>
 #include <GLTFSDK/GLBResourceReader.h>
+#include <GLTFSDK/ExtensionsKHR.h>
 #include <GLTFTexturePackingUtils.h>
 #include <GLTFTextureCompressionUtils.h>
+#include <GLTFSpecularGlossinessUtils.h>
 #include <GLTFLODUtils.h>
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
@@ -92,7 +94,7 @@ Document LoadAndConvertDocumentForWindowsMR(
     }
 
     auto stream = std::make_shared<std::ifstream>(inputFilePath, std::ios::in);
-    Document document = Deserialize(*stream);
+    Document document = Deserialize(*stream, KHR::GetKHRExtensionDeserializer());
 
     // Get the base path from where to read all the assets
 
@@ -100,6 +102,11 @@ Document LoadAndConvertDocumentForWindowsMR(
 
     if (processTextures)
     {
+        std::wcout << L"Specular Glossiness conversion..." << std::endl;
+
+        // 0. Specular Glossiness conversion
+        document = GLTFSpecularGlossinessUtils::ConvertMaterials(streamReader, document, tempDirectoryA);
+
         std::wcout << L"Packing textures..." << std::endl;
 
         // 1. Texture Packing

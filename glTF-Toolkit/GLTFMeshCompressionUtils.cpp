@@ -10,10 +10,7 @@
 #include "GLTFSDK/BufferBuilder.h"
 
 #pragma warning(push)
-#pragma warning(disable: 4081)
-#pragma warning(disable: 4244)
-#pragma warning(disable: 4018)
-#pragma warning(disable: 4389)
+#pragma warning(disable: 4018 4081 4244 4267 4389)
 #include "draco/compression/encode.h"
 #include "draco/core/cycle_timer.h"
 #include "draco/io/mesh_io.h"
@@ -23,6 +20,27 @@
 // Usings for glTF
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
+
+std::wstring PathConcat(const std::wstring& part1, const std::wstring& part2)
+{
+    wchar_t uriAbsoluteRaw[MAX_PATH];
+    // Note: PathCchCombine will return the last argument if it's an absolute path
+    if (FAILED(::PathCchCombine(uriAbsoluteRaw, ARRAYSIZE(uriAbsoluteRaw), part1.c_str(), part2.c_str())))
+    {
+        throw std::invalid_argument("Could not combine the path names.");
+    }
+
+    return uriAbsoluteRaw;
+}
+
+std::string PathConcat(const std::string& part1, const std::string& part2)
+{
+    std::wstring part1W = std::wstring(part1.begin(), part1.end());
+    std::wstring part2W = std::wstring(part2.begin(), part2.end());
+
+    auto pathW = PathConcat(part1W, part2W);
+    return std::string(pathW.begin(), pathW.end());
+}
 
 class FilepathStreamWriter : public IStreamWriter
 {
@@ -77,6 +95,10 @@ draco::GeometryAttribute::Type GetTypeFromAttributeName(const std::string& name)
     {
         return draco::GeometryAttribute::Type::GENERIC;
     }
+    if (name == ACCESSOR_TANGENT)
+    {
+        return draco::GeometryAttribute::Type::GENERIC;
+    }
     return draco::GeometryAttribute::Type::INVALID;
 }
 
@@ -101,7 +123,7 @@ int InitializePointAttribute(draco::Mesh& dracoMesh, const std::string& attribut
     auto numComponents = Accessor::GetTypeCount(accessor.type);
     draco::PointAttribute pointAttr;
     pointAttr.Init(GetTypeFromAttributeName(attributeName), nullptr, numComponents, GetDataType(accessor), accessor.normalized, stride, 0);
-    int attId = dracoMesh.AddAttribute(pointAttr, true, accessor.count);
+    int attId = dracoMesh.AddAttribute(pointAttr, true, static_cast<unsigned int>(accessor.count));
     auto attrActual = dracoMesh.attribute(attId);
 
     std::vector<T> values = reader.ReadBinaryData<T>(doc, accessor);
@@ -113,13 +135,13 @@ int InitializePointAttribute(draco::Mesh& dracoMesh, const std::string& attribut
         accessor.max = minmax.second;
     }
 
-    for (draco::PointIndex i(0); i < accessor.count; ++i)
+    for (draco::PointIndex i(0); i < static_cast<uint32_t>(accessor.count); ++i)
     {
         attrActual->SetAttributeValue(attrActual->mapped_index(i), &values[i.value() * numComponents]);
     }
     if (dracoMesh.num_points() == 0) 
     {
-        dracoMesh.set_num_points(accessor.count);
+        dracoMesh.set_num_points(static_cast<unsigned int>(accessor.count));
     }
     else if (dracoMesh.num_points() != accessor.count)
     {
@@ -156,7 +178,7 @@ Document GLTFMeshCompressionUtils::CompressMesh(std::shared_ptr<IStreamReader> s
         auto indices = MeshPrimitiveUtils::GetIndices32(doc, reader, primitive);
         size_t numFaces = indices.size() / 3;
         dracoMesh.SetNumFaces(numFaces);
-        for (size_t i = 0; i < numFaces; i++)
+        for (uint32_t i = 0; i < numFaces; i++)
         {
             draco::Mesh::Face face;
             face[0] = indices[(i * 3) + 0];
@@ -245,7 +267,7 @@ Document GLTFMeshCompressionUtils::CompressMeshes(std::shared_ptr<IStreamReader>
 
     auto writerStream = std::make_shared<FilepathStreamWriter>(outputDirectory);
     auto writer = std::make_unique<GLTFResourceWriter>(writerStream);
-    writer->SetUriPrefix(outputDirectory);
+    writer->SetUriPrefix(PathConcat(outputDirectory, "MeshCompression"));
     std::unique_ptr<BufferBuilder> builder = std::make_unique<BufferBuilder>(std::move(writer),
         [&resultDocument](const BufferBuilder& builder) { return std::to_string(resultDocument.buffers.Size() + builder.GetBufferCount()); },
         [&resultDocument](const BufferBuilder& builder) { return std::to_string(resultDocument.bufferViews.Size() + builder.GetBufferViewCount()); },
