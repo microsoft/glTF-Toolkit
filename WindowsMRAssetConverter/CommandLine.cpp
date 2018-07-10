@@ -15,6 +15,7 @@ const wchar_t * PARAM_SHARE_MATERIALS = L"-share-materials";
 const wchar_t * PARAM_MIN_VERSION = L"-min-version";
 const wchar_t * PARAM_PLATFORM = L"-platform";
 const wchar_t * PARAM_REPLACE_TEXTURES = L"-replace-textures";
+const wchar_t * PARAM_COMPRESS_MESHES = L"-compress-meshes";
 const wchar_t * PARAM_VALUE_VERSION_1709 = L"1709";
 const wchar_t * PARAM_VALUE_VERSION_1803 = L"1803";
 const wchar_t * PARAM_VALUE_VERSION_1809 = L"1809";
@@ -68,6 +69,7 @@ void CommandLine::PrintHelp()
         << indent << "[" << std::wstring(PARAM_SHARE_MATERIALS) << "] - disabled if not present" << std::endl
         << indent << "[" << std::wstring(PARAM_MAXTEXTURESIZE) << " <Max texture size in pixels>] - defaults to 512" << std::endl
         << indent << "[" << std::wstring(PARAM_REPLACE_TEXTURES) << "] - disabled if not present" << std::endl
+        << indent << "[" << std::wstring(PARAM_COMPRESS_MESHES) << "] - compress meshes with Draco" << std::endl
         << std::endl
         << "Example:" << std::endl
         << indent << "WindowsMRAssetConverter FileToConvert.gltf "
@@ -87,7 +89,7 @@ void CommandLine::ParseCommandLineArguments(
     int argc, wchar_t *argv[],
     std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
     std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-    bool& shareMaterials, Version& minVersion, Platform& targetPlatforms, bool& replaceTextures)
+    bool& shareMaterials, Version& minVersion, Platform& targetPlatforms, bool& replaceTextures, bool& compressMeshes)
 {
     CommandLineParsingState state = CommandLineParsingState::Initial;
 
@@ -105,6 +107,7 @@ void CommandLine::ParseCommandLineArguments(
     minVersion = MIN_VERSION_DEFAULT;
     targetPlatforms = PLATFORM_DEFAULT;
     replaceTextures = false;
+    compressMeshes = false;
 
     state = CommandLineParsingState::InputRead;
 
@@ -159,6 +162,11 @@ void CommandLine::ParseCommandLineArguments(
             replaceTextures = true;
             state = CommandLineParsingState::InputRead;
         }
+        else if (param == PARAM_COMPRESS_MESHES)
+        {
+            compressMeshes = true;
+            state = CommandLineParsingState::InputRead;
+        }        
         else
         {
             switch (state)

@@ -157,7 +157,7 @@ int wmain(int argc, wchar_t *argv[])
 
         CommandLine::ParseCommandLineArguments(
             argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, 
-            maxTextureSize, shareMaterials, minVersion, targetPlatforms, replaceTextures);
+            maxTextureSize, shareMaterials, minVersion, targetPlatforms, replaceTextures, meshCompression);
 
         TexturePacking packing = TexturePacking::None;
 
@@ -196,11 +196,6 @@ int wmain(int argc, wchar_t *argv[])
             {
                 compatibleVersionsText += L"Desktop (version 1809+)";
             }
-        }
-
-        if (minVersion >= CommandLine::Version::Version1809)
-        {
-            meshCompression = true;
         }
 
         std::wcout << L"\nThis will generate an asset compatible with " << compatibleVersionsText << L"\n" << std::endl;
