@@ -164,7 +164,14 @@ void CommandLine::ParseCommandLineArguments(
         }
         else if (param == PARAM_COMPRESS_MESHES)
         {
-            compressMeshes = true;
+            if (minVersion >= CommandLine::Version::Version1809)
+            {
+                compressMeshes = true;
+            }
+            else
+            {
+                throw std::invalid_argument("Invalid min version specified with mesh compression; must be at least 1809.");
+            }
             state = CommandLineParsingState::InputRead;
         }        
         else
