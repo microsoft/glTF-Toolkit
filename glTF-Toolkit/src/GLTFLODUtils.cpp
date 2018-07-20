@@ -349,11 +349,12 @@ namespace
                     AddIndexOffset(primitive.indicesAccessorId, accessorOffset);
                     AddIndexOffset(primitive, ACCESSOR_POSITION, accessorOffset);
                     AddIndexOffset(primitive, ACCESSOR_NORMAL, accessorOffset);
-                    
                     AddIndexOffset(primitive, ACCESSOR_TEXCOORD_0, accessorOffset);
                     AddIndexOffset(primitive, ACCESSOR_TEXCOORD_1, accessorOffset);
                     AddIndexOffset(primitive, ACCESSOR_COLOR_0, accessorOffset);
                     AddIndexOffset(primitive, ACCESSOR_TANGENT, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_JOINTS_0, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_WEIGHTS_0, accessorOffset);
 
                     if (sharedMaterials)
                     {
