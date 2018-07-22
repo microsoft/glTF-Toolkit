@@ -35,7 +35,11 @@ namespace Microsoft::glTF::Toolkit
         /// <returns>
         /// A new glTF manifest that uses the KHR_draco_mesh_compression extension to point to the compressed meshes.
         /// </returns>
-        static Document CompressMeshes(std::shared_ptr<IStreamReader> streamReader, const Document & doc, CompressionOptions options, const std::string& outputDirectory);
+        static Document CompressMeshes(
+            std::shared_ptr<IStreamReader> streamReader,
+            const Document & doc,
+            CompressionOptions options,
+            const std::string& outputDirectory);
 
         /// <summary>
         /// Applies Draco mesh compression to the supplied mesh and creates a new set of vertex buffers for all the primitive attributes.
@@ -45,9 +49,16 @@ namespace Microsoft::glTF::Toolkit
         /// <param name="mesh">The mesh which the mesh will be compressed.</param>
         /// <param name="options">The compression options that will be used.</param>
         /// <param name="builder">The output buffer builder that handles bufferId generation for the return document.</param>
+        /// <param name="bufferViewsToRemove">Out parameter of BufferView Ids that are no longer in use and should be removed.</param>
         /// <returns>
         /// A new glTF manifest that uses the KHR_draco_mesh_compression extension to point to the compressed meshes.
         /// </returns>
-        static Document CompressMesh(std::shared_ptr<IStreamReader> streamReader, const Document & doc, CompressionOptions options, const Mesh & mesh, BufferBuilder* builder);
+        static Document CompressMesh(
+            std::shared_ptr<IStreamReader> streamReader,
+            const Document & doc,
+            CompressionOptions options,
+            const Mesh & mesh,
+            BufferBuilder* builder,
+            std::unordered_set<std::string>& bufferViewsToRemove);
     };
 }

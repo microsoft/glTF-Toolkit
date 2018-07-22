@@ -185,7 +185,7 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document,
     std::string currentAccessorIdStr = std::to_string(currentAccessorId);
     size_t currentBufferViewId = 0;
     std::string currentBufferViewIdStr = std::to_string(currentBufferViewId);
-    auto AdvanceAccessorId = [&currentAccessorId, &currentAccessorIdStr, &staticBufferViews]()
+    auto AdvanceAccessorId = [&currentAccessorId, &currentAccessorIdStr]()
     {
         currentAccessorId++;
         currentAccessorIdStr = std::to_string(currentAccessorId);
@@ -215,6 +215,10 @@ void Microsoft::glTF::Toolkit::SerializeBinary(const Document& document,
     }
     // Return value to tracked state
     currentBufferViewIdStr = std::to_string(currentBufferViewId);
+    if (staticBufferViews.Has(currentBufferViewIdStr))
+    {
+        AdvanceBufferViewId();
+    }
 
     // Serialize accessors
     for (const auto& accessor : document.accessors.Elements())

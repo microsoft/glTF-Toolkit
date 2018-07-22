@@ -154,7 +154,13 @@ void SetEncoderOptions(draco::Encoder& encoder, const CompressionOptions& option
     encoder.SetTrackEncodedProperties(true);
 }
 
-Document GLTFMeshCompressionUtils::CompressMesh(std::shared_ptr<IStreamReader> streamReader, const Document & doc, CompressionOptions options, const Mesh & mesh, BufferBuilder* builder)
+Document GLTFMeshCompressionUtils::CompressMesh(
+    std::shared_ptr<IStreamReader> streamReader,
+    const Document & doc,
+    CompressionOptions options,
+    const Mesh & mesh,
+    BufferBuilder* builder,
+    std::unordered_set<std::string>& bufferViewsToRemove)
 {
     GLTFResourceReader reader(streamReader);
     Document resultDocument(doc);
@@ -165,6 +171,10 @@ Document GLTFMeshCompressionUtils::CompressMesh(std::shared_ptr<IStreamReader> s
     resultMesh.primitives.clear();
     for (const auto& primitive : mesh.primitives)
     {
+        if (primitive.HasExtension<KHR::MeshPrimitives::DracoMeshCompression>())
+        {
+            continue;
+        }
         auto dracoExtension = std::make_unique<KHR::MeshPrimitives::DracoMeshCompression>();
         draco::Mesh dracoMesh;
         auto indices = MeshPrimitiveUtils::GetIndices32(doc, reader, primitive);
@@ -180,10 +190,7 @@ Document GLTFMeshCompressionUtils::CompressMesh(std::shared_ptr<IStreamReader> s
         }
 
         Accessor indiciesAccessor(doc.accessors[primitive.indicesAccessorId]);
-        if (resultDocument.bufferViews.Has(indiciesAccessor.bufferViewId))
-        {
-            resultDocument.bufferViews.Remove(indiciesAccessor.bufferViewId);
-        }
+        bufferViewsToRemove.emplace(indiciesAccessor.bufferViewId);
         indiciesAccessor.bufferViewId = "";
         indiciesAccessor.byteOffset = 0;
         resultDocument.accessors.Replace(indiciesAccessor);
@@ -204,10 +211,7 @@ Document GLTFMeshCompressionUtils::CompressMesh(std::shared_ptr<IStreamReader> s
             default: throw GLTFException("Unknown component type.");
             }
             
-            if (resultDocument.bufferViews.Has(accessor.bufferViewId))
-            {
-                resultDocument.bufferViews.Remove(accessor.bufferViewId);
-            }
+            bufferViewsToRemove.emplace(accessor.bufferViewId);
             attributeAccessor.bufferViewId = "";
             attributeAccessor.byteOffset = 0;
             resultDocument.accessors.Replace(attributeAccessor);
@@ -265,9 +269,17 @@ Document GLTFMeshCompressionUtils::CompressMeshes(std::shared_ptr<IStreamReader>
         [&doc](const BufferBuilder& builder) { return std::to_string(doc.bufferViews.Size() + builder.GetBufferViewCount()); },
         [&doc](const BufferBuilder& builder) { return std::to_string(doc.accessors.Size() + builder.GetAccessorCount()); });
     auto buffer = builder->AddBuffer();
+    std::unordered_set<std::string> bufferViewsToRemove;
     for (const auto& mesh : doc.meshes.Elements())
     {
-        resultDocument = CompressMesh(streamReader, resultDocument, options, mesh, builder.get());
+        resultDocument = CompressMesh(streamReader, resultDocument, options, mesh, builder.get(), bufferViewsToRemove);
+    }
+    for (const auto& bufferViewId : bufferViewsToRemove)
+    {
+        if (resultDocument.bufferViews.Has(bufferViewId))
+        {
+            resultDocument.bufferViews.Remove(bufferViewId);
+        }
     }
 
     builder->Output(resultDocument);
