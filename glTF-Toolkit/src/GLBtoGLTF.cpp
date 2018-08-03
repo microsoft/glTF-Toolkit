@@ -41,7 +41,7 @@ namespace
     }
 }
 
-std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& glbDoc, const size_t bufferOffset, const size_t newBufferlength)
+std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const Document& glbDoc, const size_t bufferOffset, const size_t newBufferlength)
 {
     if (newBufferlength == 0)
     {
@@ -110,7 +110,7 @@ std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& gl
     return result;
 }
 
-std::unordered_map<std::string, std::vector<char>> GLBToGLTF::GetImagesData(std::istream* input, const GLTFDocument& glbDoc, const std::string& name, const size_t bufferOffset)
+std::unordered_map<std::string, std::vector<char>> GLBToGLTF::GetImagesData(std::istream* input, const Document& glbDoc, const std::string& name, const size_t bufferOffset)
 {
     input->seekg(0, std::ios::beg);
     std::unordered_map<std::string, int> imageIDs;
@@ -179,9 +179,9 @@ std::unordered_map<std::string, std::vector<char>> GLBToGLTF::GetImagesData(std:
 
 // Create modified gltf from original by removing image buffer segments and updating
 // images, bufferViews and accessors fields accordingly
-GLTFDocument GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std::string& name)
+Document GLBToGLTF::CreateGLTFDocument(const Document& glbDoc, const std::string& name)
 {
-    GLTFDocument gltfDoc(glbDoc);
+    Document gltfDoc(glbDoc);
 
     gltfDoc.images.Clear();
     gltfDoc.buffers.Clear();
@@ -291,12 +291,12 @@ void GLBToGLTF::UnpackGLB(const std::string& glbPath, const std::string& outDire
 {
     // read glb file into json
     auto glbStream = std::make_shared<std::ifstream>(glbPath, std::ios::binary);
-    auto streamReader = std::make_unique<StreamMock>();
-    GLBResourceReader reader(*streamReader, glbStream);
+    auto streamReader = std::make_shared<StreamMock>();
+    GLBResourceReader reader(streamReader, glbStream);
 
     // get original json
     auto json = reader.GetJson();
-    auto doc = DeserializeJson(json);
+    auto doc = Deserialize(json);
 
     // create new modified json
     auto gltfDoc = GLBToGLTF::CreateGLTFDocument(doc, gltfName);

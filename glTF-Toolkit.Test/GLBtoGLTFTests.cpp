@@ -5,7 +5,7 @@
 #include <CppUnitTest.h>  
 
 #include <numeric>
-#include <GLTFSDK/GLTFDocument.h>
+#include <GLTFSDK/Document.h>
 #include <GLTFSDK/Deserialize.h>
 #include <GLTFSDK/Serialize.h>
 #include <GLBtoGLTF.h>
@@ -37,9 +37,9 @@ namespace Microsoft::glTF::Toolkit::Test
     }
 
     // Setup a GLTF document with 3 bufferviews and 2 images
-    GLTFDocument setupGLBDocument1()
+    Document setupGLBDocument1()
     {
-        GLTFDocument glbDoc("0", {});
+        Document glbDoc;
         Scene sc; sc.id = "0";
         glbDoc.scenes.Append(std::move(sc));
         Accessor acc0; acc0.bufferViewId = "0"; acc0.byteOffset = 0; acc0.id = "0";
@@ -88,7 +88,7 @@ namespace Microsoft::glTF::Toolkit::Test
     {
         TEST_METHOD(GLBtoGLTF_NoImagesJSON)
         {
-            GLTFDocument glbDoc("0", {});
+            Document glbDoc;
             Scene s1; s1.id = "0";
             glbDoc.scenes.Append(std::move(s1));
             Accessor acc; acc.bufferViewId = "0"; acc.byteOffset = 36; acc.id = "0";
@@ -112,7 +112,7 @@ namespace Microsoft::glTF::Toolkit::Test
             {
                 glbDoc.images.Append(std::move(img));
             });
-            GLTFDocument expectedGLTFDoc("0", {});
+            Document expectedGLTFDoc;
             Scene s2; s2.id = "0";
             expectedGLTFDoc.scenes.Append(std::move(s2));
             auto actualGLTFDoc = GLBToGLTF::CreateGLTFDocument(glbDoc, "name");
@@ -125,7 +125,7 @@ namespace Microsoft::glTF::Toolkit::Test
 
         TEST_METHOD(GLBtoGLTF_ImagesWithOffsetJSON)
         {
-            GLTFDocument glbDoc("0", {});
+            Document glbDoc;
             Scene sc; sc.id = "0";
             glbDoc.scenes.Append(std::move(sc));
             Accessor acc0; acc0.bufferViewId = "0"; acc0.byteOffset = 0; acc0.id = "0";
@@ -161,7 +161,7 @@ namespace Microsoft::glTF::Toolkit::Test
             });
             auto actualGLTFDoc = GLBToGLTF::CreateGLTFDocument(glbDoc, "test");
 
-            GLTFDocument expectedGLTFDoc("0", {});
+            Document expectedGLTFDoc;
             Accessor exp_acc0; exp_acc0.bufferViewId = "0"; exp_acc0.byteOffset = 0; exp_acc0.id = "0";
             Accessor exp_acc1; exp_acc1.bufferViewId = "1"; exp_acc1.byteOffset = 4; exp_acc1.id = "3";
             expectedGLTFDoc.accessors.Append(std::move(exp_acc0));

@@ -22,5 +22,6 @@ namespace Microsoft::glTF::Toolkit::UWP
         static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ ConvertAssetForWindowsMR(Windows::Storage::StorageFile^ gltfOrGlbFile, Windows::Storage::StorageFolder^ outputFolder);
         static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ ConvertAssetForWindowsMR(Windows::Storage::StorageFile^ gltfOrGlbFile, Windows::Storage::StorageFolder^ outputFolder, size_t maxTextureSize);
         static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ ConvertAssetForWindowsMR(Windows::Storage::StorageFile^ gltfOrGlbFile, Windows::Storage::StorageFolder^ outputFolder, size_t maxTextureSize, UWP::TexturePacking packing);
+        static Windows::Foundation::IAsyncOperation<Windows::Storage::StorageFile^>^ ConvertAssetForWindowsMR(Windows::Storage::StorageFile^ gltfOrGlbFile, Windows::Storage::StorageFolder^ outputFolder, size_t maxTextureSize, UWP::TexturePacking packing, bool meshCompression);
     };
 }

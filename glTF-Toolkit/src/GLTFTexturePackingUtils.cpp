@@ -5,7 +5,7 @@
 
 #include <DirectXTex.h>
 
-#include "GLTFTextureLoadingUtils.h"
+#include "GLTFTextureUtils.h"
 #include "GLTFTexturePackingUtils.h"
 
 using namespace Microsoft::glTF;
@@ -21,57 +21,7 @@ const char* Microsoft::glTF::Toolkit::MSFT_PACKING_NRM_KEY = "normalRoughnessMet
 
 namespace
 {
-    enum Channel
-    {
-        Red = 0,
-        Green = 4,
-        Blue = 8,
-        Alpha = 12
-    };
-
-    // Constants for the format DXGI_FORMAT_R32G32B32A32_FLOAT
-    const size_t DXGI_FORMAT_R32G32B32A32_FLOAT_STRIDE = 16;
-
-    // Gets the value of channel `channel` in pixel index `offset` in image `imageData`
-    // assumed to be formatted as DXGI_FORMAT_R32G32B32A32_FLOAT
-    float* GetChannelValue(uint8_t * imageData, size_t offset, Channel channel)
-    {
-        return reinterpret_cast<float*>(imageData + offset * DXGI_FORMAT_R32G32B32A32_FLOAT_STRIDE + channel);
-    }
-
-    std::string SaveAsPng(std::unique_ptr<DirectX::ScratchImage>& image, const std::string& fileName, const std::string& directory, const GUID* targetFormat = &GUID_WICPixelFormat24bppBGR)
-    {
-        wchar_t outputImageFullPath[MAX_PATH];
-        auto fileNameW = std::wstring(fileName.begin(), fileName.end());
-        auto directoryW = std::wstring(directory.begin(), directory.end());
-
-        if (FAILED(::PathCchCombine(outputImageFullPath, ARRAYSIZE(outputImageFullPath), directoryW.c_str(), fileNameW.c_str())))
-        {
-            throw GLTFException("Failed to compose output file path.");
-        }
-
-        const DirectX::Image* img = image->GetImage(0, 0, 0);
-        if (FAILED(SaveToWICFile(*img, DirectX::WIC_FLAGS::WIC_FLAGS_NONE, GUID_ContainerFormatPng, outputImageFullPath, targetFormat)))
-        {
-            throw GLTFException("Failed to save file.");
-        }
-
-        std::wstring outputImageFullPathStr(outputImageFullPath);
-        return std::string(outputImageFullPathStr.begin(), outputImageFullPathStr.end());
-    }
-
-    std::string AddImageToDocument(GLTFDocument& doc, const std::string& imageUri)
-    { 
-        Image image;
-        auto imageId = std::to_string(doc.images.Size());
-        image.id = imageId;
-        image.uri = imageUri;
-        doc.images.Append(std::move(image));
-
-        return imageId;
-    }
-
-    void AddTextureToExtension(const std::string& imageId, TexturePacking packing, GLTFDocument& doc, rapidjson::Value& packedExtensionJson, rapidjson::MemoryPoolAllocator<>& a)
+    void AddTextureToExtension(const std::string& imageId, TexturePacking packing, Document& doc, rapidjson::Value& packedExtensionJson, rapidjson::MemoryPoolAllocator<>& a)
     {
         Texture packedTexture;
         auto textureId = std::to_string(doc.textures.Size());
@@ -98,40 +48,11 @@ namespace
             throw GLTFException("Invalid packing.");
         }
     }
-
-    void ResizeIfNeeded(std::unique_ptr<DirectX::ScratchImage>& image, size_t resizedWidth, size_t resizedHeight)
-    {
-        auto metadata = image->GetMetadata();
-        if (resizedWidth != metadata.width || resizedHeight != metadata.height)
-        {
-            auto resized = std::make_unique<DirectX::ScratchImage>();
-            if (FAILED(DirectX::Resize(image->GetImages(), image->GetImageCount(), metadata, resizedWidth, resizedHeight, DirectX::TEX_FILTER_DEFAULT, *resized)))
-            {
-                throw GLTFException("Failed to resize image while packing.");
-            }
-
-            image = std::move(resized);
-        }
-    }
-
-    void ResizeToLargest(std::unique_ptr<DirectX::ScratchImage>& image1, std::unique_ptr<DirectX::ScratchImage>& image2)
-    {
-        auto metadata1 = image1->GetMetadata();
-        auto metadata2 = image2->GetMetadata();
-        if (metadata1.height != metadata2.height || metadata1.width != metadata2.width)
-        {
-            auto resizedWidth = std::max(metadata1.width, metadata2.width);
-            auto resizedHeight = std::max(metadata1.height, metadata2.height);
-
-            ResizeIfNeeded(image1, resizedWidth, resizedHeight);
-            ResizeIfNeeded(image2, resizedWidth, resizedHeight);
-        }
-    }
 }
 
-GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamReader& streamReader, const GLTFDocument& doc, const Material& material, TexturePacking packing, const std::string& outputDirectory)
+Document GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document& doc, const Material& material, TexturePacking packing, const std::string& outputDirectory)
 {
-    GLTFDocument outputDoc(doc);
+    Document outputDoc(doc);
 
     // No packing requested, return copy of document
     if (packing == TexturePacking::None)
@@ -140,9 +61,9 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     }
 
     // Read images from material
-    auto metallicRoughness = material.metallicRoughness.metallicRoughnessTextureId;
-    auto normal = material.normalTexture.id;
-    auto occlusion = material.occlusionTexture.id;
+    auto metallicRoughness = material.metallicRoughness.metallicRoughnessTexture.textureId;
+    auto normal = material.normalTexture.textureId;
+    auto occlusion = material.occlusionTexture.textureId;
 
     bool hasMR = !metallicRoughness.empty();
     bool hasNormal = !normal.empty();
@@ -174,7 +95,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     {
         try
         {
-            metallicRoughnessImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, metallicRoughness));
+            metallicRoughnessImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureUtils::LoadTexture(streamReader, doc, metallicRoughness));
         }
         catch (GLTFException)
         {
@@ -189,7 +110,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     {
         try
         {
-            occlusionImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, occlusion));
+            occlusionImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureUtils::LoadTexture(streamReader, doc, occlusion));
         }
         catch (GLTFException)
         {
@@ -199,7 +120,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
 
     if (hasMR && hasOcclusion && packingIncludesOrm)
     {
-        ResizeToLargest(metallicRoughnessImage, occlusionImage);
+        GLTFTextureUtils::ResizeToLargest(metallicRoughnessImage, occlusionImage);
     }
 
     bool packingIncludesNrm = (packing & TexturePacking::NormalRoughnessMetallic) > 0;
@@ -209,7 +130,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     {
         try
         {
-            normalImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureLoadingUtils::LoadTexture(streamReader, doc, normal));
+            normalImage = std::make_unique<DirectX::ScratchImage>(GLTFTextureUtils::LoadTexture(streamReader, doc, normal));
         }
         catch (GLTFException)
         {
@@ -219,7 +140,7 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
 
     if (hasMR && hasNormal && packingIncludesNrm)
     {
-        ResizeToLargest(metallicRoughnessImage, normalImage);
+        GLTFTextureUtils::ResizeToLargest(metallicRoughnessImage, normalImage);
     }
 
     uint8_t *mrPixels = metallicRoughnessImage != nullptr ? metallicRoughnessImage->GetPixels() : nullptr;
@@ -241,30 +162,37 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
         }
         else
         {
-            auto orm = std::make_unique<DirectX::ScratchImage>();
+            DirectX::ScratchImage orm;
 
             auto sourceImage = hasMR ? *metallicRoughnessImage->GetImage(0, 0, 0) : *occlusionImage->GetImage(0, 0, 0);
-            if (FAILED(orm->Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
+            if (FAILED(orm.Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
             {
                 throw GLTFException("Failed to initialize from texture.");
             }
 
-            auto ormPixels = orm->GetPixels();
-            auto metadata = orm->GetMetadata();
+            auto ormPixels = orm.GetPixels();
+            auto metadata = orm.GetMetadata();
 
             for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
             {
                 // Occlusion: Occ [R] -> ORM [R]
-                *GetChannelValue(ormPixels, i, Channel::Red) = hasOcclusion ? *GetChannelValue(occlusionPixels, i, Channel::Red) : 255.0f;
+                *GLTFTextureUtils::GetChannelValue(ormPixels, i, Channel::Red) = hasOcclusion ? *GLTFTextureUtils::GetChannelValue(occlusionPixels, i, Channel::Red) : 255.0f;
                 // Roughness: MR [G] -> ORM [G]
-                *GetChannelValue(ormPixels, i, Channel::Green) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Green) : 255.0f;
+                *GLTFTextureUtils::GetChannelValue(ormPixels, i, Channel::Green) = hasMR ? *GLTFTextureUtils::GetChannelValue(mrPixels, i, Channel::Green) : 255.0f;
                 // Metalness: MR [B] -> ORM [B]
-                *GetChannelValue(ormPixels, i, Channel::Blue) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
+                *GLTFTextureUtils::GetChannelValue(ormPixels, i, Channel::Blue) = hasMR ? *GLTFTextureUtils::GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
             }
 
-            auto imagePath = SaveAsPng(orm, "packing_orm_" + material.id + ".png", outputDirectory);
+            // Convert with assumed sRGB because PNG defaults to that color space.
+            DirectX::ScratchImage converted;
+            if (FAILED(DirectX::Convert(*orm.GetImage(0, 0, 0), DXGI_FORMAT_B8G8R8X8_UNORM, DirectX::TEX_FILTER_SRGB_IN, DirectX::TEX_THRESHOLD_DEFAULT, converted)))
+            {
+                throw GLTFException("Failed to convert texture to DXGI_FORMAT_B8G8R8X8_UNORM for storage.");
+            }
 
-            ormImageId = AddImageToDocument(outputDoc, imagePath);
+            auto imagePath = GLTFTextureUtils::SaveAsPng(&converted, "packing_orm_" + material.id + ".png", outputDirectory);
+
+            ormImageId = GLTFTextureUtils::AddImageToDocument(outputDoc, imagePath);
         }
 
         AddTextureToExtension(ormImageId, TexturePacking::OcclusionRoughnessMetallic, outputDoc, ormExtensionJson, ormAllocator);
@@ -272,63 +200,71 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
 
     if (packing & TexturePacking::RoughnessMetallicOcclusion && (hasMR || hasOcclusion))
     {
-        auto rmo = std::make_unique<DirectX::ScratchImage>();
+        DirectX::ScratchImage rmo;
 
         auto sourceImage = hasMR ? *metallicRoughnessImage->GetImage(0, 0, 0) : *occlusionImage->GetImage(0, 0, 0);
-        if (FAILED(rmo->Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
+        if (FAILED(rmo.Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
         {
             throw GLTFException("Failed to initialize from texture.");
         }
 
-        auto rmoPixels = rmo->GetPixels();
-        auto metadata = rmo->GetMetadata();
+        auto rmoPixels = rmo.GetPixels();
+        auto metadata = rmo.GetMetadata();
 
         for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
         {
             // Roughness: MR [G] -> RMO [R]
-            *GetChannelValue(rmoPixels, i, Channel::Red) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Green) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(rmoPixels, i, Channel::Red) = hasMR ? *GLTFTextureUtils::GetChannelValue(mrPixels, i, Channel::Green) : 255.0f;
             // Metalness: MR [B] -> RMO [G]
-            *GetChannelValue(rmoPixels, i, Channel::Green) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(rmoPixels, i, Channel::Green) = hasMR ? *GLTFTextureUtils::GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
             // Occlusion: Occ [R] -> RMO [B]
-            *GetChannelValue(rmoPixels, i, Channel::Blue) = hasOcclusion ? *GetChannelValue(occlusionPixels, i, Channel::Red) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(rmoPixels, i, Channel::Blue) = hasOcclusion ? *GLTFTextureUtils::GetChannelValue(occlusionPixels, i, Channel::Red) : 255.0f;
         }
 
-        auto imagePath = SaveAsPng(rmo, "packing_rmo_" + material.id + ".png", outputDirectory);
+        // Convert with assumed sRGB because PNG defaults to that color space.
+        DirectX::ScratchImage converted;
+        if (FAILED(DirectX::Convert(*rmo.GetImage(0, 0, 0), DXGI_FORMAT_B8G8R8X8_UNORM, DirectX::TEX_FILTER_SRGB_IN, DirectX::TEX_THRESHOLD_DEFAULT, converted)))
+        {
+            throw GLTFException("Failed to convert texture to DXGI_FORMAT_B8G8R8X8_UNORM for storage.");
+        }
+
+        auto imagePath = GLTFTextureUtils::SaveAsPng(&converted, "packing_rmo_" + material.id + ".png", outputDirectory);
 
         // Add back to GLTF
-        auto rmoImageId = AddImageToDocument(outputDoc, imagePath);
+        auto rmoImageId = GLTFTextureUtils::AddImageToDocument(outputDoc, imagePath);
 
         AddTextureToExtension(rmoImageId, TexturePacking::RoughnessMetallicOcclusion, outputDoc, ormExtensionJson, ormAllocator);
     }
 
     if (packingIncludesNrm && (hasMR || hasNormal))
     {
-        auto nrm = std::make_unique<DirectX::ScratchImage>();
+        DirectX::ScratchImage nrm;
 
         auto sourceImage = hasMR ? *metallicRoughnessImage->GetImage(0, 0, 0) : *normalImage->GetImage(0, 0, 0);
-        if (FAILED(nrm->Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
+        if (FAILED(nrm.Initialize2D(sourceImage.format, sourceImage.width, sourceImage.height, 1, 1)))
         {
             throw GLTFException("Failed to initialize from texture.");
         }
 
-        auto nrmPixels = nrm->GetPixels();
-        auto metadata = nrm->GetMetadata();
+        auto nrmPixels = nrm.GetPixels();
+        auto metadata = nrm.GetMetadata();
 
         for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
         {
             // Normal: N [RG] -> NRM [RG]
-            *GetChannelValue(nrmPixels, i, Channel::Red) = hasNormal ? *GetChannelValue(normalPixels, i, Channel::Red) : 255.0f;
-            *GetChannelValue(nrmPixels, i, Channel::Green) = hasNormal ? *GetChannelValue(normalPixels, i, Channel::Green) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Red) = hasNormal ? *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Red) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Green) = hasNormal ? *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Green) : 255.0f;
             // Roughness: MR [G] -> NRM [B]
-            *GetChannelValue(nrmPixels, i, Channel::Blue) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Green) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Blue) = hasMR ? *GLTFTextureUtils::GetChannelValue(mrPixels, i, Channel::Green) : 255.0f;
             // Metalness: MR [B] -> NRM [A]
-            *GetChannelValue(nrmPixels, i, Channel::Alpha) = hasMR ? *GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Alpha) = hasMR ? *GLTFTextureUtils::GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
         }
 
-        auto imagePath = SaveAsPng(nrm, "packing_nrm_" + material.id + ".png", outputDirectory, &GUID_WICPixelFormat32bppBGRA);
+        // sRGB conversion not needed for PNG in BGRA
+        auto imagePath = GLTFTextureUtils::SaveAsPng(&nrm, "packing_nrm_" + material.id + ".png", outputDirectory, &GUID_WICPixelFormat32bppBGRA);
 
         // Add back to GLTF
-        auto nrmImageId = AddImageToDocument(outputDoc, imagePath);
+        auto nrmImageId = GLTFTextureUtils::AddImageToDocument(outputDoc, imagePath);
 
         AddTextureToExtension(nrmImageId, TexturePacking::NormalRoughnessMetallic, outputDoc, nrmExtensionJson, nrmAllocator);
     }
@@ -369,9 +305,9 @@ GLTFDocument GLTFTexturePackingUtils::PackMaterialForWindowsMR(const IStreamRead
     return outputDoc;
 }
 
-GLTFDocument GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, TexturePacking packing, const std::string& outputDirectory)
+Document GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document & doc, TexturePacking packing, const std::string& outputDirectory)
 {
-    GLTFDocument outputDoc(doc);
+    Document outputDoc(doc);
 
     // No packing requested, return copy of document
     if (packing == TexturePacking::None)
