@@ -251,13 +251,11 @@ Document GLBToGLTF::CreateGLTFDocument(const Document& glbDoc, const std::string
     gltfDoc.buffers.Clear();
     gltfDoc.bufferViews.Clear();
     gltfDoc.accessors.Clear();
-    gltfDoc.meshes.Clear();
 
     const auto images = glbDoc.images.Elements();
     const auto buffers = glbDoc.buffers.Elements();
     const auto bufferViews = glbDoc.bufferViews.Elements();
     const auto accessors = glbDoc.accessors.Elements();
-    const auto meshes = glbDoc.meshes.Elements();
     std::unordered_map<std::string, std::string> bufferViewIndex;
 
     size_t updatedBufferSize = 0;
@@ -393,6 +391,9 @@ Document GLBToGLTF::CreateGLTFDocument(const Document& glbDoc, const std::string
         }
     }
 
+    bool changes = false;
+    const auto meshes = glbDoc.meshes.Elements();
+    std::vector<Mesh> updatedMeshs;
     for (auto updatedMesh : meshes)
     {
         for (auto& primitive : updatedMesh.primitives)
@@ -401,9 +402,17 @@ Document GLBToGLTF::CreateGLTFDocument(const Document& glbDoc, const std::string
             {
                 auto& draco = primitive.GetExtension<KHR::MeshPrimitives::DracoMeshCompression>();
                 draco.bufferViewId = bufferViewIndex[draco.bufferViewId];
+                changes = true;
             }
         }
-        gltfDoc.meshes.Append(std::move(updatedMesh));
+        updatedMeshs.emplace_back(updatedMesh);
+    }
+    if (changes)
+    {
+        for (const auto& mesh : updatedMeshs)
+        {
+            gltfDoc.meshes.Replace(mesh);
+        }
     }
 
     return gltfDoc;
