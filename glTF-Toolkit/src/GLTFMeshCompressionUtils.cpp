@@ -173,6 +173,7 @@ Document GLTFMeshCompressionUtils::CompressMesh(
     {
         if (primitive.HasExtension<KHR::MeshPrimitives::DracoMeshCompression>())
         {
+            resultMesh.primitives.emplace_back(primitive);
             continue;
         }
         auto dracoExtension = std::make_unique<KHR::MeshPrimitives::DracoMeshCompression>();
