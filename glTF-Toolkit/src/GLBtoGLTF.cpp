@@ -407,6 +407,7 @@ Document GLBToGLTF::CreateGLTFDocument(const Document& glbDoc, const std::string
         }
         updatedMeshs.emplace_back(updatedMesh);
     }
+
     if (changes)
     {
         for (const auto& mesh : updatedMeshs)
