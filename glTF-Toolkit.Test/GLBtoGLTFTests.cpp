@@ -115,7 +115,8 @@ namespace Microsoft::glTF::Toolkit::Test
             Document expectedGLTFDoc;
             Scene s2; s2.id = "0";
             expectedGLTFDoc.scenes.Append(std::move(s2));
-            auto actualGLTFDoc = GLBToGLTF::CreateGLTFDocument(glbDoc, "name");
+            std::unordered_set<std::string> unpackedBufferViews;
+            auto actualGLTFDoc = GLBToGLTF::CreateGLTFDocument(glbDoc, "name", unpackedBufferViews);
 
             // for debugging
             const auto expectedJSON = Serialize(expectedGLTFDoc, SerializeFlags::Pretty);
@@ -159,7 +160,8 @@ namespace Microsoft::glTF::Toolkit::Test
             {
                 glbDoc.images.Append(std::move(img));
             });
-            auto actualGLTFDoc = GLBToGLTF::CreateGLTFDocument(glbDoc, "test");
+            std::unordered_set<std::string> unpackedBufferViews;
+            auto actualGLTFDoc = GLBToGLTF::CreateGLTFDocument(glbDoc, "test", unpackedBufferViews);
 
             Document expectedGLTFDoc;
             Accessor exp_acc0; exp_acc0.bufferViewId = "0"; exp_acc0.byteOffset = 0; exp_acc0.id = "0";
@@ -216,7 +218,9 @@ namespace Microsoft::glTF::Toolkit::Test
             auto glbDoc = setupGLBDocument1();
             auto glbStream = setupGLBStream(100);
             const size_t BYTE_OFFSET = 12;
-            auto actualData = GLBToGLTF::SaveBin(glbStream, glbDoc, BYTE_OFFSET, 8);
+            std::unordered_set<std::string> unpackedBufferViews;
+            auto outputDoc = GLBToGLTF::CreateGLTFDocument(glbDoc, "name", unpackedBufferViews);
+            auto actualData = GLBToGLTF::SaveBin(glbStream, glbDoc, BYTE_OFFSET, 8, unpackedBufferViews);
 
             //these bytes correspond to bytes of bufferviews in steupGLTFDocument1 which don't belong to any image
             std::vector<char> expectedData = { BYTE_OFFSET + 0, BYTE_OFFSET + 1, BYTE_OFFSET + 2, BYTE_OFFSET + 3,
