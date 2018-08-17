@@ -470,12 +470,12 @@ namespace
                     newAnimation.samplers.Append(std::move(newSampler));
                 }
                 
-                for (auto channel : lodAnimation.channels)
+                for (auto channel : lodAnimation.channels.Elements())
                 {
                     AddIndexOffset(channel.target.nodeId, nodeOffset);
                     AddIndexOffset(channel.samplerId, samplerOffset);
 
-                    newAnimation.channels.push_back(std::move(channel));
+                    newAnimation.channels.Append(std::move(channel));
                 }
                 gltfLod.animations.Replace(newAnimation);
             }

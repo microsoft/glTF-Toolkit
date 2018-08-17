@@ -14,20 +14,6 @@ using namespace Microsoft::glTF;
 using namespace Toolkit;
 using namespace DirectX;
 
-float SolveMetallic(float diffusePerceivedBrightness, float specularPerceivedBrightness, float oneMinusSpecularStrength)
-{
-    if (specularPerceivedBrightness < DIELECTRIC_SPECULAR.r)
-    {
-        return 0.0f;
-    }
-
-    const float a = DIELECTRIC_SPECULAR.r;
-    const float b = diffusePerceivedBrightness * oneMinusSpecularStrength / (1.0f - a) + specularPerceivedBrightness - 2.0f * a;
-    const float c = a - specularPerceivedBrightness;
-    const float d = std::max(0.0f, b * b - 4.0f * a * c);
-    return std::clamp((-b + std::sqrt(d)) / (2.0f * a), 0.0f, 1.0f);
-}
-
 void ConvertEntrySpecularGlossinessToMetallicRoughness(
     const XMVECTORF32& diffuseColor,
     const XMVECTORF32& specGloss,
@@ -35,23 +21,17 @@ void ConvertEntrySpecularGlossinessToMetallicRoughness(
     float& metallicOut,
     float& roughnessOut)
 {
-    const Color3 gltfDiffuse(diffuseColor[0], diffuseColor[1], diffuseColor[2]);
-    const Color3 gltfSpecular(specGloss[0], specGloss[1], specGloss[2]);
+    SpecularGlossinessValue sg;
+    sg.diffuse = Color3(diffuseColor[0], diffuseColor[1], diffuseColor[2]);
+    sg.opacity = diffuseColor[3];
+    sg.specular = Color3(specGloss[0], specGloss[1], specGloss[2]);
+    sg.glossiness = specGloss[3];
 
-    // roughness
-    roughnessOut = 1.0f - specGloss[3];
+    MetallicRoughnessValue mr = SGToMR(sg);
 
-    // metalness
-    const float oneMinusSpecularStrength = 1.0f - gltfSpecular.GetMaxComponent();
-    metallicOut = SolveMetallic(gltfDiffuse.GetPerceivedBrightness(), gltfSpecular.GetPerceivedBrightness(), oneMinusSpecularStrength);
-
-    // diffuse color
-    const Color3 baseColorFromDiffuse = gltfDiffuse.Scale(oneMinusSpecularStrength / (1.0f - DIELECTRIC_SPECULAR.r) / std::max(1e-4f, 1.0f - metallicOut));
-    const Color3 baseColorFromSpecular = gltfSpecular.Subtract(DIELECTRIC_SPECULAR.Scale(1.0f - metallicOut).Scale(1.0f / std::max(1e-4f, metallicOut)));
-    Color3 baseColor = Color3::Lerp(baseColorFromDiffuse, baseColorFromSpecular, metallicOut * metallicOut);
-    baseColor.Clamp(0.0f, 1.0f);
-
-    diffuseOut = { baseColor.r, baseColor.g, baseColor.b, diffuseColor[3] };
+    roughnessOut = mr.roughness;
+    metallicOut = mr.metallic;
+    diffuseOut = { mr.base.r, mr.base.g, mr.base.b, mr.opacity };
 }
 
 
