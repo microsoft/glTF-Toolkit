@@ -141,9 +141,8 @@ Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStre
 
     if (retainOriginalImage)
     {
-        ddsImageId.assign(std::to_string(doc.images.Size()));
-        ddsImage.id = ddsImageId;
-        outputDoc.images.Append(std::move(ddsImage));
+        ddsImage.id.clear();
+        ddsImageId = outputDoc.images.Append(ddsImage, AppendIdPolicy::GenerateOnEmpty).id;
     }
     else
     {
@@ -156,7 +155,7 @@ Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStre
     rapidjson::Document ddsExtensionJson;
     ddsExtensionJson.SetObject();
 
-    ddsExtensionJson.AddMember("source", rapidjson::Value(std::stoi(ddsImageId)), ddsExtensionJson.GetAllocator());
+    ddsExtensionJson.AddMember("source", rapidjson::Value(outputDoc.images.GetIndex(ddsImageId)), ddsExtensionJson.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);

@@ -103,6 +103,63 @@ void GLTFTextureUtils::ResizeIfNeeded(const std::unique_ptr<DirectX::ScratchImag
     }
 }
 
+Document GLTFTextureUtils::RemoveRedundantTexturesAndImages(const Document& doc)
+{
+    Document resultDocument(doc);
+
+    // 1. Find used textures
+    std::vector<std::string> usedTextureIds;
+    for (const auto& material : doc.materials.Elements())
+    {
+        std::vector<std::string> textureIds = {
+            material.metallicRoughness.baseColorTexture.textureId,
+            material.metallicRoughness.metallicRoughnessTexture.textureId,
+            material.normalTexture.textureId,
+            material.occlusionTexture.textureId,
+            material.emissiveTexture.textureId
+        };
+
+        for (const auto& textureId : textureIds)
+        {
+            const auto textureIdHasBeenAdded = std::find(usedTextureIds.begin(), usedTextureIds.end(), textureId) != usedTextureIds.end();
+            if (!textureId.empty() && !textureIdHasBeenAdded)
+            {
+                usedTextureIds.push_back(textureId);
+            }
+        }
+    }
+
+    // 2. Find used images and remove unused textures
+    std::vector<std::string> usedImageIds;
+    for (const auto& texture : doc.textures.Elements())
+    {
+        const auto textureIsUsed = std::find(usedTextureIds.begin(), usedTextureIds.end(), texture.id) != usedTextureIds.end();
+        const auto imageIdHasBeenAdded = std::find(usedImageIds.begin(), usedImageIds.end(), texture.imageId) != usedImageIds.end();
+
+        if (textureIsUsed && !imageIdHasBeenAdded)
+        {
+            usedImageIds.push_back(texture.imageId);
+        }
+        else
+        {
+            resultDocument.textures.Remove(texture.id);
+        }
+    }
+
+    // 3. Remove unused images
+    for (const auto& image : doc.images.Elements())
+    {
+        auto imageIsUsed = std::find(usedImageIds.begin(), usedImageIds.end(), image.id) != usedImageIds.end();
+
+        if (!imageIsUsed)
+        {
+            resultDocument.images.Remove(image.id);
+        }
+    }
+
+    return resultDocument;
+}
+
 void GLTFTextureUtils::ResizeToLargest(std::unique_ptr<DirectX::ScratchImage>& image1, std::unique_ptr<DirectX::ScratchImage>& image2)
 {
     auto metadata1 = image1->GetMetadata();
