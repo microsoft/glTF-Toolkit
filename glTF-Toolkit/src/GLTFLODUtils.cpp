@@ -369,19 +369,13 @@ namespace
                                 [localMaterial](auto globalMaterial) {
                                     // check that the materials are the same, noting that the texture and material ids will differ
                                     return localMaterial.name == globalMaterial.name &&
-                                           localMaterial.alphaMode == globalMaterial.alphaMode &&
-                                           localMaterial.alphaCutoff == globalMaterial.alphaCutoff &&
-                                           localMaterial.emissiveFactor == globalMaterial.emissiveFactor &&
-                                           localMaterial.doubleSided == globalMaterial.doubleSided &&
-                                           localMaterial.metallicRoughness.baseColorFactor == globalMaterial.metallicRoughness.baseColorFactor &&
-                                           localMaterial.metallicRoughness.metallicFactor == globalMaterial.metallicRoughness.metallicFactor &&
-                                           localMaterial.occlusionTexture.strength == globalMaterial.occlusionTexture.strength &&
-                                           localMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() == globalMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() && 
-                                           (!localMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() ||
-                                             (localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().diffuseFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().diffuseFactor &&
-                                              localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().glossinessFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().glossinessFactor &&
-                                              localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().specularFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().specularFactor)
-                                           );
+                                        localMaterial.alphaMode == globalMaterial.alphaMode &&
+                                        localMaterial.alphaCutoff == globalMaterial.alphaCutoff &&
+                                        localMaterial.emissiveFactor == globalMaterial.emissiveFactor &&
+                                        localMaterial.doubleSided == globalMaterial.doubleSided &&
+                                        localMaterial.metallicRoughness.baseColorFactor == globalMaterial.metallicRoughness.baseColorFactor &&
+                                        localMaterial.metallicRoughness.metallicFactor == globalMaterial.metallicRoughness.metallicFactor &&
+                                        localMaterial.occlusionTexture.strength == globalMaterial.occlusionTexture.strength;
                                 }
                         );
 
