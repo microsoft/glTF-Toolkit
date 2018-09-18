@@ -470,8 +470,10 @@ namespace
                     newAnimation.samplers.Append(std::move(newSampler));
                 }
                 
+                size_t channelOffset = baseAnimation.channels.Size();
                 for (auto channel : lodAnimation.channels.Elements())
                 {
+                    AddIndexOffset(channel.id, channelOffset);
                     AddIndexOffset(channel.target.nodeId, nodeOffset);
                     AddIndexOffset(channel.samplerId, samplerOffset);
 
