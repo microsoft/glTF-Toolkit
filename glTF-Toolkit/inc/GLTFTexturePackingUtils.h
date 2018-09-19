@@ -55,6 +55,8 @@ namespace Microsoft::glTF::Toolkit
         /// A new glTF manifest that uses the MSFT_packing_occlusionRoughnessMetallic extension to point to the packed textures.
         /// </returns>
         static Document PackAllMaterialsForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document & doc, TexturePacking packing, const std::string& outputDirectory);
+
+        static std::unordered_set<int> GetTextureIndicesFromMsftExtensions(const Material& material);
     };
 }
 

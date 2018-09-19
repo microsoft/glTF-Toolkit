@@ -4,6 +4,9 @@
 #include "pch.h"
 
 #include "GLTFTextureUtils.h"
+#include <GLTFSDK/PBRUtils.h>
+#include "GLTFTextureCompressionUtils.h"
+#include "GLTFTexturePackingUtils.h"
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
@@ -80,12 +83,8 @@ std::string GLTFTextureUtils::SaveAsPng(DirectX::ScratchImage* image, const std:
 std::string GLTFTextureUtils::AddImageToDocument(Document& doc, const std::string& imageUri)
 {
     Image image;
-    auto imageId = std::to_string(doc.images.Size());
-    image.id = imageId;
     image.uri = imageUri;
-    doc.images.Append(std::move(image));
-
-    return imageId;
+    return doc.images.Append(std::move(image), AppendIdPolicy::GenerateOnEmpty).id;
 }
 
 void GLTFTextureUtils::ResizeIfNeeded(const std::unique_ptr<DirectX::ScratchImage>& image, size_t resizedWidth, size_t resizedHeight)
@@ -101,6 +100,88 @@ void GLTFTextureUtils::ResizeIfNeeded(const std::unique_ptr<DirectX::ScratchImag
 
         *image = std::move(resized);
     }
+}
+
+Document GLTFTextureUtils::RemoveRedundantTexturesAndImages(const Document& doc)
+{
+    Document resultDocument(doc);
+
+    // 1. Find used textures
+    std::unordered_set<std::string> usedTextureIds;
+    for (const auto& material : doc.materials.Elements())
+    {
+        std::unordered_set<std::string> textureIds = {
+            material.metallicRoughness.baseColorTexture.textureId,
+            material.metallicRoughness.metallicRoughnessTexture.textureId,
+            material.normalTexture.textureId,
+            material.occlusionTexture.textureId,
+            material.emissiveTexture.textureId
+        };
+
+        if (material.HasExtension<KHR::Materials::PBRSpecularGlossiness>())
+        {
+            textureIds.insert(material.GetExtension<KHR::Materials::PBRSpecularGlossiness>().diffuseTexture.textureId);
+            textureIds.insert(material.GetExtension<KHR::Materials::PBRSpecularGlossiness>().specularGlossinessTexture.textureId);
+        }
+
+        auto textureIndices = GLTFTexturePackingUtils::GetTextureIndicesFromMsftExtensions(material);
+
+        for (const auto& textureIndex : textureIndices)
+        {
+            textureIds.insert(doc.textures.Get(textureIndex).id);
+        }
+
+        for (const auto& textureId : textureIds)
+        {
+            if (!textureId.empty())
+            {
+                usedTextureIds.insert(textureId);
+            }
+        }
+    }
+
+    // 2. Find used images and remove unused textures
+    std::unordered_set<std::string> usedImageIds;
+    for (const auto& texture : doc.textures.Elements())
+    {
+        const auto textureIsUsed = usedTextureIds.find(texture.id) != usedTextureIds.end();
+        
+        if (textureIsUsed)
+        {
+            usedImageIds.insert(texture.imageId);
+
+            // MSFT_texture_dds extension
+            auto ddsExtensionIt = texture.extensions.find(EXTENSION_MSFT_TEXTURE_DDS);
+            if (ddsExtensionIt != texture.extensions.end() && !ddsExtensionIt->second.empty())
+            {
+                rapidjson::Document ddsJson = RapidJsonUtils::CreateDocumentFromString(ddsExtensionIt->second);
+
+                if (ddsJson.HasMember("source"))
+                {
+                    const auto index = ddsJson["source"].GetInt();
+                    const auto imageId = doc.images.Get(index).id;
+                    usedImageIds.insert(imageId);
+                }
+            }
+        }
+        else
+        {
+            resultDocument.textures.Remove(texture.id);
+        }
+    }
+
+    // 3. Remove unused images
+    for (const auto& image : doc.images.Elements())
+    {
+        auto imageIsUsed = usedImageIds.find(image.id) != usedImageIds.end();
+
+        if (!imageIsUsed)
+        {
+            resultDocument.images.Remove(image.id);
+        }
+    }
+
+    return resultDocument;
 }
 
 void GLTFTextureUtils::ResizeToLargest(std::unique_ptr<DirectX::ScratchImage>& image1, std::unique_ptr<DirectX::ScratchImage>& image2)

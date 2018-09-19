@@ -18,6 +18,7 @@
 
 #include "CommandLine.h"
 #include "FileSystem.h"
+#include "GLTFTextureUtils.h"
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
@@ -107,14 +108,19 @@ Document LoadAndConvertDocumentForWindowsMR(
         // 0. Specular Glossiness conversion
         document = GLTFSpecularGlossinessUtils::ConvertMaterials(streamReader, document, tempDirectoryA);
 
+        std::wcout << L"Removing redundant textures and images..." << std::endl;
+
+        // 1. Remove redundant textures and images
+        document = GLTFTextureUtils::RemoveRedundantTexturesAndImages(document);
+
         std::wcout << L"Packing textures..." << std::endl;
 
-        // 1. Texture Packing
+        // 2. Texture Packing
         document = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, packing, tempDirectoryA);
 
         std::wcout << L"Compressing textures - this can take a few minutes..." << std::endl;
 
-        // 2. Texture Compression
+        // 3. Texture Compression
         document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize, retainOriginalImages);
     }
 
