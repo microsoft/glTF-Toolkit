@@ -4,6 +4,7 @@
 #include "GLTFSDK.h"
 #include <DirectXTex.h>
 #include <GLTFSDK/Document.h>
+#include <wincodec.h>
 
 namespace Microsoft::glTF::Toolkit
 {

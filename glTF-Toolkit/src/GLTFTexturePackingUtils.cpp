@@ -50,12 +50,12 @@ namespace
 
 std::unordered_set<int> GLTFTexturePackingUtils::GetTextureIndicesFromMsftExtensions(const Material& material)
 {
-    std::unordered_set<const char*> extensionKeys = {
+    static const char* extensionKeys[] = {
         EXTENSION_MSFT_PACKING_ORM,
         EXTENSION_MSFT_PACKING_NRM
     };
 
-    std::unordered_set<const char*> textureKeys = {
+    static const char* textureKeys[] = {
         MSFT_PACKING_ORM_ORMTEXTURE_KEY,
         MSFT_PACKING_ORM_RMOTEXTURE_KEY,
         MSFT_PACKING_ORM_NORMALTEXTURE_KEY,
