@@ -3,6 +3,8 @@
 
 #include "GLTFSDK.h"
 #include <DirectXTex.h>
+#include <GLTFSDK/Document.h>
+#include <wincodec.h>
 
 namespace Microsoft::glTF::Toolkit
 {
@@ -42,6 +44,8 @@ namespace Microsoft::glTF::Toolkit
         static void ResizeToLargest(std::unique_ptr<DirectX::ScratchImage>& image1, std::unique_ptr<DirectX::ScratchImage>& image2);
 
         static void ResizeIfNeeded(const std::unique_ptr<DirectX::ScratchImage>& image, size_t resizedWidth, size_t resizedHeight);
+
+        static Document RemoveRedundantTexturesAndImages(const Document& doc);
     };
 }
 

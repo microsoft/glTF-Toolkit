@@ -24,14 +24,12 @@ namespace
     void AddTextureToExtension(const std::string& imageId, TexturePacking packing, Document& doc, rapidjson::Value& packedExtensionJson, rapidjson::MemoryPoolAllocator<>& a)
     {
         Texture packedTexture;
-        auto textureId = std::to_string(doc.textures.Size());
-        packedTexture.id = textureId;
         packedTexture.imageId = imageId;
-        doc.textures.Append(std::move(packedTexture));
+        auto textureId = doc.textures.Append(std::move(packedTexture), AppendIdPolicy::GenerateOnEmpty).id;
 
         rapidjson::Value packedTextureJson(rapidjson::kObjectType);
         {
-            packedTextureJson.AddMember(rapidjson::StringRef(MSFT_PACKING_INDEX_KEY), rapidjson::Value(std::stoi(textureId)), a);
+            packedTextureJson.AddMember(rapidjson::StringRef(MSFT_PACKING_INDEX_KEY), rapidjson::Value(doc.textures.GetIndex(textureId)), a);
         }
         switch (packing)
         {
@@ -48,6 +46,43 @@ namespace
             throw GLTFException("Invalid packing.");
         }
     }
+}
+
+std::unordered_set<int> GLTFTexturePackingUtils::GetTextureIndicesFromMsftExtensions(const Material& material)
+{
+    static const char* extensionKeys[] = {
+        EXTENSION_MSFT_PACKING_ORM,
+        EXTENSION_MSFT_PACKING_NRM
+    };
+
+    static const char* textureKeys[] = {
+        MSFT_PACKING_ORM_ORMTEXTURE_KEY,
+        MSFT_PACKING_ORM_RMOTEXTURE_KEY,
+        MSFT_PACKING_ORM_NORMALTEXTURE_KEY,
+        MSFT_PACKING_NRM_KEY
+    };
+
+    std::unordered_set<int> textureIndices;
+
+    for (const auto& extensionKey : extensionKeys)
+    {
+        auto extensionIt = material.extensions.find(extensionKey);
+        if (extensionIt != material.extensions.end() && !extensionIt->second.empty())
+        {
+            rapidjson::Document extJson = RapidJsonUtils::CreateDocumentFromString(extensionIt->second);
+
+            for (const auto& textureKey : textureKeys)
+            {
+                if (extJson.HasMember(textureKey))
+                {
+                    const auto index = extJson[textureKey][MSFT_PACKING_INDEX_KEY].GetInt();
+                    textureIndices.insert(index);
+                }
+            }
+        }
+    }
+
+    return textureIndices;
 }
 
 Document GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document& doc, const Material& material, TexturePacking packing, const std::string& outputDirectory)
