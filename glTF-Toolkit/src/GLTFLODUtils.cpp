@@ -361,21 +361,27 @@ namespace
                         // lower quality LODs can have fewer images and textures than the highest LOD,
                         // so we need to find the correct material index for the same material from the highest LOD
 
-                        auto localMaterial = lod.materials.Get(primitive.materialId);
+                        const Material& localMaterial = lod.materials.Get(primitive.materialId);
 
                         // find merged material index for the given material index in this LOD
                         auto iter = std::find_if(gltfLod.materials.Elements().begin(),
                                 gltfLod.materials.Elements().end(),
-                                [localMaterial](auto globalMaterial) {
+                                [localMaterial](const Material& globalMaterial) {
                                     // check that the materials are the same, noting that the texture and material ids will differ
                                     return localMaterial.name == globalMaterial.name &&
-                                        localMaterial.alphaMode == globalMaterial.alphaMode &&
-                                        localMaterial.alphaCutoff == globalMaterial.alphaCutoff &&
-                                        localMaterial.emissiveFactor == globalMaterial.emissiveFactor &&
-                                        localMaterial.doubleSided == globalMaterial.doubleSided &&
-                                        localMaterial.metallicRoughness.baseColorFactor == globalMaterial.metallicRoughness.baseColorFactor &&
-                                        localMaterial.metallicRoughness.metallicFactor == globalMaterial.metallicRoughness.metallicFactor &&
-                                        localMaterial.occlusionTexture.strength == globalMaterial.occlusionTexture.strength;
+                                           localMaterial.alphaMode == globalMaterial.alphaMode &&
+                                           localMaterial.alphaCutoff == globalMaterial.alphaCutoff &&
+                                           localMaterial.emissiveFactor == globalMaterial.emissiveFactor &&
+                                           localMaterial.doubleSided == globalMaterial.doubleSided &&
+                                           localMaterial.metallicRoughness.baseColorFactor == globalMaterial.metallicRoughness.baseColorFactor &&
+                                           localMaterial.metallicRoughness.metallicFactor == globalMaterial.metallicRoughness.metallicFactor &&
+                                           localMaterial.occlusionTexture.strength == globalMaterial.occlusionTexture.strength &&
+                                           localMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() == globalMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() && 
+                                           (!localMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() ||
+                                             (localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().diffuseFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().diffuseFactor &&
+                                              localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().glossinessFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().glossinessFactor &&
+                                              localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().specularFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().specularFactor)
+                                           );
                                 }
                         );
 
