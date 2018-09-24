@@ -62,14 +62,45 @@ private:
     std::shared_ptr<std::ofstream> m_stream;
 };
 
+Document ProcessTextures(
+    size_t maxTextureSize, 
+    TexturePacking packing, 
+    bool retainOriginalImages, 
+    const std::wstring& tempDirectory,
+    const Document& document, 
+    const std::shared_ptr<GLTFStreamReader>& streamReader)
+{
+    Document resultDocument(document);
+
+    std::string tempDirectoryA(tempDirectory.begin(), tempDirectory.end());
+
+    std::wcout << L"Specular Glossiness conversion..." << std::endl;
+
+    // 0. Specular Glossiness conversion
+    resultDocument = GLTFSpecularGlossinessUtils::ConvertMaterials(streamReader, resultDocument, tempDirectoryA);
+
+    std::wcout << L"Removing redundant textures and images..." << std::endl;
+
+    // 1. Remove redundant textures and images
+    resultDocument = GLTFTextureUtils::RemoveRedundantTexturesAndImages(resultDocument);
+
+    std::wcout << L"Packing textures..." << std::endl;
+
+    // 2. Texture Packing
+    resultDocument = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, resultDocument, packing, tempDirectoryA);
+
+    std::wcout << L"Compressing textures - this can take a few minutes..." << std::endl;
+
+    // 3. Texture Compression
+    resultDocument = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, resultDocument, tempDirectoryA, maxTextureSize, retainOriginalImages);
+
+    return resultDocument;
+}
+
 Document LoadAndConvertDocumentForWindowsMR(
     std::wstring& inputFilePath,
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
-    size_t maxTextureSize,
-    TexturePacking packing,
-    bool processTextures,
-    bool retainOriginalImages,
     bool meshCompression)
 {
     // Load the document
@@ -100,29 +131,6 @@ Document LoadAndConvertDocumentForWindowsMR(
     // Get the base path from where to read all the assets
 
     auto streamReader = std::make_shared<GLTFStreamReader>(FileSystem::GetBasePath(inputFilePath));
-
-    if (processTextures)
-    {
-        std::wcout << L"Specular Glossiness conversion..." << std::endl;
-
-        // 0. Specular Glossiness conversion
-        document = GLTFSpecularGlossinessUtils::ConvertMaterials(streamReader, document, tempDirectoryA);
-
-        std::wcout << L"Removing redundant textures and images..." << std::endl;
-
-        // 1. Remove redundant textures and images
-        document = GLTFTextureUtils::RemoveRedundantTexturesAndImages(document);
-
-        std::wcout << L"Packing textures..." << std::endl;
-
-        // 2. Texture Packing
-        document = GLTFTexturePackingUtils::PackAllMaterialsForWindowsMR(streamReader, document, packing, tempDirectoryA);
-
-        std::wcout << L"Compressing textures - this can take a few minutes..." << std::endl;
-
-        // 3. Texture Compression
-        document = GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(streamReader, document, tempDirectoryA, maxTextureSize, retainOriginalImages);
-    }
 
     if (meshCompression)
     {
@@ -207,12 +215,11 @@ int wmain(int argc, wchar_t *argv[])
         std::wcout << L"\nThis will generate an asset compatible with " << compatibleVersionsText << L"\n" << std::endl;
 
         // Load document, and perform steps:
-        // 1. Texture Packing
-        // 2. Texture Compression
-        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, maxTextureSize, packing, true /* processTextures */, !replaceTextures, meshCompression);
+        // 1. Mesh Compression
+        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, meshCompression);
 
-        // 3. LOD Merging
-        if (lodFilePaths.size() > 0)
+        // 2. LOD Merging
+        if (!lodFilePaths.empty())
         {
             std::wcout << L"Merging LODs..." << std::endl;
 
@@ -226,7 +233,7 @@ int wmain(int argc, wchar_t *argv[])
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
-                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, maxTextureSize, packing, !shareMaterials, !replaceTextures, meshCompression));
+                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, meshCompression));
             
                 lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }
@@ -234,13 +241,18 @@ int wmain(int argc, wchar_t *argv[])
             document = GLTFLODUtils::MergeDocumentsAsLODs(lodDocuments, screenCoveragePercentages, lodDocumentRelativePaths, shareMaterials);
         }
 
-        // 4. Make sure there's a default scene
+        // 3. Texture Packing
+        // 4. Texture Compression
+        auto streamReader = std::make_shared<GLTFStreamReader>(FileSystem::GetBasePath(inputFilePath));
+        document = ProcessTextures(maxTextureSize, packing, !replaceTextures, tempDirectory, document, streamReader);
+
+        // 5. Make sure there's a default scene
         if (!document.HasDefaultScene())
         {
             document.defaultSceneId = document.scenes.Elements()[0].id;
         }
 
-        // 5. GLB Export
+        // 6. GLB Export
         std::wcout << L"Exporting as GLB..." << std::endl;
 
         // The Windows MR Fall Creators update has restrictions on the supported
@@ -267,7 +279,6 @@ int wmain(int argc, wchar_t *argv[])
             return accessor.componentType;
         };
 
-        auto streamReader = std::make_shared<GLTFStreamReader>(FileSystem::GetBasePath(inputFilePath));
         SerializeBinary(document, streamReader, std::make_shared<GLBStreamWriter>(outFilePath), accessorConversion);
 
         std::wcout << L"Done!" << std::endl;
