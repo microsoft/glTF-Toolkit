@@ -361,12 +361,12 @@ namespace
                         // lower quality LODs can have fewer images and textures than the highest LOD,
                         // so we need to find the correct material index for the same material from the highest LOD
 
-                        auto localMaterial = lod.materials.Get(primitive.materialId);
+                        const Material& localMaterial = lod.materials.Get(primitive.materialId);
 
                         // find merged material index for the given material index in this LOD
                         auto iter = std::find_if(gltfLod.materials.Elements().begin(),
                                 gltfLod.materials.Elements().end(),
-                                [localMaterial](auto globalMaterial) {
+                                [localMaterial](const Material& globalMaterial) {
                                     // check that the materials are the same, noting that the texture and material ids will differ
                                     return localMaterial.name == globalMaterial.name &&
                                            localMaterial.alphaMode == globalMaterial.alphaMode &&
