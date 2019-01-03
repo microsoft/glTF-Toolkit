@@ -128,6 +128,8 @@ GLTFDocument LoadAndConvertDocumentForWindowsMR(
         auto tempDirectoryA = std::string(tempDirectory.begin(), tempDirectory.end());
         auto inputFileNameA = std::string(inputFileName.begin(), inputFileName.end());
 
+
+        
         auto options = MeshOptions::Defaults();
         options.GenerateTangentSpace = generateTangents;
 

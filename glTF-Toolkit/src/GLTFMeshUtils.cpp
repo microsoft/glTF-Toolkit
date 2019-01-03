@@ -17,29 +17,10 @@ using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
 using namespace std::experimental::filesystem;
 
-namespace
-{
-    class BasicStreamWriter : public IStreamWriter
-    {
-    public:
-        BasicStreamWriter(const std::string& OutputDirectory)
-            : m_OutputDir(OutputDirectory)
-        { }
-
-        std::shared_ptr<std::ostream> GetOutputStream(const std::string& Filename) const override
-        {
-            return std::make_shared<std::ofstream>(m_OutputDir + Filename, std::ios::binary);
-        }
-
-    private:
-        std::string m_OutputDir;
-    };
-}
-
 //-----------------------------------------
 // Main Entrypoint
 
-GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& filename, const GLTFDocument& doc, const IStreamReader& reader, const MeshOptions& options, const std::string& outputDirectory)
+GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& filename, const GLTFDocument& doc, const IStreamReader& reader, const MeshOptions& options, std::unique_ptr<const IStreamWriter>& streamWriter)
 {
     // Make sure there's meshes to optimize before performing a bunch of work. 
     if (doc.meshes.Size() == 0 || doc.buffers.Size() == 0)
@@ -55,20 +36,16 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& filename, const GLT
 
     // Generate a buffer name, based on the old buffer .bin filename, in the output directory.
     std::string bufferName = filename;
-    size_t Pos = bufferName.find_last_of('.');
-    if (Pos == std::string::npos)
+    size_t pos = bufferName.find_last_of('.');
+    if (pos == std::string::npos)
     {
         return doc;
     }
-    bufferName.resize(Pos);
-
-    // Create output directory for file output.
-    create_directories(outputDirectory);
+    bufferName.resize(pos);
 
     // Spin up a document copy to modify.
     GLTFDocument outputDoc(doc);
 
-    auto streamWriter = std::make_unique<BasicStreamWriter>(outputDirectory);
     auto resourceWriter = std::make_unique<GLTFResourceWriter2>(std::move(streamWriter), bufferName);
 
     auto genBufferId = [&](const BufferBuilder& b) { return std::to_string(outputDoc.buffers.Size() + b.GetBufferCount()); };

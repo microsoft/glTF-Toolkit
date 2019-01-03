@@ -66,7 +66,7 @@ namespace Microsoft::glTF::Toolkit
         const uint8_t* ptr = src + offset;
         for (size_t i = 0; i < count; ++i, ptr += stride)
         {
-            XMSerializer<To>::Read<From, Dimension>(*(dest + i), (From*)ptr);
+            XMSerializer<To>::template Read<From, Dimension>(*(dest + i), (From*)ptr);
         }
     }
 
@@ -161,7 +161,7 @@ namespace Microsoft::glTF::Toolkit
         uint8_t* ptr = dest + offset;
         for (size_t i = 0; i < count; ++i, ptr += stride)
         {
-            XMSerializer<From>::Write<To, Dimension>((To*)ptr, src[i]);
+            XMSerializer<From>::template Write<To, Dimension>((To*)ptr, src[i]);
         }
     }
 

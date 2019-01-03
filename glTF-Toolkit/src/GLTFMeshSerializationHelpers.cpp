@@ -6,7 +6,6 @@
 #include <numeric>
 #include <DirectXMesh.h>
 
-#include "DirectXMathUtils.h"
 #include "GLTFMeshUtils.h"
 #include "GLTFMeshSerializationHelpers.h"
 
@@ -33,19 +32,6 @@ namespace
 
     template <typename T, size_t N>
     constexpr auto ArrayCount(T(&)[N]) { return N; }
-
-    std::string(MeshPrimitive::*s_AccessorIds[Count]) =
-    {
-        &MeshPrimitive::indicesAccessorId,   // 0 Indices
-        &MeshPrimitive::positionsAccessorId, // 1 Positions
-        &MeshPrimitive::normalsAccessorId,   // 2 Normals
-        &MeshPrimitive::tangentsAccessorId,  // 3 Tangents
-        &MeshPrimitive::uv0AccessorId,       // 4 UV0
-        &MeshPrimitive::uv1AccessorId,       // 5 UV1
-        &MeshPrimitive::color0AccessorId,    // 6 Color0
-        &MeshPrimitive::joints0AccessorId,   // 7 Joints0
-        &MeshPrimitive::weights0AccessorId,  // 8 Weights0
-    };
 }
 
 

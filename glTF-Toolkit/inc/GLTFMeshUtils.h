@@ -7,7 +7,7 @@ namespace Microsoft::glTF
 { 
     class GLTFDocument;
     class IStreamReader;
-    class IStreamFactory;
+    class IStreamWriter;
 
     namespace Toolkit
     {
@@ -66,7 +66,7 @@ namespace Microsoft::glTF
         class GLTFMeshUtils
         {
         public:
-            static GLTFDocument ProcessMeshes(const std::string& gLTFPath, const GLTFDocument& doc, const IStreamReader& reader, const MeshOptions& options, const std::string& outputDirectory);
+            static GLTFDocument ProcessMeshes(const std::string& gLTFPath, const GLTFDocument& doc, const IStreamReader& reader, const MeshOptions& options, std::unique_ptr<const IStreamWriter>& streamWriter);
         };
     }
 }

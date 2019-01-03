@@ -25,12 +25,12 @@ namespace Microsoft::glTF::Toolkit::Test
 {
     using namespace std::experimental::filesystem;
 
-    const char* s_TestFiles[] ={
+    const char* s_testFiles[] ={
         "Resources\\gltf\\2CylinderEngine\\2CylinderEngine.gltf",
         "Resources\\gltf\\BoxAnimated\\BoxAnimated.gltf",
         "Resources\\gltf\\03_all_animations\\03_all_animations.gltf",
     };
-    const size_t s_TestFileIdx = 2;
+    const size_t s_testFileIdx = 2;
 
     TEST_CLASS(GLTFMeshUtilsTest)
     {
@@ -40,7 +40,7 @@ namespace Microsoft::glTF::Toolkit::Test
             {
                 std::regex dataUriRegex = std::regex(R"(^data:(?:application|image)/.+;base\d{1,2},)");
 
-                std::string outputName = TestUtils::GetFilenameExt(path.c_str());
+                std::string outputName = TestUtils::GetFileExtension(path.c_str());
                 std::string basePath = TestUtils::GetBasePath(path.c_str());
                 std::string outputDirectory = basePath + "..\\" + TestUtils::GetFilename(outputName) + "_OpMesh\\";
 
@@ -88,7 +88,7 @@ namespace Microsoft::glTF::Toolkit::Test
             options.AttributeFormat = AttributeFormat::Separate;
             options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+            ExecuteTest(s_testFiles[s_testFileIdx], options);
         }
 
         TEST_METHOD(GLTFMeshUtils_Optimize)
@@ -99,7 +99,7 @@ namespace Microsoft::glTF::Toolkit::Test
             options.AttributeFormat = AttributeFormat::Separate;
             options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+            ExecuteTest(s_testFiles[s_testFileIdx], options);
         }
 
         TEST_METHOD(GLTFMeshUtils_Tangents)
@@ -110,10 +110,10 @@ namespace Microsoft::glTF::Toolkit::Test
             options.AttributeFormat = AttributeFormat::Separate;
             options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+            ExecuteTest(s_testFiles[s_testFileIdx], options);
         }
 
-        TEST_METHOD(GLTFMeshUtils_CI)
+        TEST_METHOD(GLTFMeshUtils_CombinedInterleaved)
         {
             MeshOptions options;
             options.Optimize = false;
@@ -121,10 +121,10 @@ namespace Microsoft::glTF::Toolkit::Test
             options.AttributeFormat = AttributeFormat::Interleave;
             options.PrimitiveFormat = PrimitiveFormat::Combine;
 
-            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+            ExecuteTest(s_testFiles[s_testFileIdx], options);
         }
 
-        TEST_METHOD(GLTFMeshUtils_CS)
+        TEST_METHOD(GLTFMeshUtils_CombinedSeparated)
         {
             MeshOptions options;
             options.Optimize = false;
@@ -132,10 +132,10 @@ namespace Microsoft::glTF::Toolkit::Test
             options.AttributeFormat = AttributeFormat::Separate;
             options.PrimitiveFormat = PrimitiveFormat::Combine;
 
-            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+            ExecuteTest(s_testFiles[s_testFileIdx], options);
         }
 
-        TEST_METHOD(GLTFMeshUtils_SI)
+        TEST_METHOD(GLTFMeshUtils_SeparateInterleaved)
         {
             MeshOptions options;
             options.Optimize = false;
@@ -143,10 +143,10 @@ namespace Microsoft::glTF::Toolkit::Test
             options.AttributeFormat = AttributeFormat::Interleave;
             options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+            ExecuteTest(s_testFiles[s_testFileIdx], options);
         }
 
-        TEST_METHOD(GLTFMeshUtils_SS)
+        TEST_METHOD(GLTFMeshUtils_SeparateSeparate)
         {
             MeshOptions options;
             options.Optimize = false;
@@ -154,7 +154,7 @@ namespace Microsoft::glTF::Toolkit::Test
             options.AttributeFormat = AttributeFormat::Separate;
             options.PrimitiveFormat = PrimitiveFormat::Separate;
 
-            ExecuteTest(s_TestFiles[s_TestFileIdx], options);
+            ExecuteTest(s_testFiles[s_testFileIdx], options);
         }
     };
 }

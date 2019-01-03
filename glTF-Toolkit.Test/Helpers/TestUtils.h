@@ -38,27 +38,27 @@ namespace Microsoft::glTF::Toolkit::Test
 #endif
         }
 
-		static std::string GetFilenameExt(const std::string& AbsolutePath)
+		static std::string GetFileExtension(const std::string& absolutePath)
 		{
 #ifdef __APPLE__
-			const char Delimiter = '/';
+			const char delimiter = '/';
 #else
-			const char Delimiter = '\\';
+			const char delimiter = '\\';
 #endif
-			if (AbsolutePath.back() == Delimiter)
+			if (absolutePath.back() == delimiter)
 			{
 				return std::string();
 			}
 
-			auto Pos = AbsolutePath.find_last_of(Delimiter);
-			return Pos == std::string::npos ? AbsolutePath : AbsolutePath.substr(Pos + 1);
+			auto Pos = absolutePath.find_last_of(delimiter);
+			return Pos == std::string::npos ? absolutePath : absolutePath.substr(Pos + 1);
 		}
 
-		static std::string GetFilename(const std::string& AbsolutePath)
+		static std::string GetFilename(const std::string& absolutePath)
 		{
-			std::string Filename = GetFilenameExt(AbsolutePath);
-			auto Pos = Filename.find_last_of('.');
-			return Pos == std::string::npos ? AbsolutePath : AbsolutePath.substr(0, Pos);
+			std::string filename = GetFileExtension(absolutePath);
+			auto pos = filename.find_last_of('.');
+			return pos == std::string::npos ? absolutePath : absolutePath.substr(0, pos);
 		}
 
         static std::string GetAbsolutePath(const char * relativePath)
