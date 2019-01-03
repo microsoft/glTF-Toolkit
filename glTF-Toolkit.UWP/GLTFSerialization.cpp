@@ -8,7 +8,7 @@
 #include <GLBtoGLTF.h>
 #include <SerializeBinary.h>
 
-#include <GLTFSDK/GLTFDocument.h>
+#include <GLTFSDK/Document.h>
 
 using namespace Concurrency;
 using namespace Microsoft::glTF;
@@ -50,19 +50,18 @@ IAsyncOperation<StorageFile^>^ GLTFSerialization::PackGLTFAsync(StorageFile^ sou
 
         return create_task([stream]()
         {
-            return std::make_shared<GLTFDocument>(DeserializeJson(*stream));
+            return std::make_shared<Document>(Deserialize(*stream));
         })
-        .then([sourceGltf, outputFolder, glbName](std::shared_ptr<GLTFDocument> document)
+        .then([sourceGltf, outputFolder, glbName](std::shared_ptr<Document> document)
         {
             return create_task(sourceGltf->GetParentAsync())
             .then([outputFolder, glbName, document](StorageFolder^ gltfFolder)
             { 
-                GLTFStreamReader streamReader(gltfFolder);
+                auto streamReader = std::make_shared<GLTFStreamReader>(gltfFolder);
 
                 String^ outputGlbPath = outputFolder->Path + "\\" + glbName;
                 std::wstring outputGlbPathW = outputGlbPath->Data();
-                std::unique_ptr<const IStreamFactory> streamFactory = std::make_unique<GLBStreamFactory>(outputGlbPathW);
-                SerializeBinary(*document, streamReader, streamFactory);
+                SerializeBinary(*document, streamReader, std::make_shared<GLBStreamWriter>(outputGlbPathW));
 
                 return outputFolder->GetFileAsync(glbName);
             });

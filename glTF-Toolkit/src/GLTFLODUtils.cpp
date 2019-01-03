@@ -8,10 +8,10 @@
 #include "GLTFLODUtils.h"
 
 #include "GLTFSDK/GLTF.h"
-#include "GLTFSDK/GLTFConstants.h"
+#include "GLTFSDK/Constants.h"
 #include "GLTFSDK/Deserialize.h"
 #include "GLTFSDK/RapidJsonUtils.h"
-#include "GLTFSDK/Schema.h"
+#include "GLTFSDK/ExtensionsKHR.h"
 
 #include <algorithm>
 #include <iostream>
@@ -33,14 +33,24 @@ namespace
         id = (id.empty()) ? "" : std::to_string(std::stoi(id) + offset);
     }
 
+    inline void AddIndexOffset(MeshPrimitive& primitive, const char* attributeName, size_t offset)
+    {
+        // an empty id string indicates that the id is not inuse and therefore should not be updated
+        auto attributeItr = primitive.attributes.find(attributeName);
+        if (attributeItr != primitive.attributes.end())
+        {
+            attributeItr->second = std::to_string(std::stoi(attributeItr->second) + offset);
+        }
+    }
+
     inline void AddIndexOffsetPacked(rapidjson::Value& json, const char* textureId, size_t offset)
     {
         if (json.HasMember(textureId))
         {
-            if (json[textureId].HasMember("index"))
+            if (json[textureId].HasMember(MSFT_PACKING_INDEX_KEY))
             {
-                auto index = json[textureId]["index"].GetInt();
-                json[textureId]["index"] = index + offset;
+                auto index = json[textureId][MSFT_PACKING_INDEX_KEY].GetInt();
+                json[textureId][MSFT_PACKING_INDEX_KEY] = index + offset;
             }
         }
     }
@@ -68,7 +78,7 @@ namespace
     }
 
     template <typename T>
-    std::string SerializeExtensionMSFTLod(const T&, const std::vector<std::string>& lods, const GLTFDocument& gltfDocument)
+    std::string SerializeExtensionMSFTLod(const T&, const std::vector<std::string>& lods, const Document& document)
     {
         // Omit MSFT_lod entirely if no LODs are available
         if (lods.empty())
@@ -86,14 +96,14 @@ namespace
         {
             for (const auto& lodId : lods)
             {
-                lodIndices.push_back(ToKnownSizeType(gltfDocument.materials.GetIndex(lodId)));
+                lodIndices.push_back(ToKnownSizeType(document.materials.GetIndex(lodId)));
             }
         }
         else if (std::is_same<T, Node>())
         {
             for (const auto& lodId : lods)
             {
-                lodIndices.push_back(ToKnownSizeType(gltfDocument.nodes.GetIndex(lodId)));
+                lodIndices.push_back(ToKnownSizeType(document.nodes.GetIndex(lodId)));
             }
         }
         else
@@ -110,9 +120,9 @@ namespace
         return stringBuffer.GetString();
     }
 
-    GLTFDocument AddGLTFNodeLOD(const GLTFDocument& primary, LODMap& primaryLods, const GLTFDocument& lod, const std::wstring& relativePath = L"", bool sharedMaterials = false)
+    Document AddGLTFNodeLOD(const Document& primary, LODMap& primaryLods, const Document& lod, const std::wstring& relativePath = L"", bool sharedMaterials = false)
     {
-        Microsoft::glTF::GLTFDocument gltfLod(primary);
+        Microsoft::glTF::Document gltfLod(primary);
 
         auto primaryScenes = primary.scenes.Elements();
         auto lodScenes = lod.scenes.Elements();
@@ -274,15 +284,18 @@ namespace
                 material.name += nodeLodLabel;
                 AddIndexOffset(material.id, materialOffset);
 
-                AddIndexOffset(material.normalTexture.id, texturesOffset);
-                AddIndexOffset(material.occlusionTexture.id, texturesOffset);
-                AddIndexOffset(material.emissiveTextureId, texturesOffset);
+                AddIndexOffset(material.normalTexture.textureId, texturesOffset);
+                AddIndexOffset(material.occlusionTexture.textureId, texturesOffset);
+                AddIndexOffset(material.emissiveTexture.textureId, texturesOffset);
 
-                AddIndexOffset(material.metallicRoughness.baseColorTextureId, texturesOffset);
-                AddIndexOffset(material.metallicRoughness.metallicRoughnessTextureId, texturesOffset);
+                AddIndexOffset(material.metallicRoughness.baseColorTexture.textureId, texturesOffset);
+                AddIndexOffset(material.metallicRoughness.metallicRoughnessTexture.textureId, texturesOffset);
 
-                AddIndexOffset(material.specularGlossiness.diffuseTextureId, texturesOffset);
-                AddIndexOffset(material.specularGlossiness.specularGlossinessTextureId, texturesOffset);
+                if (material.HasExtension<KHR::Materials::PBRSpecularGlossiness>())
+                {
+                    AddIndexOffset(material.GetExtension<KHR::Materials::PBRSpecularGlossiness>().diffuseTexture.textureId, texturesOffset);
+                    AddIndexOffset(material.GetExtension<KHR::Materials::PBRSpecularGlossiness>().specularGlossinessTexture.textureId, texturesOffset);
+                }
 
                 // MSFT_packing_occlusionRoughnessMetallic packed textures
                 auto ormExtensionIt = material.extensions.find(EXTENSION_MSFT_PACKING_ORM);
@@ -290,15 +303,30 @@ namespace
                 {
                     rapidjson::Document ormJson = RapidJsonUtils::CreateDocumentFromString(ormExtensionIt->second);
 
-                    AddIndexOffsetPacked(ormJson, "occlusionRoughnessMetallicTexture", texturesOffset);
-                    AddIndexOffsetPacked(ormJson, "roughnessMetallicOcclusionTexture", texturesOffset);
-                    AddIndexOffsetPacked(ormJson, "normalTexture", texturesOffset);
+                    AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_ORMTEXTURE_KEY, texturesOffset);
+                    AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_RMOTEXTURE_KEY, texturesOffset);
+                    AddIndexOffsetPacked(ormJson, MSFT_PACKING_ORM_NORMALTEXTURE_KEY, texturesOffset);
 
                     rapidjson::StringBuffer buffer;
                     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
                     ormJson.Accept(writer);
 
                     ormExtensionIt->second = buffer.GetString();
+                }
+
+                // MSFT_packing_normalRoughnessMetallic packed texture
+                auto nrmExtensionIt = material.extensions.find(EXTENSION_MSFT_PACKING_NRM);
+                if (nrmExtensionIt != material.extensions.end() && !nrmExtensionIt->second.empty())
+                {
+                    rapidjson::Document nrmJson = RapidJsonUtils::CreateDocumentFromString(nrmExtensionIt->second);
+
+                    AddIndexOffsetPacked(nrmJson, MSFT_PACKING_NRM_KEY, texturesOffset);
+                    
+                    rapidjson::StringBuffer buffer;
+                    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+                    nrmJson.Accept(writer);
+
+                    nrmExtensionIt->second = buffer.GetString();
                 }
 
                 gltfLod.materials.Append(std::move(material));
@@ -318,24 +346,27 @@ namespace
 
                 for (auto &primitive : mesh.primitives)
                 {
-                    AddIndexOffset(primitive.positionsAccessorId, accessorOffset);
-                    AddIndexOffset(primitive.normalsAccessorId, accessorOffset);
                     AddIndexOffset(primitive.indicesAccessorId, accessorOffset);
-                    AddIndexOffset(primitive.uv0AccessorId, accessorOffset);
-                    AddIndexOffset(primitive.uv1AccessorId, accessorOffset);
-                    AddIndexOffset(primitive.color0AccessorId, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_POSITION, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_NORMAL, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_TEXCOORD_0, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_TEXCOORD_1, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_COLOR_0, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_TANGENT, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_JOINTS_0, accessorOffset);
+                    AddIndexOffset(primitive, ACCESSOR_WEIGHTS_0, accessorOffset);
 
                     if (sharedMaterials)
                     {
                         // lower quality LODs can have fewer images and textures than the highest LOD,
                         // so we need to find the correct material index for the same material from the highest LOD
 
-                        auto localMaterial = lod.materials.Get(primitive.materialId);
+                        const Material& localMaterial = lod.materials.Get(primitive.materialId);
 
                         // find merged material index for the given material index in this LOD
                         auto iter = std::find_if(gltfLod.materials.Elements().begin(),
                                 gltfLod.materials.Elements().end(),
-                                [localMaterial](auto globalMaterial) {
+                                [localMaterial](const Material& globalMaterial) {
                                     // check that the materials are the same, noting that the texture and material ids will differ
                                     return localMaterial.name == globalMaterial.name &&
                                            localMaterial.alphaMode == globalMaterial.alphaMode &&
@@ -345,9 +376,12 @@ namespace
                                            localMaterial.metallicRoughness.baseColorFactor == globalMaterial.metallicRoughness.baseColorFactor &&
                                            localMaterial.metallicRoughness.metallicFactor == globalMaterial.metallicRoughness.metallicFactor &&
                                            localMaterial.occlusionTexture.strength == globalMaterial.occlusionTexture.strength &&
-                                           localMaterial.specularGlossiness.diffuseFactor == globalMaterial.specularGlossiness.diffuseFactor &&
-                                           localMaterial.specularGlossiness.glossinessFactor == globalMaterial.specularGlossiness.glossinessFactor &&
-                                           localMaterial.specularGlossiness.specularFactor == globalMaterial.specularGlossiness.specularFactor;
+                                           localMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() == globalMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() && 
+                                           (!localMaterial.HasExtension<KHR::Materials::PBRSpecularGlossiness>() ||
+                                             (localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().diffuseFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().diffuseFactor &&
+                                              localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().glossinessFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().glossinessFactor &&
+                                              localMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().specularFactor == globalMaterial.GetExtension<KHR::Materials::PBRSpecularGlossiness>().specularFactor)
+                                           );
                                 }
                         );
 
@@ -436,14 +470,14 @@ namespace
                     newAnimation.samplers.Append(std::move(newSampler));
                 }
                 
-                size_t channelsOffset = baseAnimation.channels.size();
-                for (auto channel : lodAnimation.channels)
+                size_t channelOffset = baseAnimation.channels.Size();
+                for (auto channel : lodAnimation.channels.Elements())
                 {
-                    AddIndexOffset(channel.id, channelsOffset);
+                    AddIndexOffset(channel.id, channelOffset);
                     AddIndexOffset(channel.target.nodeId, nodeOffset);
                     AddIndexOffset(channel.samplerId, samplerOffset);
 
-                    newAnimation.channels.push_back(std::move(channel));
+                    newAnimation.channels.Append(std::move(channel));
                 }
                 gltfLod.animations.Replace(newAnimation);
             }
@@ -467,7 +501,7 @@ namespace
     }
 }
 
-LODMap GLTFLODUtils::ParseDocumentNodeLODs(const GLTFDocument& doc)
+LODMap GLTFLODUtils::ParseDocumentNodeLODs(const Document& doc)
 {
     LODMap lodMap;
 
@@ -479,14 +513,14 @@ LODMap GLTFLODUtils::ParseDocumentNodeLODs(const GLTFDocument& doc)
     return lodMap;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths, const bool& sharedMaterials)
+Document GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<Document>& docs, const std::vector<std::wstring>& relativePaths, const bool& sharedMaterials)
 {
     if (docs.empty())
     {
         throw std::invalid_argument("MergeDocumentsAsLODs passed empty vector");
     }
 
-    GLTFDocument gltfPrimary(docs[0]);
+    Document gltfPrimary(docs[0]);
     LODMap lods = ParseDocumentNodeLODs(gltfPrimary);
 
     for (size_t i = 1; i < docs.size(); i++)
@@ -514,9 +548,9 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
     return gltfPrimary;
 }
 
-GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths, const bool& sharedMaterials)
+Document GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<Document>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths, const bool& sharedMaterials)
 {
-    GLTFDocument merged = MergeDocumentsAsLODs(docs, relativePaths, sharedMaterials);
+    Document merged = MergeDocumentsAsLODs(docs, relativePaths, sharedMaterials);
 
     if (screenCoveragePercentages.size() == 0)
     {
@@ -553,7 +587,7 @@ GLTFDocument GLTFLODUtils::MergeDocumentsAsLODs(const std::vector<GLTFDocument>&
     return merged;
 }
 
-uint32_t GLTFLODUtils::NumberOfNodeLODLevels(const GLTFDocument& doc, const LODMap& lods)
+uint32_t GLTFLODUtils::NumberOfNodeLODLevels(const Document& doc, const LODMap& lods)
 {
     size_t maxLODLevel = 0;
     for (auto node : doc.nodes.Elements())

@@ -7,7 +7,7 @@
 
 #include <memory>
 #include "GLTFSDK/IStreamWriter.h"
-#include "GLTFSDK/GLTFConstants.h"
+#include "GLTFSDK/Constants.h"
 #include "GLTFSDK/Serialize.h"
 #include "GLTFSDK/Deserialize.h"
 
@@ -137,7 +137,7 @@ namespace Microsoft::glTF::Toolkit::Test
             return tempStream;
         }
 
-        typedef std::function<void(const GLTFDocument& doc, const std::string& gltfAbsolutePath)> GLTFAction;
+        typedef std::function<void(const Document& doc, const std::string& gltfAbsolutePath)> GLTFAction;
 
         static void LoadAndExecuteGLTFTest(const char * gltfRelativePath, GLTFAction action)
         {
@@ -148,7 +148,7 @@ namespace Microsoft::glTF::Toolkit::Test
             {
                 // Deserialize input json
                 auto inputJson = std::string(std::istreambuf_iterator<char>(*input), std::istreambuf_iterator<char>());
-                auto doc = DeserializeJson(inputJson);
+                auto doc = Deserialize(inputJson);
 
                 action(doc, absolutePath);
             }

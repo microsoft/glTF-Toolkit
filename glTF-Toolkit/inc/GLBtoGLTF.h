@@ -3,10 +3,7 @@
 
 #pragma once
 
-#include <GLTFSDK/Deserialize.h>
-#include <GLTFSDK/Serialize.h>
-#include <GLTFSDK/GLTFResourceWriter.h>
-#include <GLTFSDK/GLBResourceReader.h>
+#include "GLTFSDK.h"
 
 namespace Microsoft::glTF::Toolkit
 {
@@ -40,7 +37,7 @@ namespace Microsoft::glTF::Toolkit
         /// <returns>
         /// The binary content of the buffer views as a vector.
         /// </returns>
-        static std::vector<char> SaveBin(std::istream* in, const Microsoft::glTF::GLTFDocument& glbDoc, const size_t bufferOffset, const size_t newBufferlength);
+        static std::vector<char> SaveBin(std::istream* in, const Microsoft::glTF::Document& glbDoc, const size_t bufferOffset, const size_t newBufferlength, std::unordered_set<std::string>& unpackedBufferViews);
 
         /// <summary>
         /// Loads all images in a glTF-Binary (GLB) asset into a map relating each image identifier to the contents of that image.
@@ -52,7 +49,7 @@ namespace Microsoft::glTF::Toolkit
         /// <returns>
         /// A map relating each image identifier to the contents of that image.
         /// </returns>
-        static std::unordered_map<std::string, std::vector<char>> GetImagesData(std::istream* in, const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name, const size_t bufferOffset);
+        static std::unordered_map<std::string, std::vector<char>> GetImagesData(std::istream* in, const Microsoft::glTF::Document& glbDoc, const std::string& name, const size_t bufferOffset);
 
         /// <summary>
         /// Creates the glTF manifest that represents a GLB file after unpacking.
@@ -62,6 +59,6 @@ namespace Microsoft::glTF::Toolkit
         /// <returns>
         /// A new glTF manifest that represents the same file, but with images and resources referenced by URI instead of embedded ina GLB buffer.
         /// </returns>
-        static Microsoft::glTF::GLTFDocument CreateGLTFDocument(const Microsoft::glTF::GLTFDocument& glbDoc, const std::string& name);
+        static Microsoft::glTF::Document CreateGLTFDocument(const Microsoft::glTF::Document& glbDoc, const std::string& name, std::unordered_set<std::string>& unpackedBufferViews);
     };
 }

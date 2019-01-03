@@ -3,18 +3,25 @@
 
 #pragma once
 
-#include <GLTFSDK/GLTFDocument.h>
+#include "GLTFSDK.h"
 
 namespace Microsoft::glTF::Toolkit
 {
     extern const char* EXTENSION_MSFT_PACKING_ORM;
+    extern const char* EXTENSION_MSFT_PACKING_NRM;
+    extern const char* MSFT_PACKING_INDEX_KEY;
+    extern const char* MSFT_PACKING_ORM_ORMTEXTURE_KEY;
+    extern const char* MSFT_PACKING_ORM_RMOTEXTURE_KEY;
+    extern const char* MSFT_PACKING_ORM_NORMALTEXTURE_KEY;
+    extern const char* MSFT_PACKING_NRM_KEY;
 
     /// <summary>Texture packing flags. May be combined to pack multiple formats at once.</summary>
     enum TexturePacking
     {
         None = 0x0,
         OcclusionRoughnessMetallic = 0x1,
-        RoughnessMetallicOcclusion = 0x2
+        RoughnessMetallicOcclusion = 0x2,
+        NormalRoughnessMetallic = 0x4
     };
 
     /// <summary>
@@ -35,7 +42,7 @@ namespace Microsoft::glTF::Toolkit
         /// <returns>
         /// A new glTF manifest that uses the MSFT_packing_occlusionRoughnessMetallic extension to point to the packed textures.
         /// </returns>
-        static GLTFDocument PackMaterialForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, const Material & material, TexturePacking packing, const std::string& outputDirectory);
+        static Document PackMaterialForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const Material & material, TexturePacking packing, const std::string& outputDirectory);
 
         /// <summary>
         /// Applies <see cref="PackMaterialForWindowsMR" /> to every material in the document, following the same parameter structure as that function.
@@ -47,7 +54,9 @@ namespace Microsoft::glTF::Toolkit
         /// <returns>
         /// A new glTF manifest that uses the MSFT_packing_occlusionRoughnessMetallic extension to point to the packed textures.
         /// </returns>
-        static GLTFDocument PackAllMaterialsForWindowsMR(const IStreamReader& streamReader, const GLTFDocument & doc, TexturePacking packing, const std::string& outputDirectory);
+        static Document PackAllMaterialsForWindowsMR(std::shared_ptr<IStreamReader> streamReader, const Document & doc, TexturePacking packing, const std::string& outputDirectory);
+
+        static std::unordered_set<int> GetTextureIndicesFromMsftExtensions(const Material& material);
     };
 }
 

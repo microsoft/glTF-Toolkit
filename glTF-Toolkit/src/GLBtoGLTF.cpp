@@ -3,9 +3,29 @@
 
 #include "pch.h"
 #include "GLBtoGLTF.h"
+#include "GLTFSDK/ExtensionsKHR.h"
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
+
+static std::unordered_map<std::string, std::string> s_gltfMimeTypes = 
+{
+    { MIMETYPE_PNG, FILE_EXT_PNG },
+    { MIMETYPE_JPEG, FILE_EXT_JPEG },
+    { "image/vnd-ms.dds", "dds" },
+    { "text/plain", "glsl" },
+    { "audio/wav", "wav" },
+};
+
+std::string GuessFileExtension(const std::string& mimeType)
+{
+    auto itr = s_gltfMimeTypes.find(mimeType);
+    if (itr != s_gltfMimeTypes.end())
+    {
+        return itr->second;
+    }
+    return BUFFER_EXTENSION;
+}
 
 namespace
 {
@@ -41,7 +61,7 @@ namespace
     }
 }
 
-std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& glbDoc, const size_t bufferOffset, const size_t newBufferlength)
+std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const Document& glbDoc, const size_t bufferOffset, const size_t newBufferlength, std::unordered_set<std::string>& unpackedBufferViews)
 {
     if (newBufferlength == 0)
     {
@@ -50,20 +70,14 @@ std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& gl
 
     const auto images = glbDoc.images.Elements();
     const auto bufferViews = glbDoc.bufferViews.Elements();
-    std::unordered_set<std::string> imagesBufferViews;
-    for (const auto& im : images)
-    {
-        // save a copy of image buffer view IDs
-        imagesBufferViews.insert(im.bufferViewId);
-    }
 
     // gather all non-image bufferViews in UsedBufferViews
     std::vector<BufferView> usedBufferViews(bufferViews.size());
-    auto last = copy_if(bufferViews.begin(), bufferViews.end(), usedBufferViews.begin(), [imagesBufferViews](const auto& a)
+    auto end = copy_if(bufferViews.begin(), bufferViews.end(), usedBufferViews.begin(), [unpackedBufferViews](const auto& a)
     {
-        return imagesBufferViews.count(a.id) == 0;
+        return unpackedBufferViews.count(a.id) == 0;
     });
-    usedBufferViews.resize(distance(usedBufferViews.begin(), last));
+    usedBufferViews.resize(distance(usedBufferViews.begin(), end));
 
     // sort buffer views by offset
     sort(usedBufferViews.begin(), usedBufferViews.end(), [](const BufferView& a, const BufferView& b)
@@ -110,7 +124,7 @@ std::vector<char> GLBToGLTF::SaveBin(std::istream* input, const GLTFDocument& gl
     return result;
 }
 
-std::unordered_map<std::string, std::vector<char>> GLBToGLTF::GetImagesData(std::istream* input, const GLTFDocument& glbDoc, const std::string& name, const size_t bufferOffset)
+std::unordered_map<std::string, std::vector<char>> GLBToGLTF::GetImagesData(std::istream* input, const Document& glbDoc, const std::string& name, const size_t bufferOffset)
 {
     input->seekg(0, std::ios::beg);
     std::unordered_map<std::string, int> imageIDs;
@@ -157,31 +171,81 @@ std::unordered_map<std::string, std::vector<char>> GLBToGLTF::GetImagesData(std:
         currOffset += bufferView.byteLength;
 
         // write image file
-        std::string outname;
-        if (img.mimeType == MIMETYPE_PNG)
-        {
-            outname = name + "_image" + std::to_string(imageIDs[img.bufferViewId]) + "." + FILE_EXT_PNG;
-        }
-        else if (img.mimeType == MIMETYPE_JPEG)
-        {
-            outname = name + "_image" + std::to_string(imageIDs[img.bufferViewId]) + "." + FILE_EXT_JPEG;
-        }
-        else
-        {
-            // unknown mimetype
-            outname = name + "_image" + std::to_string(imageIDs[img.bufferViewId]);
-        }
+        std::string outname = name + "_image" + std::to_string(imageIDs[img.bufferViewId]) + "." + GuessFileExtension(img.mimeType);
 
-        imageStream[outname] = result;
+        imageStream[outname] = std::move(result);
     }
     return imageStream;
 }
 
+std::unordered_map<std::string, std::vector<char>> GetExtensionsData(std::istream* input, const Document& glbDoc, const std::string& name, const size_t bufferOffset)
+{
+    std::unordered_map<std::string, std::vector<char>> extensionStreams;
+    // Collect anything in extensions that looks like it should be unpacked.
+    for (const auto& extension : glbDoc.extensions)
+    {
+        rapidjson::Document extensionJson;
+        extensionJson.Parse(extension.second.c_str());
+        if (!extensionJson.IsObject())
+        {
+            continue;
+        }
+        for (auto& member : extensionJson.GetObject())
+        {
+            if (!member.value.IsArray())
+            {
+                continue;
+            }
+            for (auto& possibleBuffer : member.value.GetArray())
+            {
+                if (!possibleBuffer.IsObject())
+                {
+                    continue;
+                }
+                std::string bufferViewId{};
+                std::string mimeType{};
+                if (possibleBuffer.HasMember("bufferView"))
+                {
+                    bufferViewId = std::to_string(possibleBuffer["bufferView"].GetUint());
+                    
+                }
+                else
+                {
+                    continue;
+                }
+                if (possibleBuffer.HasMember("mimeType"))
+                {
+                    mimeType = possibleBuffer["mimeType"].GetString();
+                }
+                try
+                {
+                    auto bufferView = glbDoc.bufferViews.Get(bufferViewId);
+                    auto filename = name + "_" + extension.first + "_" + member.name.GetString() + "_" + bufferViewId + "." + GuessFileExtension(mimeType);
+
+                    size_t offset = bufferOffset + bufferView.byteOffset;
+                    input->seekg(offset, std::ios::beg);
+                    std::vector<char> result;
+                    result.resize(bufferView.byteLength);
+                    input->read(&result[0], bufferView.byteLength);
+
+                    extensionStreams[filename] = std::move(result);
+                }
+                catch (...)
+                {
+                    // Didn't work out.
+                    continue;
+                }
+            }
+        }
+    }
+    return extensionStreams;
+}
+
 // Create modified gltf from original by removing image buffer segments and updating
 // images, bufferViews and accessors fields accordingly
-GLTFDocument GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std::string& name)
+Document GLBToGLTF::CreateGLTFDocument(const Document& glbDoc, const std::string& name, std::unordered_set<std::string>& unpackedBufferViews)
 {
-    GLTFDocument gltfDoc(glbDoc);
+    Document gltfDoc(glbDoc);
 
     gltfDoc.images.Clear();
     gltfDoc.buffers.Clear();
@@ -192,24 +256,91 @@ GLTFDocument GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std
     const auto buffers = glbDoc.buffers.Elements();
     const auto bufferViews = glbDoc.bufferViews.Elements();
     const auto accessors = glbDoc.accessors.Elements();
-    std::unordered_set<std::string> imagesBufferViews;
     std::unordered_map<std::string, std::string> bufferViewIndex;
 
     size_t updatedBufferSize = 0;
+    int imgId = 0;
     for (const auto& im : images)
     {
         // find which buffer segments correspond to images
-        imagesBufferViews.insert(im.bufferViewId);
+        unpackedBufferViews.insert(im.bufferViewId);
+
+        // update image fields with image names instead of buffer views
+        Image updatedImage;
+        updatedImage.id = std::to_string(imgId);
+        updatedImage.uri = name + "_image" + std::to_string(imgId) + "." + GuessFileExtension(im.mimeType);
+
+        gltfDoc.images.Append(std::move(updatedImage));
+        imgId++;
+    }
+
+    // Collect anything in extensions that looks like it should be unpacked.
+    for (auto& extension : gltfDoc.extensions)
+    {
+        rapidjson::Document extensionJson;
+        extensionJson.Parse(extension.second.c_str());
+        if (!extensionJson.IsObject())
+        {
+            continue;
+        }
+        for (auto& member : extensionJson.GetObject())
+        {
+            if (!member.value.IsArray())
+            {
+                continue;
+            }
+            for (auto& possibleBuffer : member.value.GetArray())
+            {
+                if (!possibleBuffer.IsObject())
+                {
+                    continue;
+                }
+                std::string bufferViewId{};
+                std::string mimeType{};
+                if (possibleBuffer.HasMember("bufferView"))
+                {
+                    bufferViewId = std::to_string(possibleBuffer["bufferView"].GetUint());
+                    unpackedBufferViews.insert(bufferViewId);
+                }
+                else
+                {
+                    continue;
+                }
+                if (possibleBuffer.HasMember("mimeType"))
+                {
+                    mimeType = possibleBuffer["mimeType"].GetString();
+                }
+                try
+                {
+                    possibleBuffer.RemoveMember("uri");
+                    possibleBuffer.RemoveMember("mimeType");
+                    possibleBuffer.RemoveMember("bufferView");
+                    auto filename = name + "_" + extension.first + "_" + member.name.GetString() + "_" + bufferViewId + "." + GuessFileExtension(mimeType);
+                    possibleBuffer.AddMember("uri", rapidjson::Value(filename.c_str(), extensionJson.GetAllocator()), extensionJson.GetAllocator());
+                }
+                catch (...)
+                {
+                    // Didn't work out.
+                    continue;
+                }
+            }
+        }
+
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> jsonWriter(buffer);
+        extensionJson.Accept(jsonWriter);
+
+        extension.second = buffer.GetString();
     }
 
     // gather all non-image bufferViews in UsedBufferViews
     std::vector<BufferView> usedBufferViews(bufferViews.size());
-    auto last = copy_if(bufferViews.begin(), bufferViews.end(), usedBufferViews.begin(), [imagesBufferViews](const auto& a)
+    auto end = copy_if(bufferViews.begin(), bufferViews.end(), usedBufferViews.begin(), [&unpackedBufferViews](const auto& a)
     {
-        return imagesBufferViews.count(a.id) == 0;
+        return unpackedBufferViews.count(a.id) == 0;
     });
 
-    usedBufferViews.resize(distance(usedBufferViews.begin(), last));
+    usedBufferViews.resize(distance(usedBufferViews.begin(), end));
 
     // group buffer views by buffer, then sort them by byteOffset to calculate their new byteOffsets
     sort(usedBufferViews.begin(), usedBufferViews.end(), [](const auto& a, const auto& b)
@@ -251,7 +382,7 @@ GLTFDocument GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std
 
     for (const auto& a : accessors)
     {
-        if (imagesBufferViews.find(a.bufferViewId) == imagesBufferViews.end())
+        if (unpackedBufferViews.find(a.bufferViewId) == unpackedBufferViews.end())
         {
             // update acessors with new bufferview IDs, the above check may not be needed
             auto updatedAccessor = a;
@@ -260,28 +391,29 @@ GLTFDocument GLBToGLTF::CreateGLTFDocument(const GLTFDocument& glbDoc, const std
         }
     }
 
-    int imgId = 0;
-    for (const auto& im : images)
+    bool changes = false;
+    const auto meshes = glbDoc.meshes.Elements();
+    std::vector<Mesh> updatedMeshs;
+    for (auto updatedMesh : meshes)
     {
-        // update image fields with image names instead of buffer views
-        Image updatedImage;
-        updatedImage.id = std::to_string(imgId);
-        if (im.mimeType == MIMETYPE_PNG)
+        for (auto& primitive : updatedMesh.primitives)
         {
-            updatedImage.uri = name + "_image" + std::to_string(imgId) + "." + FILE_EXT_PNG;
+            if (primitive.HasExtension<KHR::MeshPrimitives::DracoMeshCompression>())
+            {
+                auto& draco = primitive.GetExtension<KHR::MeshPrimitives::DracoMeshCompression>();
+                draco.bufferViewId = bufferViewIndex[draco.bufferViewId];
+                changes = true;
+            }
         }
-        else if (im.mimeType == MIMETYPE_JPEG)
-        {
-            updatedImage.uri = name + "_image" + std::to_string(imgId) + "." + FILE_EXT_JPEG;
-        }
-        else
-        {
-            // unknown mimetype
-            updatedImage.uri = name + "_image" + std::to_string(imgId);
-        }
+        updatedMeshs.emplace_back(updatedMesh);
+    }
 
-        gltfDoc.images.Append(std::move(updatedImage));
-        imgId++;
+    if (changes)
+    {
+        for (const auto& mesh : updatedMeshs)
+        {
+            gltfDoc.meshes.Replace(mesh);
+        }
     }
 
     return gltfDoc;
@@ -291,18 +423,19 @@ void GLBToGLTF::UnpackGLB(const std::string& glbPath, const std::string& outDire
 {
     // read glb file into json
     auto glbStream = std::make_shared<std::ifstream>(glbPath, std::ios::binary);
-    auto streamReader = std::make_unique<StreamMock>();
-    GLBResourceReader reader(*streamReader, glbStream);
+    auto streamReader = std::make_shared<StreamMock>();
+    GLBResourceReader reader(streamReader, glbStream);
 
     // get original json
     auto json = reader.GetJson();
-    auto doc = DeserializeJson(json);
+    auto doc = Deserialize(json, KHR::GetKHRExtensionDeserializer());
 
     // create new modified json
-    auto gltfDoc = GLBToGLTF::CreateGLTFDocument(doc, gltfName);
+    std::unordered_set<std::string> unpackedBufferViews;
+    auto gltfDoc = GLBToGLTF::CreateGLTFDocument(doc, gltfName, unpackedBufferViews);
 
     // serialize and write new gltf json
-    auto gltfJson = Serialize(gltfDoc);
+    auto gltfJson = Serialize(gltfDoc, KHR::GetKHRExtensionSerializer());
     std::ofstream outputStream(outDirectory + gltfName + "." + GLTF_EXTENSION);
     outputStream << gltfJson;
     outputStream.flush();
@@ -315,11 +448,17 @@ void GLBToGLTF::UnpackGLB(const std::string& glbPath, const std::string& outDire
         out.write(&image.second[0], image.second.size());
     }
 
+    for (auto ext : GetExtensionsData(glbStream.get(), doc, gltfName, bufferOffset))
+    {
+        std::ofstream out(outDirectory + ext.first, std::ios::binary);
+        out.write(&ext.second[0], ext.second.size());
+    }
+
     // get new buffer size and write new buffer
     if (gltfDoc.buffers.Size() != 0)
     {
         size_t newBufferSize = gltfDoc.buffers[0].byteLength;
-        auto binFileData = GLBToGLTF::SaveBin(glbStream.get(), doc, bufferOffset, newBufferSize);
+        auto binFileData = GLBToGLTF::SaveBin(glbStream.get(), doc, bufferOffset, newBufferSize, unpackedBufferViews);
         std::ofstream out(outDirectory + gltfName + "." + BUFFER_EXTENSION, std::ios::binary);
         out.write(&binFileData[0], binFileData.size());
     }

@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "array": "cpp",
+        "filesystem": "cpp",
+        "list": "cpp",
+        "regex": "cpp",
+        "vector": "cpp",
+        "xhash": "cpp",
+        "xstring": "cpp",
+        "xtree": "cpp",
+        "xutility": "cpp"
+    }
+}

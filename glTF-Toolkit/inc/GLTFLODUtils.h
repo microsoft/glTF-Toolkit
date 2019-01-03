@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <GLTFSDK/GLTFDocument.h>
+#include "GLTFSDK.h"
 
 namespace Microsoft::glTF::Toolkit
 {
@@ -22,20 +22,20 @@ namespace Microsoft::glTF::Toolkit
         /// </summary>
         /// <returns>A map that relates each node ID to a vector of its levels of detail node IDs.</returns>
         /// <param name="doc">The glTF document containing LODs to be parsed.</param>
-        static LODMap ParseDocumentNodeLODs(const GLTFDocument& doc);
+        static LODMap ParseDocumentNodeLODs(const Document& doc);
 
         /// <summary>
-        /// Inserts each LOD GLTFDocument as a node LOD (at the root level) of the specified primary GLTF asset.
+        /// Inserts each LOD Document as a node LOD (at the root level) of the specified primary GLTF asset.
         /// Note: Animation is not currently supported.
         /// </summary>
         /// <returns>The primary GLTF Document with the inserted LOD node.</returns>
         /// <param name="docs">A vector of glTF documents to merge as LODs. The first element of the vector is assumed to be the primary LOD.</param>
         /// <param name="relativePaths">A vector of relative path prefixes to the non-LOD0 LOD gltf documents. Used for finding resources in those LODs.
         /// If not specified, all resources are assumed to be in the same directory.</param>
-        static GLTFDocument MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<std::wstring>& relativePaths = std::vector<std::wstring>(), const bool& sharedMaterials = false);
+        static Document MergeDocumentsAsLODs(const std::vector<Document>& docs, const std::vector<std::wstring>& relativePaths = std::vector<std::wstring>(), const bool& sharedMaterials = false);
 
         /// <summary>
-        /// Inserts each LOD GLTFDocument as a node LOD (at the root level) of the specified primary GLTF asset.
+        /// Inserts each LOD Document as a node LOD (at the root level) of the specified primary GLTF asset.
         /// Note: Animation is not currently supported.
         /// </summary>
         /// <returns>The primary GLTF Document with the inserted LOD node.</returns>
@@ -44,7 +44,7 @@ namespace Microsoft::glTF::Toolkit
         /// vector is larger than the size of <see name="docs" />, lower coverage values will cause the asset to be invisible.</param>
         /// <param name="relativePaths">A vector of relative path prefixes to the non-LOD0 LOD gltf documents. Used for finding resources in those LODs.
         /// If not specified, all resources are assumed to be in the same directory.</param>
-        static GLTFDocument MergeDocumentsAsLODs(const std::vector<GLTFDocument>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths = std::vector<std::wstring>(), const bool& sharedMaterials = false);
+        static Document MergeDocumentsAsLODs(const std::vector<Document>& docs, const std::vector<double>& screenCoveragePercentages, const std::vector<std::wstring>& relativePaths = std::vector<std::wstring>(), const bool& sharedMaterials = false);
 
         /// <summary>
         /// Determines the highest number of Node LODs for a given glTF asset.
@@ -52,7 +52,7 @@ namespace Microsoft::glTF::Toolkit
         /// <param name="doc">The glTF asset for which to count the max number of node LODs.</param>
         /// <param name="lods">A map containing the parsed node LODs in the document.</param>
         /// <returns>The highest number of Node LODs in the asset.</returns>
-        static uint32_t NumberOfNodeLODLevels(const GLTFDocument& doc, const LODMap& lods);
+        static uint32_t NumberOfNodeLODLevels(const Document& doc, const LODMap& lods);
     };
 }
 
