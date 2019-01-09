@@ -4,7 +4,7 @@
 namespace Microsoft::glTF::Toolkit
 {
     template <typename T>
-    void MeshInfo::ExportSharedView(BufferBuilder& builder, const PrimitiveInfo& info, Attribute attr, std::vector<T>(MeshInfo::*attributePtr), Mesh& outMesh) const
+    void MeshOptimizer::ExportSharedView(BufferBuilder& builder, const PrimitiveInfo& info, Attribute attr, std::vector<T>(MeshOptimizer::*attributePtr), Mesh& outMesh) const
     {
         if (!m_attributes.Has(attr))
         {
@@ -25,21 +25,30 @@ namespace Microsoft::glTF::Toolkit
             desc.byteOffset = stride * p.offset;
             desc.componentType = info[attr].type;
             desc.accessorType = info[attr].dimension;
+            desc.normalized = IsNormalized(attr, info[attr].type);
+
             FindMinMax(info[attr], m_scratch.data(), stride, stride * p.offset, p.GetCount(attr), desc.minValues, desc.maxValues);
 
             builder.AddBufferView(info[attr].target);
             builder.AddAccessor(m_scratch.data() + stride * p.offset, p.GetCount(attr), desc);
 
-            outMesh.primitives[i].*s_AccessorIds[attr] = builder.GetCurrentAccessor().id;
+            if (attr == Indices)
+            {
+                outMesh.primitives[i].indicesAccessorId = builder.GetCurrentAccessor().id;
+            }
+            else
+            {
+                outMesh.primitives[i].attributes[s_attributeNames[attr]] = builder.GetCurrentAccessor().id;
+            }
         }
     }
 
     template <typename T>
-    std::string MeshInfo::ExportAccessor(BufferBuilder& builder, const PrimitiveInfo& p, Attribute attr, std::vector<T>(MeshInfo::*attributePtr)) const
+    bool MeshOptimizer::ExportAccessor(BufferBuilder& builder, const PrimitiveInfo& p, Attribute attr, std::vector<T>(MeshOptimizer::*attributePtr), std::string& outString) const
     {
         if (!m_attributes.Has(attr))
         {
-            return std::string();
+            return false;
         }
 
         const auto& data = this->*attributePtr;
@@ -56,7 +65,9 @@ namespace Microsoft::glTF::Toolkit
 
         builder.AddBufferView(a.target);
         builder.AddAccessor(m_scratch.data(), p.GetCount(attr), { a.dimension, a.type, false, m_min, m_max, 0 });
-        return builder.GetCurrentAccessor().id;
+
+        outString = builder.GetCurrentAccessor().id;
+        return true;
     }
 
 
@@ -100,7 +111,7 @@ namespace Microsoft::glTF::Toolkit
     }
 
     template <typename From, typename To>
-    void Read(const IStreamReader& reader, const GLTFDocument& doc, const Accessor& accessor, std::vector<To>& output)
+    void Read(std::shared_ptr<IStreamReader>& reader, const Document& doc, const Accessor& accessor, std::vector<To>& output)
     {
         GLTFResourceReader r = GLTFResourceReader(reader);
         auto buffer = r.ReadBinaryData<From>(doc, accessor);
@@ -122,7 +133,7 @@ namespace Microsoft::glTF::Toolkit
     }
 
     template <typename To>
-    void Read(const IStreamReader& reader, const GLTFDocument& doc, const Accessor& accessor, std::vector<To>& output)
+    void Read(std::shared_ptr<IStreamReader>& reader, const Document& doc, const Accessor& accessor, std::vector<To>& output)
     {
         switch (accessor.componentType)
         {
@@ -134,7 +145,7 @@ namespace Microsoft::glTF::Toolkit
     }
 
     template <typename To>
-    bool ReadAccessor(const IStreamReader& reader, const GLTFDocument& doc, const std::string& accessorId, std::vector<To>& output, AccessorInfo& outInfo)
+    bool ReadAccessor(std::shared_ptr<IStreamReader>& reader, const Document& doc, const std::string& accessorId, std::vector<To>& output, AccessorInfo& outInfo)
     {
         if (accessorId.empty())
         {
@@ -216,12 +227,12 @@ namespace Microsoft::glTF::Toolkit
         std::fill(max.begin(), max.end(), -FLT_MAX);
 
         // Iterate over offset strided data, finding min and maxs.
-        const uint8_t* Ptr = src + offset;
+        const uint8_t* ptr = src + offset;
         for (size_t i = 0; i < count; ++i)
         {
             for (size_t j = 0; j < Dimension; ++j)
             {
-                T* pComp = (T*)(Ptr + i * stride) + j;
+                T* pComp = (T*)(ptr + i * stride) + j;
 
                 min[j] = std::min(min[j], (float)*pComp);
                 max[j] = std::max(max[j], (float)*pComp);

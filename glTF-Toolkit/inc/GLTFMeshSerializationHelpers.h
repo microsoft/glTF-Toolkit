@@ -6,12 +6,7 @@
 #include <GLTFSDK/GLTF.h>
 #include <GLTFSDK/GLTFResourceReader.h>
 #include <GLTFSDK/GLTFResourceWriter.h>
-#include <GLTFSDK/IResourceWriter.h>
 #include <GLTFSDK/BufferBuilder.h>
-
-#include <DirectXMath.h>
-
-#include "DirectXMathUtils.h"
 
 namespace Microsoft::glTF::Toolkit
 {
@@ -19,35 +14,24 @@ namespace Microsoft::glTF::Toolkit
     enum class PrimitiveFormat : uint8_t;
     struct MeshOptions;
 
+    extern std::string s_insertionId;
+    extern std::string s_attributeNames[];
 
     //------------------------------------------
     // Attribute
 
-    enum Attribute
+    enum Attribute : uint32_t
     {
         Indices = 0,
-        Positions = 1,
-        Normals = 2,
-        Tangents = 3,
-        UV0 = 4,
-        UV1 = 5,
-        Color0 = 6,
-        Joints0 = 7,
-        Weights0 = 8,
+        Positions,
+        Normals,
+        Tangents,
+        UV0,
+        UV1,
+        Color0,
+        Joints0,
+        Weights0,
         Count
-    };
-
-    std::string(MeshPrimitive::*s_AccessorIds[Count]) =
-    {
-        &MeshPrimitive::indicesAccessorId,   // 0 Indices
-        &MeshPrimitive::positionsAccessorId, // 1 Positions
-        &MeshPrimitive::normalsAccessorId,   // 2 Normals
-        &MeshPrimitive::tangentsAccessorId,  // 3 Tangents
-        &MeshPrimitive::uv0AccessorId,       // 4 UV0
-        &MeshPrimitive::uv1AccessorId,       // 5 UV1
-        &MeshPrimitive::color0AccessorId,    // 6 Color0
-        &MeshPrimitive::joints0AccessorId,   // 7 Joints0
-        &MeshPrimitive::weights0AccessorId,  // 8 Weights0
     };
 
 
@@ -56,11 +40,11 @@ namespace Microsoft::glTF::Toolkit
 
     struct AttributeList
     {
-        uint32_t mask;
+        Attribute mask;
 
         inline void Set(Attribute attr, bool cond) { cond ? Add(attr) : Remove(attr); }
-        inline void Add(Attribute attr) { mask |= 1 << attr; }
-        inline void Remove(Attribute attr) { mask &= ~(1 << attr); }
+        inline void Add(Attribute attr) { mask = (Attribute)(mask | (1 << attr)); }
+        inline void Remove(Attribute attr) { mask = (Attribute)(mask & ~(1 << attr)); }
         inline bool Has(Attribute attr) const { return (mask & (1 << attr)) != 0; }
 
         static AttributeList FromPrimitive(const MeshPrimitive& p);
@@ -128,16 +112,16 @@ namespace Microsoft::glTF::Toolkit
 
 
     //------------------------------------------
-    // MeshInfo
+    // MeshOptimizer
 
-    class MeshInfo
+    class MeshOptimizer
     {
     public:
-        MeshInfo(void);
-        MeshInfo(const MeshInfo& parent, size_t primIndex);
+        MeshOptimizer(void);
+        MeshOptimizer(const MeshOptimizer& parent, size_t primIndex);
 
         // Populates the mesh with data from the specified glTF document & mesh.
-        bool Initialize(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh);
+        bool Initialize(std::shared_ptr<IStreamReader>& reader, const Document& doc, const Mesh& mesh);
 
         // Clears the existing mesh data.
         void Reset(void);
@@ -148,21 +132,24 @@ namespace Microsoft::glTF::Toolkit
         // Generates normal and optionally tangent data.
         void GenerateAttributes(void);
 
-        // Exports the mesh to a BufferBuilder and Mesh in a format specified in the options.
+        // Exports the mesh to a BufferBuilder and Mesh in a format specified by MeshOptions.
         void Export(const MeshOptions& options, BufferBuilder& builder, Mesh& outMesh) const;
 
         // Determines whether a specific mesh exists in a supported format.
         static bool IsSupported(const Mesh& m);
 
+        // Finds the ids of all accessors, buffer views, and buffers which reference mesh data by meshes affected by optimization.
+        static void FindRestrictedIds(const Document& doc, std::unordered_set<std::string>& accessorIds, std::unordered_set<std::string>& bufferViewIds, std::unordered_set<std::string>& bufferIds);
+
         // Cleans up orphaned & unnecessary accessors, buffer views, and buffers caused by the mesh cleaning/formatting procedure.
-        static void CopyAndCleanup(const IStreamReader& reader, BufferBuilder& builder, const GLTFDocument& oldDoc, GLTFDocument& newDoc);
+        static void Finalize(std::shared_ptr<IStreamReader>& reader, BufferBuilder& builder, const Document& oldDoc, Document& newDoc);
 
     private:
         inline size_t GetFaceCount(void) const { return (m_indices.size() > 0 ? m_indices.size() : m_positions.size()) / 3; }
         PrimitiveInfo DetermineMeshFormat(void) const;
 
-        void InitSeparateAccessors(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh);
-        void InitSharedAccessors(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh);
+        void InitSeparateAccessors(std::shared_ptr<IStreamReader>& reader, const Document& doc, const Mesh& mesh);
+        void InitSharedAccessors(std::shared_ptr<IStreamReader>& reader, const Document& doc, const Mesh& mesh);
 
         void WriteVertices(const PrimitiveInfo& info, std::vector<uint8_t>& output) const;
         void ReadVertices(const PrimitiveInfo& info, const std::vector<uint8_t>& input);
@@ -176,11 +163,11 @@ namespace Microsoft::glTF::Toolkit
 
         // Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
         template <typename T>
-        void ExportSharedView(BufferBuilder& builder, const PrimitiveInfo& info, Attribute attr, std::vector<T>(MeshInfo::*attributePtr), Mesh& outMesh) const;
+        void ExportSharedView(BufferBuilder& builder, const PrimitiveInfo& info, Attribute attr, std::vector<T>(MeshOptimizer::*attributePtr), Mesh& outMesh) const;
 
         // Writes vertex attribute data as a block, and exports one buffer view & accessor to a BufferBuilder.
         template <typename T>
-        std::string ExportAccessor(BufferBuilder& builder, const PrimitiveInfo& prim, Attribute attr, std::vector<T>(MeshInfo::*attributePtr)) const;
+        bool ExportAccessor(BufferBuilder& builder, const PrimitiveInfo& prim, Attribute attr, std::vector<T>(MeshOptimizer::*attributePtr), std::string& outString) const;
 
         // Writes mesh vertex data in an interleaved fashion, and exports one buffer view and shared accessors to a BufferBuilder.
         void ExportInterleaved(BufferBuilder& builder, const PrimitiveInfo& info, std::string (&outIds)[Count]) const;
@@ -192,13 +179,15 @@ namespace Microsoft::glTF::Toolkit
         static bool UsesSharedAccessors(const Mesh& m);
 
         // Determines whether primitives within a glTF mesh are combined into a global buffer, or separated into their own local buffers.
-        static PrimitiveFormat DetermineFormat(const GLTFDocument& doc, const Mesh& m);
+        static PrimitiveFormat DetermineFormat(const Document& doc, const Mesh& m);
 
     private:
         std::string m_name;
         std::vector<PrimitiveInfo> m_primitives;
 
-        std::vector<uint32_t>          m_indices;
+        std::vector<std::string> m_ids;
+
+        std::vector<uint32_t> m_indices;
         std::vector<DirectX::XMFLOAT3> m_positions;
         std::vector<DirectX::XMFLOAT3> m_normals;
         std::vector<DirectX::XMFLOAT4> m_tangents;
@@ -215,70 +204,7 @@ namespace Microsoft::glTF::Toolkit
         mutable std::vector<float> m_min; // Temp min buffer used when calculing min components of accessor data.
         mutable std::vector<float> m_max; // Temp max buffer used when calculing max components of accessor data.
 
-        friend std::ostream& operator<<(std::ostream&, const MeshInfo&);
+        friend std::ostream& operator<<(std::ostream&, const MeshOptimizer&);
     };
-
-    std::ostream& operator<<(std::ostream& s, const MeshInfo& m);
-
-
-    //------------------------------------------
-    // Serialization Helpers - these generally just perform switch cases down to the templated C++ types to allow for generic serialization.
-
-    // ---- Reading ----
-
-    template <typename From, typename To, size_t Dimension>
-    void Read(To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
-
-    template <typename From, typename To>
-    void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
-
-    template <typename To>
-    void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
-
-    template <typename From, typename To>
-    void Read(const IStreamReader& reader, const GLTFDocument& Doc, const Accessor& accessor, std::vector<To>& output);
-
-    template <typename To>
-    void Read(const IStreamReader& reader, const GLTFDocument& Doc, const Accessor& accessor, std::vector<To>& output);
-
-    template <typename To>
-    bool ReadAccessor(const IStreamReader& reader, const GLTFDocument& doc, const std::string& accessorId, std::vector<To>& output, AccessorInfo& outInfo);
-
-
-    // ---- Writing ----
-
-    template <typename To, typename From, size_t Dimension>
-    void Write(uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
-
-    template <typename To, typename From>
-    void Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
-
-    template <typename From>
-    size_t Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
-
-    template <typename From>
-    size_t Write(const AccessorInfo& info, uint8_t* dest, const From* src, size_t count);
-
-
-    // ---- Finding Min & Max ----
-
-    template <typename T, size_t Dimension>
-    void FindMinMax(const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
-
-    template <typename T>
-    void FindMinMax(const AccessorInfo& info, const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
-    
-    template <typename T>
-    void FindMinMax(const AccessorInfo& info, const T* src, size_t count, std::vector<float>& min, std::vector<float>& max);
-    
-    template <typename T>
-    void FindMinMax(const AccessorInfo& info, const std::vector<T>& src, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
-
-    void FindMinMax(const AccessorInfo& info, const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
-
-
-    template <typename T, typename RemapFunc>
-    void LocalizeAttribute(const PrimitiveInfo& prim, const RemapFunc& remap, const std::vector<uint32_t>& indices, const std::vector<T>& global, std::vector<T>& local);
+    std::ostream& operator<<(std::ostream& s, const MeshOptimizer& m);
 }
-
-#include "GLTFMeshSerializationHelpers.inl"

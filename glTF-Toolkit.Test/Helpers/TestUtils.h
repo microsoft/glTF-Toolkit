@@ -38,7 +38,7 @@ namespace Microsoft::glTF::Toolkit::Test
 #endif
         }
 
-		static std::string GetFileExtension(const std::string& absolutePath)
+		static std::string GetFilename(const std::string& absolutePath)
 		{
 #ifdef __APPLE__
 			const char delimiter = '/';
@@ -54,11 +54,11 @@ namespace Microsoft::glTF::Toolkit::Test
 			return Pos == std::string::npos ? absolutePath : absolutePath.substr(Pos + 1);
 		}
 
-		static std::string GetFilename(const std::string& absolutePath)
+		static std::string GetFilenameNoExtension(const std::string& absolutePath)
 		{
-			std::string filename = GetFileExtension(absolutePath);
+			std::string filename = GetFilename(absolutePath);
 			auto pos = filename.find_last_of('.');
-			return pos == std::string::npos ? absolutePath : absolutePath.substr(0, pos);
+			return pos == std::string::npos ? filename : filename.substr(0, pos);
 		}
 
         static std::string GetAbsolutePath(const char * relativePath)
@@ -196,12 +196,12 @@ namespace Microsoft::glTF::Toolkit::Test
 
 		std::shared_ptr<std::ostream> GetOutputStream(const std::string& filename) const override
 		{
-			auto path = m_basePath;
+            auto path = m_basePath;
 
 #ifdef __APPLE__
-			path += "/" + filename;
+            path += "/" + filename;
 #else
-			path += "\\" + filename;
+            path += "\\" + filename;
 #endif
 
 			return std::make_shared<std::ofstream>(path, std::ios::binary);

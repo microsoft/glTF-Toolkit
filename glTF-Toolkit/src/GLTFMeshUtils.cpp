@@ -2,65 +2,72 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 #include "pch.h"
-
-#include <numeric>
-#include <regex>
-#include <experimental\filesystem>
-
-#include <GLTFSDK/GLTF.h>
-#include <GLTFSDK/GLTFResourceWriter2.h>
+#include "GLTFMeshUtils.h"
 
 #include "GLTFMeshSerializationHelpers.h"
-#include "GLTFMeshUtils.h"
 
 using namespace Microsoft::glTF;
 using namespace Microsoft::glTF::Toolkit;
-using namespace std::experimental::filesystem;
+
+namespace
+{
+    std::string FindFirstNotIn(size_t& index, const std::unordered_set<std::string>& set)
+    {
+        std::string curr;
+        do
+        {
+            curr = std::to_string(index++);
+        } while (set.count(curr) > 0);
+
+        return curr;
+    }
+}
 
 //-----------------------------------------
 // Main Entrypoint
 
-GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& filename, const GLTFDocument& doc, const IStreamReader& reader, const MeshOptions& options, std::unique_ptr<const IStreamWriter>& streamWriter)
+Document GLTFMeshUtils::Process(const Document& doc, const MeshOptions& options, const std::string& bufferPrefix, std::shared_ptr<IStreamReader> reader, std::unique_ptr<IStreamWriter> writer)
 {
-    // Make sure there's meshes to optimize before performing a bunch of work. 
+    return Process(doc, options, bufferPrefix, reader, MakeStreamWriterCache<StreamWriterCache>(std::move(writer)));
+}
+
+Document GLTFMeshUtils::Process(const Document& doc, const MeshOptions& options, const std::string& bufferPrefix, std::shared_ptr<IStreamReader> reader, std::unique_ptr<IStreamWriterCache> writerCache)
+{
+    // Determine if there's any work to do here.
     if (doc.meshes.Size() == 0 || doc.buffers.Size() == 0)
     {
         return doc;
     }
 
     // Make sure at least one mesh can be operated on.
-    if (!std::any_of(doc.meshes.Elements().begin(), doc.meshes.Elements().end(), [](const auto& x) { return MeshInfo::IsSupported(x); }))
+    if (!std::any_of(doc.meshes.Elements().begin(), doc.meshes.Elements().end(), [](const auto& x) { return MeshOptimizer::IsSupported(x); }))
     {
         return doc;
     }
 
-    // Generate a buffer name, based on the old buffer .bin filename, in the output directory.
-    std::string bufferName = filename;
-    size_t pos = bufferName.find_last_of('.');
-    if (pos == std::string::npos)
-    {
-        return doc;
-    }
-    bufferName.resize(pos);
+    const char* prefix = !bufferPrefix.empty() ? bufferPrefix.c_str() : "buffer";
 
-    // Spin up a document copy to modify.
-    GLTFDocument outputDoc(doc);
+    auto resourceWriter = std::make_unique<GLTFResourceWriter>(std::move(writerCache));
+    resourceWriter->SetUriPrefix(prefix);
 
-    auto resourceWriter = std::make_unique<GLTFResourceWriter2>(std::move(streamWriter), bufferName);
+    std::unordered_set<std::string> accessorIds, bufferViewIds, bufferIds;
+    MeshOptimizer::FindRestrictedIds(doc, accessorIds, bufferViewIds, bufferIds);
 
-    auto genBufferId = [&](const BufferBuilder& b) { return std::to_string(outputDoc.buffers.Size() + b.GetBufferCount()); };
-    auto genBufferViewId = [&](const BufferBuilder& b) { return std::to_string(outputDoc.bufferViews.Size() + b.GetBufferViewCount()); };
-    auto genAccessorId = [&](const BufferBuilder& b) { return std::to_string(outputDoc.accessors.Size() + b.GetAccessorCount()); };
+    size_t accessorIndex = 0, bufferViewIndex = 0, bufferIndex = 0;
 
-    auto builder = BufferBuilder(std::move(resourceWriter), genBufferId, genBufferViewId, genAccessorId);
+    auto builder = BufferBuilder(std::move(resourceWriter),
+        [&](auto& b) { _Unreferenced_parameter_(b); return FindFirstNotIn(bufferIndex, bufferIds); },
+        [&](auto& b) { _Unreferenced_parameter_(b); return s_insertionId.empty() ? FindFirstNotIn(bufferViewIndex, bufferViewIds) : std::move(s_insertionId); },
+        [&](auto& b) { _Unreferenced_parameter_(b); return FindFirstNotIn(accessorIndex, accessorIds); }
+    );
     builder.AddBuffer();
 
-    MeshInfo meshData;
-    for (size_t i = 0; i < outputDoc.meshes.Size(); ++i)
-    {
-        Mesh m = outputDoc.meshes[i];
+    Document outputDoc(doc); // Start with a copy of the unmodified document.
 
-        if (!meshData.Initialize(reader, outputDoc, m))
+    MeshOptimizer meshData;
+    for (auto& mesh : outputDoc.meshes.Elements())
+    {
+        if (!meshData.Initialize(reader, outputDoc, mesh))
         {
             continue;
         }
@@ -75,12 +82,13 @@ GLTFDocument GLTFMeshUtils::ProcessMeshes(const std::string& filename, const GLT
             meshData.GenerateAttributes();
         }
 
-        meshData.Export(options, builder, m);
-        outputDoc.meshes.Replace(m);
+        Mesh copy = mesh;
+        meshData.Export(options, builder, copy);
+
+        outputDoc.meshes.Replace(copy);
     }
-    
-    MeshInfo::CopyAndCleanup(reader, builder, doc, outputDoc);
-    builder.Output(outputDoc);
+
+    MeshOptimizer::Finalize(reader, builder, doc, outputDoc);
 
     return outputDoc;
 }

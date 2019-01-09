@@ -2,21 +2,22 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 #include "pch.h"
-
-#include <numeric>
-#include <DirectXMesh.h>
-
-#include "GLTFMeshUtils.h"
 #include "GLTFMeshSerializationHelpers.h"
 
 #include "DeviceResources.h"
+#include "GLTFMeshUtils.h"
+#include "DirectXMathUtils.h"
+
+#include <DirectXMesh.h>
+#include <numeric>
 
 #define EPSILON 1e-6f
 
 // Attribute loop helpers
 #define FOREACH_ATTRIBUTE_SUBRANGE(start, stop, op) for (size_t _i = start; _i < stop; ++_i) { op((Attribute)_i); }
 #define FOREACH_ATTRIBUTE_SETSTART(start, op) FOREACH_ATTRIBUTE_SUBRANGE(start, Count, op)
-#define FOREACH_ATTRIBUTE(op) FOREACH_ATTRIBUTE_SUBRANGE(0, Count, op)
+#define FOREACH_ATTRIBUTE(op) FOREACH_ATTRIBUTE_SETSTART(0, op)
+
 
 using namespace DirectX;
 using namespace Microsoft::glTF;
@@ -32,13 +33,106 @@ namespace
 
     template <typename T, size_t N>
     constexpr auto ArrayCount(T(&)[N]) { return N; }
+
+    bool IsNormalized(Attribute attr, ComponentType type)
+    {
+        if (attr == Indices || attr == Joints0)
+        {
+            return false; // Indices and joints are integral values.
+        }
+        else
+        {
+            return type == COMPONENT_UNSIGNED_BYTE
+                || type == COMPONENT_BYTE
+                || type == COMPONENT_UNSIGNED_SHORT
+                || type == COMPONENT_SHORT;
+        }
+    }
 }
+
+namespace Microsoft::glTF::Toolkit
+{
+    //------------------------------------------
+    // Serialization Helpers - these generally just perform switch cases down to the templated C++ types to allow for generic serialization.
+
+    // ---- Reading ----
+
+    template <typename From, typename To, size_t Dimension>
+    void Read(To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
+
+    template <typename From, typename To>
+    void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
+
+    template <typename To>
+    void Read(const AccessorInfo& accessor, To* dest, const uint8_t* src, size_t stride, size_t offset, size_t count);
+
+    template <typename From, typename To>
+    void Read(std::shared_ptr<IStreamReader>& reader, const Document& Doc, const Accessor& accessor, std::vector<To>& output);
+
+    template <typename To>
+    void Read(std::shared_ptr<IStreamReader>& reader, const Document& Doc, const Accessor& accessor, std::vector<To>& output);
+
+    template <typename To>
+    bool ReadAccessor(std::shared_ptr<IStreamReader>& reader, const Document& doc, const std::string& accessorId, std::vector<To>& output, AccessorInfo& outInfo);
+
+
+    // ---- Writing ----
+
+    template <typename To, typename From, size_t Dimension>
+    void Write(uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
+
+    template <typename To, typename From>
+    void Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
+
+    template <typename From>
+    size_t Write(const AccessorInfo& info, uint8_t* dest, size_t stride, size_t offset, const From* src, size_t count);
+
+    template <typename From>
+    size_t Write(const AccessorInfo& info, uint8_t* dest, const From* src, size_t count);
+
+
+    // ---- Finding Min & Max ----
+
+    template <typename T, size_t Dimension>
+    void FindMinMax(const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
+
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
+
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const T* src, size_t count, std::vector<float>& min, std::vector<float>& max);
+
+    template <typename T>
+    void FindMinMax(const AccessorInfo& info, const std::vector<T>& src, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
+
+    void FindMinMax(const AccessorInfo& info, const uint8_t* src, size_t stride, size_t offset, size_t count, std::vector<float>& min, std::vector<float>& max);
+
+    template <typename T, typename RemapFunc>
+    void LocalizeAttribute(const PrimitiveInfo& prim, const RemapFunc& remap, const std::vector<uint32_t>& indices, const std::vector<T>& global, std::vector<T>& local);
+}
+#include "GLTFMeshSerializationHelpers.inl"
+
+
+// The insertion ID signals to the ID generation functions that it should use a specific ID instead of manually generating one.
+std::string Microsoft::glTF::Toolkit::s_insertionId;
+std::string Microsoft::glTF::Toolkit::s_attributeNames[] = {
+    "_INDICES_",
+    "POSITION",
+    "NORMAL",
+    "TANGENT",
+    "TEXCOORD_0",
+    "TEXCOORD_1",
+    "COLOR_0",
+    "JOINTS_0",
+    "WEIGHTS_0",
+};
 
 
 AttributeList AttributeList::FromPrimitive(const MeshPrimitive& p)
 {
     AttributeList a ={ };
-    FOREACH_ATTRIBUTE([&](auto i) { a.Set(i, !(p.*s_AccessorIds[i]).empty()); });
+    a.Set(Indices, !p.indicesAccessorId.empty());
+    FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i) { a.Set(i, p.HasAttribute(s_attributeNames[i])); });
     return a;
 }
 
@@ -165,6 +259,7 @@ PrimitiveInfo PrimitiveInfo::Create(size_t indexCount, size_t vertexCount, Attri
     info.offset      = offset;
     info.indexCount  = indexCount;
     info.vertexCount = vertexCount;
+
     FOREACH_ATTRIBUTE([&](auto i)
     {
         if (attributes.Has(i))
@@ -176,10 +271,10 @@ PrimitiveInfo PrimitiveInfo::Create(size_t indexCount, size_t vertexCount, Attri
 }
 
 // Creates a descriptor containing the most compressed form of mesh given a vertex and index count.
-PrimitiveInfo PrimitiveInfo::CreateMin(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset)
+PrimitiveInfo PrimitiveInfo::CreateMin(size_t indexCount, size_t vertexCount, AttributeList attributes, size_t offset)
 {
-    static const std::pair<ComponentType, AccessorType> Types[] ={
-        { GetIndexType(VertexCount), TYPE_SCALAR }, // Indices
+    static const std::pair<ComponentType, AccessorType> types[] ={
+        { GetIndexType(vertexCount), TYPE_SCALAR }, // Indices
         { COMPONENT_FLOAT,           TYPE_VEC3 },   // Position
         { COMPONENT_FLOAT,           TYPE_VEC3 },   // Normals
         { COMPONENT_FLOAT,           TYPE_VEC4 },   // Tangents
@@ -190,13 +285,13 @@ PrimitiveInfo PrimitiveInfo::CreateMin(size_t IndexCount, size_t VertexCount, At
         { COMPONENT_UNSIGNED_BYTE,   TYPE_VEC4 },   // Weights0
     };
 
-    return Create(IndexCount, VertexCount, Attributes, Types, Offset);
+    return Create(indexCount, vertexCount, attributes, types, offset);
 }
 
-// Creates a descriptor containing the maximimum precision index and vertex type.
-PrimitiveInfo PrimitiveInfo::CreateMax(size_t IndexCount, size_t VertexCount, AttributeList Attributes, size_t Offset)
+// Creates a descriptor containing the maximimum precision index and vertex types.
+PrimitiveInfo PrimitiveInfo::CreateMax(size_t indexCount, size_t vertexCount, AttributeList attributes, size_t offset)
 {
-    static const std::pair<ComponentType, AccessorType> Types[] ={
+    static const std::pair<ComponentType, AccessorType> types[] ={
         { COMPONENT_UNSIGNED_INT,   TYPE_SCALAR }, // Indices
         { COMPONENT_FLOAT,          TYPE_VEC3 },   // Position
         { COMPONENT_FLOAT,          TYPE_VEC3 },   // Normals
@@ -208,7 +303,7 @@ PrimitiveInfo PrimitiveInfo::CreateMax(size_t IndexCount, size_t VertexCount, At
         { COMPONENT_FLOAT,          TYPE_VEC4 },   // Weights0
     };
 
-    return Create(IndexCount, VertexCount, Attributes, Types, Offset);
+    return Create(indexCount, vertexCount, attributes, types, offset);
 }
 
 PrimitiveInfo PrimitiveInfo::Max(const PrimitiveInfo& p0, const PrimitiveInfo& p1)
@@ -225,7 +320,7 @@ PrimitiveInfo PrimitiveInfo::Max(const PrimitiveInfo& p0, const PrimitiveInfo& p
 
 std::ostream& Microsoft::glTF::Toolkit::operator<<(std::ostream& s, const PrimitiveInfo& p)
 {
-    static const char* const s_Names[Count] ={
+    static const char* const s_displayNames[Count] ={
         "Indices",
         "Positions",
         "Normals",
@@ -243,7 +338,7 @@ std::ostream& Microsoft::glTF::Toolkit::operator<<(std::ostream& s, const Primit
 
     for (size_t i = 0; i < Count; ++i)
     {
-        s << s_Names[i] << ": (" << p.metadata[i] << ")" << std::endl;
+        s << s_displayNames[i] << ": (" << p.metadata[i] << ")" << std::endl;
     }
 
     s << std::endl;
@@ -251,7 +346,7 @@ std::ostream& Microsoft::glTF::Toolkit::operator<<(std::ostream& s, const Primit
 }
 
 
-MeshInfo::MeshInfo(void)
+MeshOptimizer::MeshOptimizer(void)
     : m_name()
     , m_primitives()
     , m_indices()
@@ -263,11 +358,11 @@ MeshInfo::MeshInfo(void)
     , m_color0()
     , m_joints0()
     , m_weights0()
-    , m_attributes{ 0 }
-    , m_primFormat{ 0 }
+    , m_attributes{}
+    , m_primFormat{0}
 { }
 
-MeshInfo::MeshInfo(const MeshInfo& parent, size_t primIndex)
+MeshOptimizer::MeshOptimizer(const MeshOptimizer& parent, size_t primIndex)
     : m_name()
     , m_primitives()
     , m_indices()
@@ -315,7 +410,7 @@ MeshInfo::MeshInfo(const MeshInfo& parent, size_t primIndex)
     }
 }
 
-bool MeshInfo::Initialize(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh)
+bool MeshOptimizer::Initialize(std::shared_ptr<IStreamReader>& reader, const Document& doc, const Mesh& mesh)
 {
     // Ensure mesh has the correct properties for us to process.
     if (!IsSupported(mesh))
@@ -351,7 +446,7 @@ bool MeshInfo::Initialize(const IStreamReader& reader, const GLTFDocument& doc, 
     return true;
 }
 
-void MeshInfo::InitSeparateAccessors(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh)
+void MeshOptimizer::InitSeparateAccessors(std::shared_ptr<IStreamReader>& reader, const Document& doc, const Mesh& mesh)
 {
     for (size_t i = 0; i < mesh.primitives.size(); ++i)
     {
@@ -362,14 +457,14 @@ void MeshInfo::InitSeparateAccessors(const IStreamReader& reader, const GLTFDocu
         uint32_t positionStart = (uint32_t)m_positions.size();
 
         ReadAccessor(reader, doc, p.indicesAccessorId, m_indices, primInfo[Indices]);
-        ReadAccessor(reader, doc, p.positionsAccessorId, m_positions, primInfo[Positions]);
-        ReadAccessor(reader, doc, p.normalsAccessorId, m_normals, primInfo[Normals]);
-        ReadAccessor(reader, doc, p.tangentsAccessorId, m_tangents, primInfo[Tangents]);
-        ReadAccessor(reader, doc, p.uv0AccessorId, m_uv0, primInfo[UV0]);
-        ReadAccessor(reader, doc, p.uv1AccessorId, m_uv1, primInfo[UV1]);
-        ReadAccessor(reader, doc, p.color0AccessorId, m_color0, primInfo[Color0]);
-        ReadAccessor(reader, doc, p.joints0AccessorId, m_joints0, primInfo[Joints0]);
-        ReadAccessor(reader, doc, p.weights0AccessorId, m_weights0, primInfo[Weights0]);
+        if (p.HasAttribute(s_attributeNames[Positions])) ReadAccessor(reader, doc, p.GetAttributeAccessorId(s_attributeNames[Positions]), m_positions, primInfo[Positions]);
+        if (p.HasAttribute(s_attributeNames[Normals])) ReadAccessor(reader, doc, p.GetAttributeAccessorId(s_attributeNames[Normals]), m_normals, primInfo[Normals]);
+        if (p.HasAttribute(s_attributeNames[Tangents])) ReadAccessor(reader, doc, p.GetAttributeAccessorId(s_attributeNames[Tangents]), m_tangents, primInfo[Tangents]);
+        if (p.HasAttribute(s_attributeNames[UV0])) ReadAccessor(reader, doc, p.GetAttributeAccessorId(s_attributeNames[UV0]), m_uv0, primInfo[UV0]);
+        if (p.HasAttribute(s_attributeNames[UV1])) ReadAccessor(reader, doc, p.GetAttributeAccessorId(s_attributeNames[UV1]), m_uv1, primInfo[UV1]);
+        if (p.HasAttribute(s_attributeNames[Color0])) ReadAccessor(reader, doc, p.GetAttributeAccessorId(s_attributeNames[Color0]), m_color0, primInfo[Color0]);
+        if (p.HasAttribute(s_attributeNames[Joints0])) ReadAccessor(reader, doc, p.GetAttributeAccessorId(s_attributeNames[Joints0]), m_joints0, primInfo[Joints0]);
+        if (p.HasAttribute(s_attributeNames[Weights0])) ReadAccessor(reader, doc, p.GetAttributeAccessorId(s_attributeNames[Weights0]), m_weights0, primInfo[Weights0]);
 
         primInfo.offset = m_indices.size() > 0 ? indexStart : positionStart;
         primInfo.indexCount = m_indices.size() - indexStart;
@@ -383,7 +478,7 @@ void MeshInfo::InitSeparateAccessors(const IStreamReader& reader, const GLTFDocu
     }
 }
 
-void MeshInfo::InitSharedAccessors(const IStreamReader& reader, const GLTFDocument& doc, const Mesh& mesh)
+void MeshOptimizer::InitSharedAccessors(std::shared_ptr<IStreamReader>& reader, const Document& doc, const Mesh& mesh)
 {
     const auto& p0 = mesh.primitives[0];
     auto& primInfo0 = m_primitives[0];
@@ -391,14 +486,14 @@ void MeshInfo::InitSharedAccessors(const IStreamReader& reader, const GLTFDocume
     // Combined meshes can only be segmented into primitives (sub-meshes) by index offsets + counts; otherwise it better be only one primitive.
     assert(mesh.primitives.size() > 1 || !p0.indicesAccessorId.empty());
 
-    ReadAccessor(reader, doc, p0.positionsAccessorId, m_positions, primInfo0[Positions]);
-    ReadAccessor(reader, doc, p0.normalsAccessorId, m_normals, primInfo0[Normals]);
-    ReadAccessor(reader, doc, p0.tangentsAccessorId, m_tangents, primInfo0[Tangents]);
-    ReadAccessor(reader, doc, p0.uv0AccessorId, m_uv0, primInfo0[UV0]);
-    ReadAccessor(reader, doc, p0.uv1AccessorId, m_uv1, primInfo0[UV1]);
-    ReadAccessor(reader, doc, p0.color0AccessorId, m_color0, primInfo0[Color0]);
-    ReadAccessor(reader, doc, p0.joints0AccessorId, m_joints0, primInfo0[Joints0]);
-    ReadAccessor(reader, doc, p0.weights0AccessorId, m_weights0, primInfo0[Weights0]);
+    if (p0.HasAttribute(s_attributeNames[Positions])) ReadAccessor(reader, doc, p0.GetAttributeAccessorId(s_attributeNames[Positions]), m_positions, primInfo0[Positions]);
+    if (p0.HasAttribute(s_attributeNames[Normals])) ReadAccessor(reader, doc, p0.GetAttributeAccessorId(s_attributeNames[Normals]), m_normals, primInfo0[Normals]);
+    if (p0.HasAttribute(s_attributeNames[Tangents])) ReadAccessor(reader, doc, p0.GetAttributeAccessorId(s_attributeNames[Tangents]), m_tangents, primInfo0[Tangents]);
+    if (p0.HasAttribute(s_attributeNames[UV0])) ReadAccessor(reader, doc, p0.GetAttributeAccessorId(s_attributeNames[UV0]), m_uv0, primInfo0[UV0]);
+    if (p0.HasAttribute(s_attributeNames[UV1])) ReadAccessor(reader, doc, p0.GetAttributeAccessorId(s_attributeNames[UV1]), m_uv1, primInfo0[UV1]);
+    if (p0.HasAttribute(s_attributeNames[Color0])) ReadAccessor(reader, doc, p0.GetAttributeAccessorId(s_attributeNames[Color0]), m_color0, primInfo0[Color0]);
+    if (p0.HasAttribute(s_attributeNames[Joints0])) ReadAccessor(reader, doc, p0.GetAttributeAccessorId(s_attributeNames[Joints0]), m_joints0, primInfo0[Joints0]);
+    if (p0.HasAttribute(s_attributeNames[Weights0])) ReadAccessor(reader, doc, p0.GetAttributeAccessorId(s_attributeNames[Weights0]), m_weights0, primInfo0[Weights0]);
 
     // If there are indices, grab the vertex count for each primitive by determining the number of unique indices in its index set.
     if (!p0.indicesAccessorId.empty())
@@ -431,7 +526,7 @@ void MeshInfo::InitSharedAccessors(const IStreamReader& reader, const GLTFDocume
                 primInfo.offset = IndexStart;
                 primInfo.indexCount = m_indices.size() - IndexStart;
                 primInfo.vertexCount = UniqueVertices.size();
-                primInfo.CopyMeta(primInfo0);
+                primInfo.CopyMeta(primInfo);
             }
         }
     }
@@ -443,7 +538,7 @@ void MeshInfo::InitSharedAccessors(const IStreamReader& reader, const GLTFDocume
     }
 }
 
-void MeshInfo::Reset(void)
+void MeshOptimizer::Reset(void)
 {
     m_name.clear();
     m_primitives.clear();
@@ -458,11 +553,11 @@ void MeshInfo::Reset(void)
     m_joints0.clear();
     m_weights0.clear();
 
-    m_attributes ={ 0 };
+    m_attributes ={};
     m_primFormat = PrimitiveFormat::Combine;
 }
 
-void MeshInfo::Optimize(void)
+void MeshOptimizer::Optimize(void)
 {
     if (!m_attributes.Has(Indices))
     {
@@ -518,7 +613,7 @@ void MeshInfo::Optimize(void)
     }
 }
 
-void MeshInfo::GenerateAttributes(void)
+void MeshOptimizer::GenerateAttributes(void)
 {
     if (!m_attributes.Has(Indices))
     {
@@ -535,7 +630,6 @@ void MeshInfo::GenerateAttributes(void)
     {
         m_attributes.Add(Normals);
         std::for_each(m_primitives.begin(), m_primitives.end(), [](auto& p) { p[Normals] = AccessorInfo::Create(COMPONENT_FLOAT, TYPE_VEC3, ARRAY_BUFFER); });
-
 
         m_normals.resize(vertexCount);
         DirectX::ComputeNormals(m_indices.data(), faceCount, m_positions.data(), vertexCount, CNORM_DEFAULT, m_normals.data());
@@ -556,7 +650,7 @@ void MeshInfo::GenerateAttributes(void)
     }
 }
 
-void MeshInfo::Export(const MeshOptions& options, BufferBuilder& builder, Mesh& outMesh) const
+void MeshOptimizer::Export(const MeshOptions& options, BufferBuilder& builder, Mesh& outMesh) const
 {
     auto primFormat = options.PrimitiveFormat == PrimitiveFormat::Preserved ? m_primFormat : options.PrimitiveFormat;
 
@@ -591,26 +685,19 @@ void MeshInfo::Export(const MeshOptions& options, BufferBuilder& builder, Mesh& 
     }
 }
 
-bool MeshInfo::IsSupported(const Mesh& m)
+bool MeshOptimizer::IsSupported(const Mesh& m)
 {
     if (m.primitives.empty())
     {
-        return false;
+        return false; // Mesh has no data.
     }
 
+    // All primitives of the mesh must be composed of triangles (which DirectXMesh requires) and have identical vertex attributes.
     AttributeList attrs = AttributeList::FromPrimitive(m.primitives[0]);
-    for (size_t i = 0; i < m.primitives.size(); ++i)
+
+    for (auto& p : m.primitives)
     {
-        const auto& p = m.primitives[i];
-
-        // DirectXMesh expects triangle lists - can't optimize other topologies.
-        if (p.mode != MeshMode::MESH_TRIANGLES)
-        {
-            return false;
-        }
-
-        // Check for inconsistent index usage and/or vertex formats.
-        if (attrs != AttributeList::FromPrimitive(p))
+        if (p.mode != MESH_TRIANGLES || attrs != AttributeList::FromPrimitive(p))
         {
             return false;
         }
@@ -619,15 +706,15 @@ bool MeshInfo::IsSupported(const Mesh& m)
     return true;
 }
 
-void MeshInfo::CopyAndCleanup(const IStreamReader& reader, BufferBuilder& Builder, const GLTFDocument& oldDoc, GLTFDocument& newDoc)
+void MeshOptimizer::FindRestrictedIds(const Document& doc, std::unordered_set<std::string>& accessorIds, std::unordered_set<std::string>& bufferViewIds, std::unordered_set<std::string>& bufferIds)
 {
-    // Find all mesh buffers & buffer views.
-    auto meshBufferViews = std::unordered_set<std::string>(oldDoc.bufferViews.Size());
-    auto meshBuffers = std::unordered_set<std::string>(oldDoc.buffers.Size());
+    std::for_each(doc.accessors.Elements().begin(), doc.accessors.Elements().end(), [&](auto& a) { accessorIds.insert(a.id); });
+    std::for_each(doc.bufferViews.Elements().begin(), doc.bufferViews.Elements().end(), [&](auto& bv) { bufferViewIds.insert(bv.id); });
+    std::for_each(doc.buffers.Elements().begin(), doc.buffers.Elements().end(), [&](auto& b) { bufferIds.insert(b.id); });
 
-    for (const auto& m : oldDoc.meshes.Elements())
+    for (const auto& m : doc.meshes.Elements())
     {
-        if (!MeshInfo::IsSupported(m))
+        if (!MeshOptimizer::IsSupported(m))
         {
             continue;
         }
@@ -636,75 +723,140 @@ void MeshInfo::CopyAndCleanup(const IStreamReader& reader, BufferBuilder& Builde
         {
             for (size_t i = Indices; i < Count; ++i)
             {
-                auto& aid = p.*s_AccessorIds[i];
-                if (aid.empty())
+                std::string aid;
+                if (i == Indices)
+                {
+                    if (p.indicesAccessorId.empty())
+                    {
+                        continue;
+                    }
+
+                    aid = p.indicesAccessorId;
+                }
+                else if (!p.TryGetAttributeAccessorId(s_attributeNames[i], aid))
                 {
                     continue;
                 }
 
-                // Remove all mesh accessors for new document.
+                auto& bvid = doc.accessors[aid].bufferViewId;
+                auto& bid = doc.bufferViews[bvid].bufferId;
+
+                accessorIds.erase(aid);
+                bufferViewIds.erase(bvid);
+                bufferIds.erase(bid);
+            }
+        }
+    }
+}
+
+
+void MeshOptimizer::Finalize(std::shared_ptr<IStreamReader>& streamReader, BufferBuilder& builder, const Document& oldDoc, Document& newDoc)
+{
+    // Since our BufferBuilder has all the processed mesh geometry within its own buffer, 
+    // we need to remove references to old mesh buffers by removing each primitives' accessors,
+    // buffer views, and buffers from the new document. 
+    //
+    // We must also copy non-mesh data that resides in those buffers to the new buffer so we can 
+    // eliminate all references to the old buffer. In this case the IDs of the buffer views must
+    // remain constant since an unknowable number of document items might reference that view.
+    //
+    // The BufferBuilder::Output(...) call will repopulate the new document with the appropriate
+    // accessors, buffer views, and buffer that reference the new data.
+
+    // 1. Find and remove all accessors, buffer views, and buffers that contain mesh data.
+    auto meshBufferViews = std::unordered_set<std::string>(oldDoc.bufferViews.Size());
+    auto meshBuffers = std::unordered_set<std::string>(oldDoc.buffers.Size());
+
+    for (const auto& m : oldDoc.meshes.Elements())
+    {
+        // Only check meshes which we have processed.
+        if (!MeshOptimizer::IsSupported(m))
+        {
+            continue;
+        }
+
+        for (const auto& p : m.primitives)
+        {
+            for (size_t i = Indices; i < Count; ++i)
+            {
+                std::string aid;
+                if (i == Indices)
+                {
+                    if (p.indicesAccessorId.empty())
+                    {
+                        continue;
+                    }
+
+                    aid = p.indicesAccessorId;
+                }
+                else if (!p.TryGetAttributeAccessorId(s_attributeNames[i], aid))
+                {
+                    continue;
+                }
+
+                // Invalidate old mesh accessors in new document.
                 if (newDoc.accessors.Has(aid))
                 {
                     newDoc.accessors.Remove(aid);
                 }
 
-                // Remove all mesh buffer views for new document.
+                // Invalidate old mesh buffer views in new document.
                 auto& bvid = oldDoc.accessors[aid].bufferViewId;
                 if (newDoc.bufferViews.Has(bvid))
                 {
                     newDoc.bufferViews.Remove(bvid);
                 }
-                meshBufferViews.insert(bvid);
 
-                // Remove all mesh buffers for new document.
+                // Invalidate old mesh buffers in new document.
                 auto& bid = oldDoc.bufferViews[bvid].bufferId;
                 if (newDoc.buffers.Has(bid))
                 {
                     newDoc.buffers.Remove(bid);
                 }
+
+                // Add buffer view and buffer to set of items that reference mesh data.
+                meshBufferViews.insert(bvid);
                 meshBuffers.insert(bid);
             }
         }
     }
 
-    // Copy-pasta data to new buffer, replacing the old buffer views with new ones that contain proper byte offsets.
-    GLTFResourceReader Reader = GLTFResourceReader(reader);
+    // 2. Find and remove all non-mesh buffer views that also reference buffers which hold outdated mesh 
+    //    data - copy their data to the new buffer.
+    GLTFResourceReader reader = GLTFResourceReader(streamReader);
     for (auto& bv : oldDoc.bufferViews.Elements())
     {
-        // Check if this is a mesh buffer view.
+        // We've already handled buffer views that point to mesh data.
         if (meshBufferViews.count(bv.id) > 0)
         {
-            // Disregard mesh buffer views.
             continue;
         }
 
-        // Grab the buffer view.
+        // Determine if this buffer view references data in a buffer that also holds outdated mesh data.
         auto& obv = oldDoc.bufferViews[bv.id];
-
-        // Check if this buffer contains mesh data.
         if (meshBuffers.count(obv.bufferId) == 0)
         {
-            // The target buffer doesn't contain mesh data, so transferral is unnecessary.
-            continue;
+            continue; // The buffer doesn't contain outdated mesh data.
         }
 
-        // Read from old bin file.
-        std::vector<uint8_t> buffer = Reader.ReadBinaryData<uint8_t>(oldDoc, obv);
-        // Write to the new bin file.
-        Builder.AddBufferView(buffer, obv.byteStride, obv.target);
+        // The buffer view ID must be consistent between documents, as any number of document items
+        // may continue to hold reference to it.
+        s_insertionId = bv.id;
 
-        // Bit of a hack: 
-        // BufferView references can exist in any number of arbitrary document locations due to extensions - thus we must ensure the original ids remain intact.
-        // Could do this a more legal way by having the id generator lambda function observe a global string variable, but this seemed more contained & less work.
-        auto& nbv = const_cast<BufferView&>(Builder.GetCurrentBufferView());
-        nbv.id = bv.id;
+        // Read data from old buffer and copy to our new buffer.
+        std::vector<uint8_t> buffer = reader.ReadBinaryData<uint8_t>(oldDoc, obv);
+        builder.AddBufferView(buffer, obv.byteStride, obv.target);
 
-        // Remove the old buffer view from the new document, which will be replaced by the BufferBuilder::Output(...) call.
+        // Remove the old buffer view from the new document.
         newDoc.bufferViews.Remove(bv.id);
     }
+
+    // 3. Output BufferBuilder to the new document, which will populate the document with updated
+    //    accessors & buffer views that reference the new buffer.
+    builder.Output(newDoc);
 }
 
-PrimitiveInfo MeshInfo::DetermineMeshFormat(void) const
+PrimitiveInfo MeshOptimizer::DetermineMeshFormat(void) const
 {
     if (m_primitives.empty())
     {
@@ -723,7 +875,7 @@ PrimitiveInfo MeshInfo::DetermineMeshFormat(void) const
     return maxInfo;
 }
 
-void MeshInfo::WriteVertices(const PrimitiveInfo& info, std::vector<uint8_t>& output) const
+void MeshOptimizer::WriteVertices(const PrimitiveInfo& info, std::vector<uint8_t>& output) const
 {
     size_t stride;
     size_t offsets[Count];
@@ -741,7 +893,7 @@ void MeshInfo::WriteVertices(const PrimitiveInfo& info, std::vector<uint8_t>& ou
     Write(info[Weights0], output.data(), stride, offsets[Weights0], m_weights0.data(), m_weights0.size());
 }
 
-void MeshInfo::ReadVertices(const PrimitiveInfo& info, const std::vector<uint8_t>& input)
+void MeshOptimizer::ReadVertices(const PrimitiveInfo& info, const std::vector<uint8_t>& input)
 {
     if (m_attributes.Has(Positions)) m_positions.resize(info.vertexCount);
     if (m_attributes.Has(Normals)) m_normals.resize(info.vertexCount);
@@ -767,46 +919,52 @@ void MeshInfo::ReadVertices(const PrimitiveInfo& info, const std::vector<uint8_t
 }
 
 // Combine primitives, separate attributes, indexed
-void MeshInfo::ExportCSI(BufferBuilder& builder, Mesh& outMesh) const
+void MeshOptimizer::ExportCSI(BufferBuilder& builder, Mesh& outMesh) const
 {
     const auto PrimInfo = DetermineMeshFormat();
 
-    ExportSharedView(builder, PrimInfo, Indices, &MeshInfo::m_indices, outMesh);
+    ExportSharedView(builder, PrimInfo, Indices, &MeshOptimizer::m_indices, outMesh);
 
     std::string ids[Count];
-    ids[Positions] = ExportAccessor(builder, PrimInfo, Positions, &MeshInfo::m_positions);
-    ids[Normals]   = ExportAccessor(builder, PrimInfo, Normals, &MeshInfo::m_normals);
-    ids[Tangents]  = ExportAccessor(builder, PrimInfo, Tangents, &MeshInfo::m_tangents);
-    ids[UV0]       = ExportAccessor(builder, PrimInfo, UV0, &MeshInfo::m_uv0);
-    ids[UV1]       = ExportAccessor(builder, PrimInfo, UV1, &MeshInfo::m_uv1);
-    ids[Color0]    = ExportAccessor(builder, PrimInfo, Color0, &MeshInfo::m_color0);
-    ids[Joints0]   = ExportAccessor(builder, PrimInfo, Joints0, &MeshInfo::m_joints0);
-    ids[Weights0]  = ExportAccessor(builder, PrimInfo, Weights0, &MeshInfo::m_weights0);
+    ExportAccessor(builder, PrimInfo, Positions, &MeshOptimizer::m_positions, ids[Positions]);
+    ExportAccessor(builder, PrimInfo, Normals, &MeshOptimizer::m_normals, ids[Normals]);
+    ExportAccessor(builder, PrimInfo, Tangents, &MeshOptimizer::m_tangents, ids[Tangents]);
+    ExportAccessor(builder, PrimInfo, UV0, &MeshOptimizer::m_uv0, ids[UV0]);
+    ExportAccessor(builder, PrimInfo, UV1, &MeshOptimizer::m_uv1, ids[UV1]);
+    ExportAccessor(builder, PrimInfo, Color0, &MeshOptimizer::m_color0, ids[Color0]);
+    ExportAccessor(builder, PrimInfo, Joints0, &MeshOptimizer::m_joints0, ids[Joints0]);
+    ExportAccessor(builder, PrimInfo, Weights0, &MeshOptimizer::m_weights0, ids[Weights0]);
 
     // Push the accessor ids to the output GLTF mesh primitives (all share the same accessors.)
     for (auto& x : outMesh.primitives)
     {
-        FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i) { x.*s_AccessorIds[i] = ids[i]; })
+        FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i) 
+        {
+            if (!ids[i].empty())
+            {
+                x.attributes[s_attributeNames[i]] = ids[i];
+            }
+        })
     }
 }
 
 // Combine primitives, separate attributes, non-indexed
-void MeshInfo::ExportCS(BufferBuilder& builder, Mesh& outMesh) const
+void MeshOptimizer::ExportCS(BufferBuilder& builder, Mesh& outMesh) const
 {
     const auto primInfo = DetermineMeshFormat();
 
-    ExportSharedView(builder, primInfo, Positions, &MeshInfo::m_positions, outMesh);
-    ExportSharedView(builder, primInfo, Normals, &MeshInfo::m_normals, outMesh);
-    ExportSharedView(builder, primInfo, Tangents, &MeshInfo::m_tangents, outMesh);
-    ExportSharedView(builder, primInfo, UV0, &MeshInfo::m_uv0, outMesh);
-    ExportSharedView(builder, primInfo, UV1, &MeshInfo::m_uv1, outMesh);
-    ExportSharedView(builder, primInfo, Color0, &MeshInfo::m_color0, outMesh);
-    ExportSharedView(builder, primInfo, Joints0, &MeshInfo::m_joints0, outMesh);
-    ExportSharedView(builder, primInfo, Weights0, &MeshInfo::m_weights0, outMesh);
+    ExportSharedView(builder, primInfo, Positions, &MeshOptimizer::m_positions, outMesh);
+    ExportSharedView(builder, primInfo, Normals, &MeshOptimizer::m_normals, outMesh);
+    ExportSharedView(builder, primInfo, Tangents, &MeshOptimizer::m_tangents, outMesh);
+    ExportSharedView(builder, primInfo, UV0, &MeshOptimizer::m_uv0, outMesh);
+    ExportSharedView(builder, primInfo, UV1, &MeshOptimizer::m_uv1, outMesh);
+    ExportSharedView(builder, primInfo, Color0, &MeshOptimizer::m_color0, outMesh);
+    ExportSharedView(builder, primInfo, Joints0, &MeshOptimizer::m_joints0, outMesh);
+    ExportSharedView(builder, primInfo, Weights0, &MeshOptimizer::m_weights0, outMesh);
 }
 
 // Combine primitives, interleave attributes
-void MeshInfo::ExportCI(BufferBuilder& builder, Mesh& outMesh) const
+void MeshOptimizer::ExportCI(BufferBuilder& builder, Mesh& outMesh) const
 {
     // Can't write a non-indexed combined mesh with multiple primitives.
     if (!m_attributes.Has(Indices) && m_primitives.size() > 1)
@@ -815,59 +973,91 @@ void MeshInfo::ExportCI(BufferBuilder& builder, Mesh& outMesh) const
     }
 
     auto primInfo = DetermineMeshFormat();
-    ExportSharedView(builder, primInfo, Indices, &MeshInfo::m_indices, outMesh);
+    ExportSharedView(builder, primInfo, Indices, &MeshOptimizer::m_indices, outMesh);
 
     std::string ids[Count];
     ExportInterleaved(builder, primInfo, ids);
 
     for (size_t i = 0; i < m_primitives.size(); ++i)
     {
-        FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto j)
+        FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto j) 
         {
-            outMesh.primitives[i].*s_AccessorIds[j] = ids[j];
+            if (!ids[j].empty())
+            {
+                outMesh.primitives[i].attributes[s_attributeNames[j]] = ids[j];
+            }
         });
     }
 }
 
 // Separate primitives, separate attributes
-void MeshInfo::ExportSS(BufferBuilder& Builder, Mesh& OutMesh) const
+void MeshOptimizer::ExportSS(BufferBuilder& builder, Mesh& outMesh) const
 {
     for (size_t i = 0; i < m_primitives.size(); ++i)
     {
-        MeshInfo prim = MeshInfo(*this, i);
+        MeshOptimizer prim = MeshOptimizer(*this, i);
 
-        OutMesh.primitives[i].indicesAccessorId   = prim.ExportAccessor(Builder, m_primitives[i], Indices, &MeshInfo::m_indices);
-        OutMesh.primitives[i].positionsAccessorId = prim.ExportAccessor(Builder, m_primitives[i], Positions, &MeshInfo::m_positions);
-        OutMesh.primitives[i].normalsAccessorId   = prim.ExportAccessor(Builder, m_primitives[i], Normals, &MeshInfo::m_normals);
-        OutMesh.primitives[i].tangentsAccessorId  = prim.ExportAccessor(Builder, m_primitives[i], Tangents, &MeshInfo::m_tangents);
-        OutMesh.primitives[i].uv0AccessorId       = prim.ExportAccessor(Builder, m_primitives[i], UV0, &MeshInfo::m_uv0);
-        OutMesh.primitives[i].uv1AccessorId       = prim.ExportAccessor(Builder, m_primitives[i], UV1, &MeshInfo::m_uv1);
-        OutMesh.primitives[i].color0AccessorId    = prim.ExportAccessor(Builder, m_primitives[i], Color0, &MeshInfo::m_color0);
-        OutMesh.primitives[i].joints0AccessorId   = prim.ExportAccessor(Builder, m_primitives[i], Joints0, &MeshInfo::m_joints0);
-        OutMesh.primitives[i].weights0AccessorId  = prim.ExportAccessor(Builder, m_primitives[i], Weights0, &MeshInfo::m_weights0);
+        prim.ExportAccessor(builder, m_primitives[i], Indices, &MeshOptimizer::m_indices, outMesh.primitives[i].indicesAccessorId);
+
+        std::string id;
+        if (prim.ExportAccessor(builder, m_primitives[i], Positions, &MeshOptimizer::m_positions, id))
+        {
+            outMesh.primitives[i].attributes[s_attributeNames[Positions]] = id;
+        }
+        if (prim.ExportAccessor(builder, m_primitives[i], Normals, &MeshOptimizer::m_normals, id))
+        {
+            outMesh.primitives[i].attributes[s_attributeNames[Normals]] = id;
+        }
+        if (prim.ExportAccessor(builder, m_primitives[i], Tangents, &MeshOptimizer::m_tangents, id))
+        {
+            outMesh.primitives[i].attributes[s_attributeNames[Tangents]] = id;
+        }
+        if (prim.ExportAccessor(builder, m_primitives[i], UV0, &MeshOptimizer::m_uv0, id))
+        {
+            outMesh.primitives[i].attributes[s_attributeNames[UV0]] = id;
+        }
+        if (prim.ExportAccessor(builder, m_primitives[i], UV1, &MeshOptimizer::m_uv1, id))
+        {
+            outMesh.primitives[i].attributes[s_attributeNames[UV1]] = id;
+        }
+        if (prim.ExportAccessor(builder, m_primitives[i], Color0, &MeshOptimizer::m_color0, id))
+        {
+            outMesh.primitives[i].attributes[s_attributeNames[Color0]] = id;
+        }
+        if (prim.ExportAccessor(builder, m_primitives[i], Joints0, &MeshOptimizer::m_joints0, id))
+        {
+            outMesh.primitives[i].attributes[s_attributeNames[Joints0]] = id;
+        }
+        if (prim.ExportAccessor(builder, m_primitives[i], Weights0, &MeshOptimizer::m_weights0, id))
+        {
+            outMesh.primitives[i].attributes[s_attributeNames[Weights0]] = id;
+        }
     }
 }
 
 // Separate primitives, interleave attributes
-void MeshInfo::ExportSI(BufferBuilder& Builder, Mesh& OutMesh) const
+void MeshOptimizer::ExportSI(BufferBuilder& builder, Mesh& outMesh) const
 {
     for (size_t i = 0; i < m_primitives.size(); ++i)
     {
-        MeshInfo prim = MeshInfo(*this, i);
+        MeshOptimizer prim = MeshOptimizer(*this, i);
 
-        OutMesh.primitives[i].indicesAccessorId = prim.ExportAccessor(Builder, m_primitives[i], Indices, &MeshInfo::m_indices);
+        prim.ExportAccessor(builder, m_primitives[i], Indices, &MeshOptimizer::m_indices, outMesh.primitives[i].indicesAccessorId);
 
         std::string ids[Count];
-        prim.ExportInterleaved(Builder, m_primitives[i], ids);
+        prim.ExportInterleaved(builder, m_primitives[i], ids);
 
         FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto j)
         {
-            OutMesh.primitives[i].*s_AccessorIds[j] = ids[j];
+            if (!ids[j].empty())
+            {
+                outMesh.primitives[i].attributes[s_attributeNames[j]] = ids[j];
+            }
         });
     }
 }
 
-void MeshInfo::ExportInterleaved(BufferBuilder& builder, const PrimitiveInfo& info, std::string(&outIds)[Count]) const
+void MeshOptimizer::ExportInterleaved(BufferBuilder& builder, const PrimitiveInfo& info, std::string(&outIds)[Count]) const
 {
     WriteVertices(info, m_scratch);
 
@@ -887,6 +1077,8 @@ void MeshInfo::ExportInterleaved(BufferBuilder& builder, const PrimitiveInfo& in
             desc.byteOffset = offsets[i];
             desc.accessorType = info[i].dimension;
             desc.componentType = info[i].type;
+            desc.normalized = IsNormalized((Attribute)i, info[i].type);
+
             FindMinMax(info[i], m_scratch.data(), stride, offsets[i], info.vertexCount, desc.minValues, desc.maxValues);
 
             descs.emplace_back(std::move(desc));
@@ -898,16 +1090,17 @@ void MeshInfo::ExportInterleaved(BufferBuilder& builder, const PrimitiveInfo& in
 
     builder.AddAccessors(m_scratch.data(), info.vertexCount, stride, descs.data(), descs.size(), ids.data());
 
-    for (size_t i = Positions, j = 0; i < Count; ++i)
+    int j = 0;
+    FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i)
     {
-        if (m_attributes.Has((Attribute)i))
+        if (m_attributes.Has(i))
         {
             outIds[i] = ids[j++];
         }
-    }
+    });
 }
 
-void MeshInfo::RemapIndices(std::unordered_map<uint32_t, uint32_t>& map, std::vector<uint32_t>& newIndices, const uint32_t* indices, size_t count)
+void MeshOptimizer::RemapIndices(std::unordered_map<uint32_t, uint32_t>& map, std::vector<uint32_t>& newIndices, const uint32_t* indices, size_t count)
 {
     map.clear();
     newIndices.clear();
@@ -930,26 +1123,26 @@ void MeshInfo::RemapIndices(std::unordered_map<uint32_t, uint32_t>& map, std::ve
     }
 }
 
-PrimitiveFormat MeshInfo::DetermineFormat(const GLTFDocument& Doc, const Mesh& m)
+PrimitiveFormat MeshOptimizer::DetermineFormat(const Document& doc, const Mesh& m)
 {
-    auto getBufferViewId = [&](const std::string& AccessorId)
+    auto getBufferViewId = [&](const std::string& accessorId)
     {
-        if (AccessorId.empty()) return std::string();
-        int aid = std::stoi(AccessorId);
+        if (accessorId.empty()) return std::string();
+        int aid = std::stoi(accessorId);
 
-        if (aid >= 0 && (size_t)aid < Doc.accessors.Size()) return std::string();
-        return Doc.accessors[aid].bufferViewId;
+        if (aid >= 0 && (size_t)aid < doc.accessors.Size()) return std::string();
+        return doc.accessors[aid].bufferViewId;
     };
 
     std::string viewIds[Count];
-    FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i) { viewIds[i] = getBufferViewId(m.primitives[0].*s_AccessorIds[i]); });
+    FOREACH_ATTRIBUTE_SETSTART(Positions, [&](auto i) { m.primitives[0].TryGetAttributeAccessorId(s_attributeNames[i], viewIds[i]); });
 
     // Combined vs. separate primitives is determined by whether the vertex data is combined into a single or separate accessors.
     for (size_t i = 1; i < m.primitives.size(); ++i)
     {
         for (size_t j = Positions; j < Count; ++j)
         {
-            if (viewIds[j] != getBufferViewId(m.primitives[i].*s_AccessorIds[j]))
+            if (viewIds[j] != getBufferViewId(m.primitives[i].GetAttributeAccessorId(s_attributeNames[j])))
             {
                 return PrimitiveFormat::Separate;
             }
@@ -959,7 +1152,7 @@ PrimitiveFormat MeshInfo::DetermineFormat(const GLTFDocument& Doc, const Mesh& m
     return PrimitiveFormat::Combine;
 }
 
-bool MeshInfo::UsesSharedAccessors(const Mesh& m)
+bool MeshOptimizer::UsesSharedAccessors(const Mesh& m)
 {
     if (m.primitives[0].indicesAccessorId.empty())
     {
@@ -970,7 +1163,11 @@ bool MeshInfo::UsesSharedAccessors(const Mesh& m)
     {
         for (size_t j = Positions; j < Count; ++j)
         {
-            if (m.primitives[0].*s_AccessorIds[j] != m.primitives[i].*s_AccessorIds[j])
+            std::string aid0, aid1;
+            m.primitives[0].TryGetAttributeAccessorId(s_attributeNames[j], aid0);
+            m.primitives[i].TryGetAttributeAccessorId(s_attributeNames[j], aid1);
+
+            if (aid0 != aid1)
             {
                 return false;
             }
@@ -980,7 +1177,7 @@ bool MeshInfo::UsesSharedAccessors(const Mesh& m)
     return true;
 }
 
-std::ostream& Microsoft::glTF::Toolkit::operator<<(std::ostream& s, const MeshInfo& m)
+std::ostream& Microsoft::glTF::Toolkit::operator<<(std::ostream& s, const MeshOptimizer& m)
 {
     for (size_t i = 0; i < m.m_primitives.size(); ++i)
     {

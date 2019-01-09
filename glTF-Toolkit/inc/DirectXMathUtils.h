@@ -42,7 +42,7 @@ XMUINT_OPDEFINE(2)
 XMUINT_OPDEFINE(3)
 XMUINT_OPDEFINE(4)
 
-namespace Microsoft::glTF::Toolkit
+namespace DirectX
 { 
     template <bool _IsVector, typename T>
     struct XMComponentType

@@ -30,6 +30,6 @@ namespace CommandLine
         std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
         std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
         bool& sharedMaterials, Version& minVersion, Platform& targetPlatforms, bool& replaceTextures, bool& compressMeshes, 
-        bool& generateTangents);
+        bool& generateTangents, bool& optimizeMeshes);
 };
 

@@ -39,6 +39,13 @@
     <ClInclude Include="inc\AccessorUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="inc\DirectXMathUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFMeshSerializationHelpers.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFMeshUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="inc\GLTFSDK.h">
