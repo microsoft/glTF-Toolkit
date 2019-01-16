@@ -84,7 +84,7 @@ namespace Microsoft::glTF::Toolkit
         /// </code>
         /// </example>
         /// </summary>
-        static Document CompressTextureAsDDS(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize = std::numeric_limits<size_t>::max(), bool generateMipMaps = true, bool retainOriginalImage = true);
+        static Document CompressTextureAsDDS(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize = std::numeric_limits<size_t>::max(), bool generateMipMaps = true, bool retainOriginalImage = true, bool treatAsLinear = true);
 
         /// <summary>
         /// Applies <see cref="CompressTextureAsDDS" /> to all textures in the document that are accessible via materials according to the 
