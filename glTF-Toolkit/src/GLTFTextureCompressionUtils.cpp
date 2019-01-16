@@ -230,7 +230,7 @@ Document GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(std::share
             if (packingNrmContents.HasMember(MSFT_PACKING_NRM_KEY))
             {
                 auto nrmTextureId = packingNrmContents[MSFT_PACKING_NRM_KEY][MSFT_PACKING_INDEX_KEY].GetInt();
-                compressIfNotEmpty(std::to_string(nrmTextureId), TextureCompression::BC7, false); // This tool generate sRGB package images
+                compressIfNotEmpty(std::to_string(nrmTextureId), TextureCompression::BC7, false); // This tool generates sRGB-packaged images
             }
         }
     }

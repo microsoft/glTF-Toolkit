@@ -67,6 +67,7 @@ namespace
 
         for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
         {
+            // renormalizedPixels = 0.5 * normalize(normalPixel * 2 - 1) + 0.5
             const auto value = DirectX::XMVectorSet(
                 *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Red),
                 *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Green),
@@ -112,7 +113,7 @@ namespace
             float avgNormalLengthSquareF = DirectX::XMVectorGetX(avgNormalLengthSquare);
 
             float oldRoughness = *GLTFTextureUtils::GetChannelValue(roughnessPixels, i, Channel::Green);
-            if (DirectX::XMVectorGetIntX(avgNormalLengthSquare) < 1.0f)
+            if (avgNormalLengthSquareF < 1.0f)
             {
                 auto avgNormalLength = DirectX::XMVectorSqrt(avgNormalLengthSquare);
                 float avgNormalLengthF = DirectX::XMVectorGetX(avgNormalLength);
