@@ -46,6 +46,90 @@ namespace
             throw GLTFException("Invalid packing.");
         }
     }
+
+
+    void Renormalize(std::unique_ptr<DirectX::ScratchImage> &normalImage, DirectX::ScratchImage &renormalizedImage)
+    {
+        auto image = normalImage->GetImage(0, 0, 0);
+        if (FAILED(renormalizedImage.Initialize2D(image->format, image->width, image->height, 1, 1)))
+        {
+            throw GLTFException("Failed to initialize from texture.");
+        }
+
+        uint8_t *normalPixels = normalImage->GetPixels();
+        auto metadata = normalImage->GetMetadata();
+
+        auto renormalizedPixels = renormalizedImage.GetPixels();
+
+        const auto two = DirectX::XMVectorReplicate(2.0f);
+        const auto minusOne = DirectX::XMVectorReplicate(-1.0f);
+        const auto half = DirectX::XMVectorReplicate(0.5f);
+
+        for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
+        {
+            // renormalizedPixels = 0.5 * normalize(normalPixel * 2 - 1) + 0.5
+            const auto value = DirectX::XMVectorSet(
+                *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Red),
+                *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Green),
+                *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Blue),
+                0.0f);
+
+            auto normal = DirectX::XMVectorMultiplyAdd(value, two, minusOne);
+            normal = DirectX::XMVector3Normalize(normal);
+            const auto result = DirectX::XMVectorMultiplyAdd(half, normal, half);
+
+            *GLTFTextureUtils::GetChannelValue(renormalizedPixels, i, Channel::Red) = DirectX::XMVectorGetX(result);
+            *GLTFTextureUtils::GetChannelValue(renormalizedPixels, i, Channel::Green) = DirectX::XMVectorGetY(result);
+            *GLTFTextureUtils::GetChannelValue(renormalizedPixels, i, Channel::Blue) = DirectX::XMVectorGetZ(result);
+        }
+    }
+
+    void AdjustRoughness(std::unique_ptr<DirectX::ScratchImage> &roughnessImage, std::unique_ptr<DirectX::ScratchImage> &normalImage, DirectX::ScratchImage &adjustedImage)
+    {
+        auto image = roughnessImage->GetImage(0, 0, 0);
+        if (FAILED(adjustedImage.Initialize2D(image->format, image->width, image->height, 1, 1)))
+        {
+            throw GLTFException("Failed to initialize from texture.");
+        }
+
+        const auto two = DirectX::XMVectorReplicate(2.0f);
+        const auto minusOne = DirectX::XMVectorReplicate(-1.0f);
+
+        uint8_t *normalPixels = normalImage->GetPixels();
+        auto metadata = normalImage->GetMetadata();
+
+        auto adjustedPixels = adjustedImage.GetPixels();
+        uint8_t *roughnessPixels = roughnessImage->GetPixels();
+
+        for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
+        {
+            auto normal = DirectX::XMVectorSet(
+                *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Red),
+                *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Green),
+                *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Blue),
+                0.0f);
+            normal = DirectX::XMVectorMultiplyAdd(normal, two, minusOne);
+            auto avgNormalLengthSquare = DirectX::XMVector3LengthSq(normal);
+            float avgNormalLengthSquareF = DirectX::XMVectorGetX(avgNormalLengthSquare);
+
+            float oldRoughness = *GLTFTextureUtils::GetChannelValue(roughnessPixels, i, Channel::Green);
+            if (avgNormalLengthSquareF < 1.0f)
+            {
+                auto avgNormalLength = DirectX::XMVectorSqrt(avgNormalLengthSquare);
+                float avgNormalLengthF = DirectX::XMVectorGetX(avgNormalLength);
+                float kappa = (3.0f * avgNormalLengthF - avgNormalLengthF * avgNormalLengthSquareF) / (1.0f - avgNormalLengthSquareF);
+                float variance = 1.0f / (2.0f * kappa);
+
+                float newRoughness = sqrt(oldRoughness * oldRoughness + variance);
+
+                *GLTFTextureUtils::GetChannelValue(adjustedPixels, i, Channel::Green) = newRoughness;
+            }
+            else
+            {
+                *GLTFTextureUtils::GetChannelValue(adjustedPixels, i, Channel::Green) = oldRoughness;
+            }
+        }
+    }
 }
 
 std::unordered_set<int> GLTFTexturePackingUtils::GetTextureIndicesFromMsftExtensions(const Material& material)
@@ -273,6 +357,24 @@ Document GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::shared_ptr<IStre
 
     if (packingIncludesNrm && (hasMR || hasNormal))
     {
+        uint8_t *renormalPixels = normalPixels;
+        DirectX::ScratchImage renormalizedImage;
+        uint8_t *roughnessPixels = mrPixels;
+        DirectX::ScratchImage adjustRoughnessImage;
+
+        if (hasNormal)
+        {
+            Renormalize(normalImage, renormalizedImage);
+            renormalPixels = renormalizedImage.GetPixels();
+
+            if (hasMR)
+            {
+                AdjustRoughness(metallicRoughnessImage, normalImage, adjustRoughnessImage);
+                roughnessPixels = adjustRoughnessImage.GetPixels();
+            }
+        }
+
+
         DirectX::ScratchImage nrm;
 
         auto sourceImage = hasMR ? *metallicRoughnessImage->GetImage(0, 0, 0) : *normalImage->GetImage(0, 0, 0);
@@ -287,15 +389,15 @@ Document GLTFTexturePackingUtils::PackMaterialForWindowsMR(std::shared_ptr<IStre
         for (size_t i = 0; i < metadata.width * metadata.height; i += 1)
         {
             // Normal: N [RG] -> NRM [RG]
-            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Red) = hasNormal ? *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Red) : 255.0f;
-            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Green) = hasNormal ? *GLTFTextureUtils::GetChannelValue(normalPixels, i, Channel::Green) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Red) = hasNormal ? *GLTFTextureUtils::GetChannelValue(renormalPixels, i, Channel::Red) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Green) = hasNormal ? *GLTFTextureUtils::GetChannelValue(renormalPixels, i, Channel::Green) : 255.0f;
             // Roughness: MR [G] -> NRM [B]
-            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Blue) = hasMR ? *GLTFTextureUtils::GetChannelValue(mrPixels, i, Channel::Green) : 255.0f;
+            *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Blue) = hasMR ? *GLTFTextureUtils::GetChannelValue(roughnessPixels, i, Channel::Green) : 255.0f;
             // Metalness: MR [B] -> NRM [A]
             *GLTFTextureUtils::GetChannelValue(nrmPixels, i, Channel::Alpha) = hasMR ? *GLTFTextureUtils::GetChannelValue(mrPixels, i, Channel::Blue) : 255.0f;
         }
 
-        // sRGB conversion not needed for PNG in BGRA
+        // Assumed sRGB because PNG defaults to that color space.
         auto imagePath = GLTFTextureUtils::SaveAsPng(&nrm, "packing_nrm_" + material.id + ".png", outputDirectory, &GUID_WICPixelFormat32bppBGRA);
 
         // Add back to GLTF
