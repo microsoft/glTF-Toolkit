@@ -20,7 +20,7 @@ using namespace Microsoft::glTF::Toolkit;
 
 const char* Microsoft::glTF::Toolkit::EXTENSION_MSFT_TEXTURE_DDS = "MSFT_texture_dds";
 
-Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize, bool generateMipMaps, bool retainOriginalImage)
+Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStreamReader> streamReader, const Document & doc, const Texture & texture, TextureCompression compression, const std::string& outputDirectory, size_t maxTextureSize, bool generateMipMaps, bool retainOriginalImage, bool treatAsLinear)
 {
     Document outputDoc(doc);
 
@@ -36,7 +36,7 @@ Document GLTFTextureCompressionUtils::CompressTextureAsDDS(std::shared_ptr<IStre
         return outputDoc;
     }
 
-    auto image = std::make_unique<DirectX::ScratchImage>(GLTFTextureUtils::LoadTexture(streamReader, doc, texture.id, compression == TextureCompression::BC7_SRGB ? false : true));
+    auto image = std::make_unique<DirectX::ScratchImage>(GLTFTextureUtils::LoadTexture(streamReader, doc, texture.id, treatAsLinear));
 
     // Resize up to a multiple of 4
     auto metadata = image->GetMetadata();
@@ -181,17 +181,17 @@ Document GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(std::share
 
     for (auto material : doc.materials.Elements())
     {
-        auto compressIfNotEmpty = [&outputDoc, &streamReader, &outputDirectory, maxTextureSize, retainOriginalImages](const std::string& textureId, TextureCompression compression)
+        auto compressIfNotEmpty = [&outputDoc, &streamReader, &outputDirectory, maxTextureSize, retainOriginalImages](const std::string& textureId, TextureCompression compression, bool treatAsLinear = true)
         {
             if (!textureId.empty())
             {
-                outputDoc = CompressTextureAsDDS(streamReader, outputDoc, outputDoc.textures.Get(textureId), compression, outputDirectory, maxTextureSize, true, retainOriginalImages);
+                outputDoc = CompressTextureAsDDS(streamReader, outputDoc, outputDoc.textures.Get(textureId), compression, outputDirectory, maxTextureSize, true, retainOriginalImages, treatAsLinear);
             }
         };
 
         // Compress base and emissive texture as BC7
-        compressIfNotEmpty(material.metallicRoughness.baseColorTexture.textureId, TextureCompression::BC7_SRGB);
-        compressIfNotEmpty(material.emissiveTexture.textureId, TextureCompression::BC7_SRGB);
+        compressIfNotEmpty(material.metallicRoughness.baseColorTexture.textureId, TextureCompression::BC7_SRGB, false);
+        compressIfNotEmpty(material.emissiveTexture.textureId, TextureCompression::BC7_SRGB, false);
 
         // Get textures from the MSFT_packing_occlusionRoughnessMetallic extension
         if (material.extensions.find(EXTENSION_MSFT_PACKING_ORM) != material.extensions.end())
@@ -230,7 +230,7 @@ Document GLTFTextureCompressionUtils::CompressAllTexturesForWindowsMR(std::share
             if (packingNrmContents.HasMember(MSFT_PACKING_NRM_KEY))
             {
                 auto nrmTextureId = packingNrmContents[MSFT_PACKING_NRM_KEY][MSFT_PACKING_INDEX_KEY].GetInt();
-                compressIfNotEmpty(std::to_string(nrmTextureId), TextureCompression::BC7);
+                compressIfNotEmpty(std::to_string(nrmTextureId), TextureCompression::BC7, false); // This tool generates sRGB-packaged images
             }
         }
     }
