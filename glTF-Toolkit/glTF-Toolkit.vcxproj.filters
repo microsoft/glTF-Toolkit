@@ -2,6 +2,9 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <None Include="packages.config" />
+    <None Include="inc\GLTFMeshSerializationHelpers.inl">
+      <Filter>inc</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">
@@ -34,6 +37,15 @@
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="inc\AccessorUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\DirectXMathUtils.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFMeshSerializationHelpers.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\GLTFMeshUtils.h">
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="inc\GLTFSDK.h">
@@ -69,6 +81,12 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\GLBtoGLTF.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLTFMeshUtils.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GLTFMeshSerializationHelpers.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\GLTFMeshCompressionUtils.cpp">

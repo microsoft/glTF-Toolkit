@@ -10,6 +10,7 @@
 #include <GLTFTexturePackingUtils.h>
 #include <GLTFTextureCompressionUtils.h>
 #include <GLTFMeshCompressionUtils.h>
+#include <GLTFMeshUtils.h>
 #include <GLTFSpecularGlossinessUtils.h>
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
@@ -58,9 +59,14 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
 
 IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile ^ gltfOrGlbFile, StorageFolder ^ outputFolder, size_t maxTextureSize, TexturePacking packing, bool meshCompression)
 {
+    return ConvertAssetForWindowsMR(gltfOrGlbFile, outputFolder, maxTextureSize, packing, meshCompression, true, true);
+}
+
+IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(StorageFile ^ gltfOrGlbFile, StorageFolder ^ outputFolder, size_t maxTextureSize, TexturePacking packing, bool meshCompression, bool generateTangents, bool optimizeMeshes)
+{
     auto isGlb = gltfOrGlbFile->FileType == L".glb";
 
-    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb, packing, meshCompression]()
+    return create_async([gltfOrGlbFile, maxTextureSize, outputFolder, isGlb, packing, meshCompression, generateTangents, optimizeMeshes]()
     {
         return create_task([gltfOrGlbFile, isGlb]()
         {
@@ -73,13 +79,13 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                 return task_from_result<StorageFile^>(gltfOrGlbFile);
             }
         })
-        .then([maxTextureSize, outputFolder, isGlb, packing, meshCompression](StorageFile^ gltfFile)
+        .then([maxTextureSize, outputFolder, isGlb, packing, meshCompression, generateTangents, optimizeMeshes](StorageFile^ gltfFile)
         {
             auto stream = std::make_shared<std::ifstream>(gltfFile->Path->Data(), std::ios::in);
             Document document = Deserialize(*stream, KHR::GetKHRExtensionDeserializer());
 
             return create_task(gltfFile->GetParentAsync())
-            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, packing, meshCompression](StorageFolder^ baseFolder)
+            .then([document, maxTextureSize, outputFolder, gltfFile, isGlb, packing, meshCompression, generateTangents, optimizeMeshes](StorageFolder^ baseFolder)
             {
                 auto streamReader = std::make_shared<GLTFStreamReader>(baseFolder);
                 auto tempDirectory = std::wstring(ApplicationData::Current->TemporaryFolder->Path->Data());
@@ -103,7 +109,25 @@ IAsyncOperation<StorageFile^>^ WindowsMRConversion::ConvertAssetForWindowsMR(Sto
                     convertedDoc.defaultSceneId = convertedDoc.scenes.Elements()[0].id;
                 }
 
-                // 5. Compress the meshes
+                // 5. Process meshes: optimize index order for drawing, remove redundant vertices, generate tangent space data, and customize mesh primitive layout.
+                if (optimizeMeshes || generateTangents)
+                {
+                    auto str = gltfFile->DisplayName;
+                    std::string bufferPrefix = std::string(str->Begin(), str->End());
+                    bufferPrefix = bufferPrefix.substr(0, bufferPrefix.find_first_of('.'));
+
+                    MeshOptions options = {};
+                    options.Optimize = optimizeMeshes;
+                    options.GenerateTangentSpace = generateTangents;
+
+                    auto writerCache = std::make_unique<StreamWriterCache>([&](const std::string& uri) {
+                        return std::make_shared<std::ofstream>(std::experimental::filesystem::path(tempDirectory) / uri, std::ios::binary);
+                    });
+
+                    convertedDoc = GLTFMeshUtils::Process(convertedDoc, options, bufferPrefix, streamReader, std::move(writerCache));
+                }
+
+                // 6. Compress the meshes
                 if (meshCompression)
                 {
                     convertedDoc = GLTFMeshCompressionUtils::CompressMeshes(streamReader, convertedDoc, {}, tempDirectoryA);

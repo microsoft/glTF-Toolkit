@@ -12,6 +12,7 @@
 #include <GLTFTextureCompressionUtils.h>
 #include <GLTFSpecularGlossinessUtils.h>
 #include <GLTFLODUtils.h>
+#include <GLTFMeshUtils.h>
 #include <SerializeBinary.h>
 #include <GLBtoGLTF.h>
 #include <GLTFMeshCompressionUtils.h>
@@ -101,7 +102,9 @@ Document LoadAndConvertDocumentForWindowsMR(
     std::wstring& inputFilePath,
     AssetType inputAssetType,
     const std::wstring& tempDirectory,
-    bool meshCompression)
+    bool meshCompression,
+    bool generateTangents,
+    bool optimizeMeshes)
 {
     // Load the document
     std::experimental::filesystem::path inputFilePathFS(inputFilePath);
@@ -131,6 +134,26 @@ Document LoadAndConvertDocumentForWindowsMR(
     // Get the base path from where to read all the assets
 
     auto streamReader = std::make_shared<GLTFStreamReader>(FileSystem::GetBasePath(inputFilePath));
+
+    // Process meshes: optimize index order for drawing, remove redundant vertices, generate tangent space data, and customize mesh primitive layout.
+    if (optimizeMeshes || generateTangents)
+    {
+        std::wcout << L"Optimizing meshes..." << std::endl;
+
+        std::string prefix = std::string(tempDirectory.begin(), tempDirectory.end()) + inputFilePathFS.stem().string();
+
+        MeshOptions options = {};
+        options.Optimize = optimizeMeshes;
+        options.GenerateTangentSpace = generateTangents;
+        options.PrimitiveFormat = PrimitiveFormat::Separate;
+        options.AttributeFormat = AttributeFormat::Separate;
+
+        auto writerCache = std::make_unique<StreamWriterCache>([&] (const std::string& uri) {
+            return std::make_shared<std::ofstream>(uri, std::ios::binary);
+        });
+
+        document = GLTFMeshUtils::Process(document, options, prefix, streamReader, std::move(writerCache));
+    }
 
     if (meshCompression)
     {
@@ -168,10 +191,13 @@ int wmain(int argc, wchar_t *argv[])
         CommandLine::Platform targetPlatforms;
         bool replaceTextures;
         bool meshCompression = false;
+        bool generateTangents;
+        bool optimizeMeshes = true;
 
         CommandLine::ParseCommandLineArguments(
             argc, argv, inputFilePath, inputAssetType, outFilePath, tempDirectory, lodFilePaths, screenCoveragePercentages, 
-            maxTextureSize, shareMaterials, minVersion, targetPlatforms, replaceTextures, meshCompression);
+            maxTextureSize, shareMaterials, minVersion, targetPlatforms, replaceTextures, meshCompression, generateTangents, 
+            optimizeMeshes);
 
         TexturePacking packing = TexturePacking::None;
 
@@ -216,7 +242,7 @@ int wmain(int argc, wchar_t *argv[])
 
         // Load document, and perform steps:
         // 1. Mesh Compression
-        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, meshCompression);
+        auto document = LoadAndConvertDocumentForWindowsMR(inputFilePath, inputAssetType, tempDirectory, meshCompression, generateTangents, optimizeMeshes);
 
         // 2. LOD Merging
         if (!lodFilePaths.empty())
@@ -233,7 +259,7 @@ int wmain(int argc, wchar_t *argv[])
                 auto lod = lodFilePaths[i];
                 auto subFolder = FileSystem::CreateSubFolder(tempDirectory, L"lod" + std::to_wstring(i + 1));
 
-                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, meshCompression));
+                lodDocuments.push_back(LoadAndConvertDocumentForWindowsMR(lod, AssetTypeUtils::AssetTypeFromFilePath(lod), subFolder, meshCompression, generateTangents, optimizeMeshes));
             
                 lodDocumentRelativePaths.push_back(FileSystem::GetRelativePathWithTrailingSeparator(FileSystem::GetBasePath(inputFilePath), FileSystem::GetBasePath(lod)));
             }

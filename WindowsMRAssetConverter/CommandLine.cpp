@@ -12,6 +12,8 @@ const wchar_t * PARAM_LOD = L"-lod";
 const wchar_t * PARAM_SCREENCOVERAGE = L"-screen-coverage";
 const wchar_t * PARAM_MAXTEXTURESIZE = L"-max-texture-size";
 const wchar_t * PARAM_SHARE_MATERIALS = L"-share-materials";
+const wchar_t * PARAM_GENERATE_TANGENTS = L"-generate-tangents";
+const wchar_t * PARAM_OPTIMIZE_MESHES = L"-optimize-meshes";
 const wchar_t * PARAM_MIN_VERSION = L"-min-version";
 const wchar_t * PARAM_PLATFORM = L"-platform";
 const wchar_t * PARAM_REPLACE_TEXTURES = L"-replace-textures";
@@ -44,6 +46,7 @@ enum class CommandLineParsingState
     ReadLods,
     ReadScreenCoverage,
     ReadMaxTextureSize,
+    ReadMeshOptimizeOption,
     ReadMinVersion,
     ReadPlatform
 };
@@ -56,7 +59,8 @@ void CommandLine::PrintHelp()
         << L"=====================================" << std::endl
         << std::endl
         << L"A command line tool to convert core GLTF 2.0 assets for use in "
-        << L"the Windows Mixed Reality home, with the proper texture packing, compression and merged LODs." << std::endl << std::endl
+        << L"the Windows Mixed Reality home, with the proper texture packing, "
+        << L"compression, mesh optimization, and merged LODs." << std::endl << std::endl
         << L"Usage: WindowsMRAssetConverter <path to GLTF/GLB>" << std::endl
         << std::endl
         << L"Optional arguments:" << std::endl
@@ -70,6 +74,8 @@ void CommandLine::PrintHelp()
         << indent << "[" << std::wstring(PARAM_MAXTEXTURESIZE) << " <Max texture size in pixels>] - defaults to 512" << std::endl
         << indent << "[" << std::wstring(PARAM_REPLACE_TEXTURES) << "] - disabled if not present" << std::endl
         << indent << "[" << std::wstring(PARAM_COMPRESS_MESHES) << "] - compress meshes with Draco" << std::endl
+        << indent << "[" << std::wstring(PARAM_OPTIMIZE_MESHES) << "] - DirectXMesh mesh optimization <on | off>" << std::endl
+        << indent << "[" << std::wstring(PARAM_GENERATE_TANGENTS) << "]" << std::endl
         << std::endl
         << "Example:" << std::endl
         << indent << "WindowsMRAssetConverter FileToConvert.gltf "
@@ -89,7 +95,8 @@ void CommandLine::ParseCommandLineArguments(
     int argc, wchar_t *argv[],
     std::wstring& inputFilePath, AssetType& inputAssetType, std::wstring& outFilePath, std::wstring& tempDirectory,
     std::vector<std::wstring>& lodFilePaths, std::vector<double>& screenCoveragePercentages, size_t& maxTextureSize,
-    bool& shareMaterials, Version& minVersion, Platform& targetPlatforms, bool& replaceTextures, bool& compressMeshes)
+    bool& shareMaterials, Version& minVersion, Platform& targetPlatforms, bool& replaceTextures, bool& compressMeshes, 
+    bool& generateTangents, bool& optimizeMeshes)
 {
     CommandLineParsingState state = CommandLineParsingState::Initial;
 
@@ -104,10 +111,12 @@ void CommandLine::ParseCommandLineArguments(
     screenCoveragePercentages.clear();
     maxTextureSize = MAXTEXTURESIZE_DEFAULT;
     shareMaterials = false;
+    generateTangents = false;
     minVersion = MIN_VERSION_DEFAULT;
     targetPlatforms = PLATFORM_DEFAULT;
     replaceTextures = false;
     compressMeshes = false;
+    optimizeMeshes = true;
 
     state = CommandLineParsingState::InputRead;
 
@@ -146,6 +155,14 @@ void CommandLine::ParseCommandLineArguments(
         {
             shareMaterials = true;
             state = CommandLineParsingState::InputRead;
+        }
+        else if (param == PARAM_GENERATE_TANGENTS)
+        {
+            generateTangents = true;
+        }
+        else if (param == PARAM_OPTIMIZE_MESHES)
+        {
+            generateTangents = true;
         }
         else if (param == PARAM_MIN_VERSION)
         {
@@ -197,6 +214,10 @@ void CommandLine::ParseCommandLineArguments(
             }
             case CommandLineParsingState::ReadMaxTextureSize:
                 maxTextureSize = std::min(static_cast<size_t>(std::stoul(param.c_str())), MAXTEXTURESIZE_MAX);
+                break;
+            case CommandLineParsingState::ReadMeshOptimizeOption:
+                optimizeMeshes = _wcsicmp(param.c_str(), L"off") != 0; // Default to 'on' if the parameter is anything else but case-insensitive 'off'
+                state = CommandLineParsingState::InputRead;
                 break;
             case CommandLineParsingState::ReadMinVersion:
                 if (_wcsicmp(param.c_str(), PARAM_VALUE_VERSION_1709) == 0 || _wcsicmp(param.c_str(), PARAM_VALUE_VERSION_RS3) == 0)
